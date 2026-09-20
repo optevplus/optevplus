@@ -1,0 +1,14 @@
+# Directory ownership = workstream ownership. This is what stops four concurrent
+# agents from fighting over the same files.
+# TODO: replace the three placeholders with real GitHub usernames.
+
+/SystemCode/optev/ingest/      @gshyam-diff
+/SystemCode/optev/analysis/    @P2-USERNAME
+/SystemCode/optev/scenario/    @P2-USERNAME
+/SystemCode/optev/reasoning/   @P3-USERNAME
+/SystemCode/optev/evaluation/  @P3-USERNAME
+/SystemCode/optev/graph/       @P4-USERNAME
+/SystemCode/optev/app/         @P4-USERNAME
+
+# Frozen. Every owner approves a contract change.
+/SystemCode/optev/contracts/   @gshyam-diff @P2-USERNAME @P3-USERNAME @P4-USERNAME

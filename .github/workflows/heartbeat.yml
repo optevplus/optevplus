@@ -1,0 +1,23 @@
+# Aura Free pauses after 3 days without a WRITE and deletes a paused instance after 30.
+# Reads do not count. This writes one node a week so the demo URL is alive on marking day.
+name: Aura heartbeat
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SystemCode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - run: uv run python -c "from optev.graph import heartbeat; heartbeat(); print('ok')"
+        env:
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USER: ${{ secrets.NEO4J_USER }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
