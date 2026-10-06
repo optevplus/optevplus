@@ -148,6 +148,19 @@ def estimate_key(site_id: str, time_bin: str) -> str:
     return f"{site_id}@{time_bin}"
 
 
+def allocation_key(scenario_id: str, budget: float) -> str:
+    """One allocation per scenario and budget, so re-running a budget replaces it."""
+    return f"{scenario_id}:budget={budget:g}"
+
+
+def infeasibility_key(scenario_id: str, requested_connectors: int) -> str:
+    return f"{scenario_id}:requested={requested_connectors}"
+
+
+DERIVED_KEYS = {"decision_id", "indicator_id", "estimate_id", "allocation_id", "report_id"}
+"""Keys built by the helpers above, because the contract has no single identifier."""
+
+
 def verdict(result: RuleResult) -> str:
     """Three-valued, because Neo4j cannot store null and "could not evaluate" must stay
     distinct from "failed"."""
