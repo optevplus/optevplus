@@ -9,16 +9,17 @@ why — with the evidence retained. NUS-ISS IRS practice module, Group 25. Ships
 
 | Package | Owns | Person |
 |---|---|---|
-| `contracts/` | Pydantic models. **Frozen** — changes need all four owners | P1 |
-| `ingest/` | Collectors, conforming, spatial joins, coverage reporting | P1 |
-| `analysis/` | Indicators, demand inference, patterns | P2 |
-| `scenario/` | Projection, synthetic generation, planned overlay | P2 |
-| `reasoning/` | Rules, allocator, feasibility checker | P3 |
-| `evaluation/` | Baselines and experiment harness | P3 |
-| `graph/` | Neo4j schema, loading, retrieval | P4 |
-| `app/` | Streamlit UI | P4 |
+| `contracts/` | Pydantic models. **Frozen** — changes need all four owners | All four |
+| `ingest/` | Collectors, conforming, spatial joins, coverage reporting | Shrey, Gurneet (+ Sushant, Ghanashyam) |
+| `analysis/` | Indicators, demand inference, patterns | Sushant |
+| `scenario/` | Projection, synthetic generation, planned overlay | Sushant, Shrey · Gurneet, Ghanashyam |
+| `reasoning/` | Rules (Gurneet); allocator, feasibility checker (Shrey) | Gurneet, Shrey |
+| `evaluation/` | Baselines and experiment harness | Shared, one baseline each |
+| `graph/` | Neo4j schema, loading, retrieval | Ghanashyam |
+| `app/` | Streamlit UI: shell (Gurneet), result views by workstream | All four |
 
 Work in your own package. Read `contracts/` instead of another package's source.
+Owners follow the GitHub issue leads; `.github/CODEOWNERS` is the enforced copy.
 
 ## Three invariants
 
