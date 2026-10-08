@@ -2,10 +2,15 @@
 
 import os
 
+import certifi
 from neo4j import Driver, GraphDatabase
 
 
 def driver() -> Driver:
+    # The python.org build of Python for macOS ships with no CA store, so TLS to Aura fails
+    # with "self-signed certificate in certificate chain". Fall back to certifi's bundle
+    # unless the user has already chosen one.
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
     uri = os.environ["NEO4J_URI"]
     auth = (os.environ["NEO4J_USER"], os.environ["NEO4J_PASSWORD"])
     return GraphDatabase.driver(uri, auth=auth)
