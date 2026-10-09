@@ -1,0 +1,118 @@
+{
+ "note": "Answer key for evaluation only. Never use as a model input.",
+ "true_mean_session_minutes": 181.76,
+ "sites": {
+  "SYN-S-01": {
+   "true_arrivals_per_hour": 2.6,
+   "arrivals": 139,
+   "turned_away": 87
+  },
+  "SYN-S-02": {
+   "true_arrivals_per_hour": 4.3,
+   "arrivals": 197,
+   "turned_away": 100
+  },
+  "SYN-S-03": {
+   "true_arrivals_per_hour": 4.1,
+   "arrivals": 202,
+   "turned_away": 176
+  },
+  "SYN-S-04": {
+   "true_arrivals_per_hour": 9.0,
+   "arrivals": 460,
+   "turned_away": 431
+  },
+  "SYN-S-05": {
+   "true_arrivals_per_hour": 1.2,
+   "arrivals": 61,
+   "turned_away": 8
+  },
+  "SYN-S-06": {
+   "true_arrivals_per_hour": 1.8836
+  },
+  "SYN-S-07": {
+   "true_arrivals_per_hour": 2.3738
+  },
+  "SYN-S-08": {
+   "true_arrivals_per_hour": 1.9815
+  },
+  "SYN-S-09": {
+   "true_arrivals_per_hour": 0.9636
+  },
+  "SYN-S-10": {
+   "true_arrivals_per_hour": 2.1836
+  },
+  "SYN-S-11": {
+   "true_arrivals_per_hour": 2.0,
+   "arrivals": 98,
+   "turned_away": 49
+  },
+  "SYN-S-12": {
+   "true_arrivals_per_hour": 2.3155
+  },
+  "SYN-S-13": {
+   "true_arrivals_per_hour": 0.9,
+   "arrivals": 46,
+   "turned_away": 23
+  },
+  "SYN-S-14": {
+   "true_arrivals_per_hour": 0.05,
+   "arrivals": 2,
+   "turned_away": 0
+  },
+  "SYN-S-15": {
+   "true_arrivals_per_hour": 3.1629
+  },
+  "SYN-S-16": {
+   "true_arrivals_per_hour": 2.0366
+  },
+  "SYN-S-17": {
+   "true_arrivals_per_hour": 2.202
+  },
+  "SYN-S-18": {
+   "true_arrivals_per_hour": 1.0918
+  },
+  "SYN-S-19": {
+   "true_arrivals_per_hour": 3.0,
+   "arrivals": 155,
+   "turned_away": 102
+  },
+  "SYN-S-20": {
+   "true_arrivals_per_hour": 2.4902
+  },
+  "SYN-S-21": {
+   "true_arrivals_per_hour": 1.5,
+   "arrivals": 79,
+   "turned_away": 56
+  },
+  "SYN-S-22": {
+   "true_arrivals_per_hour": 1.1158
+  },
+  "SYN-S-23": {
+   "true_arrivals_per_hour": 2.2,
+   "arrivals": 118,
+   "turned_away": 63
+  },
+  "SYN-S-24": {
+   "true_arrivals_per_hour": 1.8281
+  },
+  "SYN-S-25": {
+   "true_arrivals_per_hour": 1.8623
+  },
+  "SYN-S-26": {
+   "true_arrivals_per_hour": 1.3077
+  },
+  "SYN-S-27": {
+   "true_arrivals_per_hour": 1.2398
+  },
+  "SYN-S-28": {
+   "true_arrivals_per_hour": 0.8273
+  },
+  "SYN-S-29": {
+   "true_arrivals_per_hour": 1.4022
+  },
+  "SYN-S-30": {
+   "true_arrivals_per_hour": 1.1741
+  }
+ }
+}
