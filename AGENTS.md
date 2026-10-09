@@ -23,7 +23,9 @@ Claude Code reads them through `CLAUDE.md`.
 
 Before working in a package, read its `CLAUDE.md` (a few lines: what belongs there and the
 one rule that matters) and `SystemCode/optev/contracts/`. Build against the contracts, never
-against another package's source. Owners follow the GitHub issue leads;
+against another package's source. Until real data lands, build and test against the
+synthetic sample in `SystemCode/optev/sample/` (`from optev.sample import load`). Owners follow
+the GitHub issue leads;
 `.github/CODEOWNERS` is the enforced copy.
 
 ## Three invariants

@@ -19,6 +19,9 @@
 # Baselines (#36 Shrey, #37 Gurneet, #38 Sushant) and the shared harness (#39)
 /SystemCode/optev/evaluation/  @Hayzzy @GurneetKB @MSSushant @gshyam-diff
 
+# Shared synthetic sample data that every workstream builds against
+/SystemCode/optev/sample/        @gshyam-diff
+
 # Cognitive: graph schema, loader, retrieval, explanation (#24–#27)
 /SystemCode/optev/graph/       @gshyam-diff
 
