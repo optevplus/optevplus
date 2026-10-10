@@ -1,0 +1,521 @@
+# OptEV+ System Design
+
+> **This document is binding.** Every person and every AI assistant builds what it specifies,
+> with the names it specifies. If your task needs something not defined here, or you think
+> something here is wrong, **stop and raise it**: change this file by PR, approved by the
+> owners it affects. Never improvise a table, function, threshold or file layout in code.
+
+**Version** 1.0 · 10 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
+presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
+
+---
+
+## 0. How to use this document
+
+1. Read §1–3 once. They are short and apply to everyone.
+2. Read **your stage** in §4. It names your package, modules, the functions you must expose,
+   the tables you read and write, the method, and how your work is checked.
+3. Build against `optev.sample` (§3.6) until real data is in PostgreSQL.
+4. Before opening a PR, check §8 (definition of done).
+
+| Package | Section | Owner(s) | Issues |
+|---|---|---|---|
+| `ingest/` | §4.1 | Shrey, Gurneet · Sushant (collection, Neon) · Ghanashyam (coverage) | #2, #6–#12 |
+| `analysis/` | §4.2 | Sushant | #13–#16 |
+| `scenario/` | §4.3 | Sushant, Shrey · Gurneet, Ghanashyam (planned capacity) | #28, #29 |
+| `reasoning/` | §4.4 | Gurneet (rules) · Shrey (allocation, checker) | #17–#23 |
+| `graph/` | §4.5 | Ghanashyam | #24–#27 |
+| `app/` | §4.6 | Gurneet (shell) · each owner their view | #30–#34 |
+| `pipeline.py` | §5 | All four | #35 |
+| `evaluation/` | §6 | Shared, one baseline each | #36–#39 |
+
+---
+
+## 1. What the system does
+
+A government planner gives a **budget of new public charging points**. OptEV+ returns the
+proposal's three outputs:
+
+1. a **ranked set of candidate sites**,
+2. a **constrained allocation**: how many new points go to each site, within budget, site
+   capacity and coverage limits,
+3. a **traceable reason** for every site accepted, rejected, deferred or made conditional.
+
+**Scope.** Data is collected island-wide. Analysis is aggregated over the 55 planning areas.
+Detailed evaluation and the demo use **one planning area**, chosen after the first full week
+of data by a criterion stated in advance (proposed: the area with the highest share of
+saturated charging-point snapshots, among areas with at least 30 matched points and 20
+candidate sites without charging; to be confirmed by the team before results are seen).
+
+**Out of scope** (from the proposal): commercial tendering, consumer-facing charger
+recommendation, electrical engineering approval, any vehicle-owner records, and private
+car parks (we plan the 40,000 public points only). Recommended sites are planning
+candidates; electrical capacity and land access need separate verification.
+
+---
+
+## 2. Architecture
+
+### 2.1 Five stages and the tables between them
+
+```mermaid
+flowchart LR
+  subgraph S1["1 · Data foundation (ingest)"]
+    C[collectors] --> R[(connector_reading<br>car_park_reading)]
+    ST[static loads] --> CF[conform + spatial]
+    R --> CF
+    CF --> CS[(candidate_site<br>station_site<br>site_context)]
+  end
+  subgraph S2["2 · Measurement & inference (analysis)"]
+    IND[indicators] --> DEM[queueing inversion]
+    DEM --> UNS[regression for<br>no-charger sites]
+    IND --> PAT[k-means patterns]
+  end
+  subgraph S3["3 · Scenarios (scenario)"]
+    PRJ[project to 2030] --> SD[(scenario_demand)]
+    PL[(planned_capacity)]
+  end
+  subgraph S4["4 · Reasoning & optimisation (reasoning)"]
+    RU[rule engine] --> DEC[(decision<br>rule_result)]
+    DEC --> AL[CP-SAT allocator] --> CK[independent checker] --> AT[(allocation)]
+  end
+  subgraph S5["5 · Explanation & interface (graph, app)"]
+    LD[loader] --> NEO[(Neo4j)] --> RT[retrieval] --> EX[grounded answers]
+    APP[Streamlit app]
+  end
+  R --> IND
+  CS --> IND
+  UNS --> DE[(demand_estimate)]
+  DEM --> DE
+  DE --> PRJ
+  CS --> RU
+  SD --> AL
+  PL --> AL
+  AT --> LD
+  DEC --> LD
+  APP -->|select site| PL
+```
+
+### 2.2 Components and where they run
+
+| Component | Technology | Role |
+|---|---|---|
+| Database | PostgreSQL + PostGIS on **Neon** | **Source of truth** for every number and record |
+| Knowledge graph | **Neo4j Aura Free** | Evidence and reasoning links for explanations. Rebuilt from Postgres; never the source of a number |
+| Collector | **GitHub Actions** cron, every 30 min | Writes readings to Postgres. Never depends on a laptop |
+| Optimiser | **OR-Tools CP-SAT** | Allocation under constraints |
+| ML | **scikit-learn** | k-means patterns; regression for no-charger sites |
+| Explanation | **LangGraph** + one LLM provider (open decision §9) | Grounded answers from retrieved evidence only |
+| App | **Streamlit** + **pydeck**, on Streamlit Community Cloud | Map, rankings, allocation, evidence, selection controls |
+
+### 2.3 Rules that hold everywhere
+
+1. **Observed, simulated and planned data never merge.** Readings and indicators are
+   observed. `scenario_demand` is simulated. `planned_capacity` is planned. No function
+   writes a simulated or planned value into an observed table, and no number is ever
+   computed by mixing layers without saying so.
+2. **`utilisation` is `None`, never `0`, when there is no supply.** The database enforces it.
+3. **A connector counts as installed only once seen available or occupied.**
+4. **Packages talk through Postgres tables and the contracts only.** Never import another
+   workstream's internals. A stage reads the tables the previous stage wrote.
+5. **Every declared number comes from `optev.assumptions`.** Never hard-code one.
+6. **Every stage is re-runnable.** Writes are upserts keyed on the table's primary key;
+   running a stage twice gives the same tables.
+
+---
+
+## 3. Shared foundations
+
+### 3.1 Contracts (frozen)
+
+`optev/contracts/` defines every object that crosses a package boundary: `CarPark`,
+`Station`, `Connector`, `CandidateSite`, `CarParkReading`, `ConnectorReading`,
+`SiteIndicators`, `DemandEstimate`, `Rule`, `RuleResult`, `Decision`, `Allocation`,
+`AllocationItem`, `InfeasibilityReport`, `Scenario`, `PlannedCapacity`, `PlanningArea`,
+`Coordinate`, and the enums. Functions in §4 take and return these types. Changing a
+contract needs all four owners.
+
+### 3.2 Database tables
+
+Migrations `001_init.sql` and `002_pipeline.sql` create every table below. Apply with
+`uv run optev-db migrate`. Ingest-internal staging tables are allowed if prefixed `stg_`.
+
+| Table | Mirrors | Written by | Read by |
+|---|---|---|---|
+| `planning_area` | PlanningArea | ingest | all |
+| `car_park`, `station`, `connector` | CarPark, Station, Connector | ingest | analysis, reasoning, graph |
+| `car_park_reading`, `connector_reading` | readings | ingest collectors | analysis |
+| `candidate_site` | CandidateSite | ingest | all |
+| `station_site` | station-site association | ingest | analysis, graph |
+| `site_context` | features (land use, residents, amenities, nearest point) | ingest | analysis, reasoning |
+| `coverage_report` | data-quality metrics | ingest | app, report |
+| `site_indicators` | SiteIndicators | analysis | reasoning, graph, app |
+| `demand_estimate` | DemandEstimate (+ `method`) | analysis | scenario, reasoning, graph, app |
+| `site_pattern` | cluster per site | analysis | app, graph |
+| `scenario` | Scenario | scenario | reasoning, graph, app |
+| `scenario_demand` | DemandEstimate per scenario | scenario | reasoning |
+| `planned_capacity` | PlannedCapacity | scenario (via app) | reasoning, graph, app |
+| `rule` | Rule (+ `on_fail`) | reasoning | graph, app |
+| `decision`, `rule_result` | Decision, RuleResult | reasoning | reasoning, graph, app |
+| `allocation`, `allocation_item` | Allocation, AllocationItem | reasoning | graph, app, evaluation |
+| `infeasibility` | InfeasibilityReport | reasoning | graph, app |
+
+Baseline decisions, which belong to no scenario, use `scenario_id = 'observed'`.
+
+### 3.3 Identifiers
+
+Stable, deterministic ids, so every join and every graph MERGE lines up:
+
+| Thing | Id |
+|---|---|
+| HDB car park site | `hdb:<car_park_no>` (e.g. `hdb:HE12`) |
+| URA car park site | `ura:<PP_CODE>` |
+| Mall car park site | `mall:<CarParkID>` |
+| Hawker centre / community club / petrol station | `hawker:<id>` / `cc:<id>` / `petrol:<id>` from the source dataset |
+| Station | LTA `locationId` |
+| Connector | LTA `evCpId` |
+| Planning area | URA `PLN_AREA_C` |
+| Sample data | `SYN-…` (never appears in real tables) |
+
+### 3.4 Time bins
+
+All times are Singapore time (UTC+8). A demand time bin is one of:
+
+- `wd-00` … `wd-23`: an hour of the day on weekdays (Mon–Fri),
+- `we-00` … `we-23`: an hour of the day on weekends,
+- `all`: the daily average, `(5 × mean of wd bins + 2 × mean of we bins) / 7`.
+
+The database rejects any other value.
+
+### 3.5 Assumptions
+
+`optev/assumptions.py` holds every declared value, with its unit and source:
+`MEAN_SESSION_HOURS` (3.0 h), `RELIABLE_UP_TO` (0.93, to be measured), `IDLE_BELOW` (0.05),
+`GROWTH_LOW/BASE/HIGH` (placeholders until #28), `HORIZON_MONTHS` (51),
+`MAX_SHARE_OF_LOTS` (0.10, placeholder), `COST_PER_POINT_SGD` (15,000, placeholder),
+`MIN_POINTS_PER_AREA` (2), `MATCH_THRESHOLDS_M` (50, 100, 200), `AMENITY_LINK_M` (150),
+`SNAPSHOT_MINUTES` (30). Placeholders must be replaced with cited values before the report.
+
+### 3.6 Sample data
+
+`optev.sample` (see its README) is a synthetic slice with the same shapes as the real
+tables, an answer key for demand (`truth()`), reference decisions and a reference allocation.
+Every public function in §4 must have tests that run on it.
+
+---
+
+## 4. Stages
+
+### 4.1 Stage 1 · Data foundation (`ingest/`)
+
+**Purpose.** Turn 14 government datasets into one table of candidate sites and a clean,
+timestamped history of readings, reporting coverage rather than assuming it.
+
+**Datasets** (Dataset Guide v2): A live feeds (LTA EV Charging Points Batch, LTA Carpark
+Availability, HDB Carpark Availability) · B registry (HDB Carpark Information, URA Parking
+Capacity) · C boundaries (MP2025 Planning Areas, MP2025 Land Use) · D amenities (NEA hawker
+centres, PA community clubs, Customs petroleum premises) · E residents by planning area
+(SingStat) · F growth (car registrations, LTA EV dashboard; read by stage 3) · G optional
+quarterly charger CSV, cost assumption.
+
+**Modules and interface**
+
+```python
+# optev/ingest/collect.py   (run by .github/workflows/collect.yml every 30 minutes)
+def collect_ev(now: datetime) -> int            # rows written to connector_reading
+def collect_car_parks(now: datetime) -> int     # rows written to car_park_reading
+
+# optev/ingest/static.py
+def load_static() -> dict[str, int]             # rows loaded per static source
+
+# optev/ingest/conform.py
+def conform() -> dict[str, int]                 # rows upserted per table
+
+# optev/ingest/coverage.py
+def coverage_report(window_start: datetime, window_end: datetime) -> dict[str, float]
+```
+
+**Method**
+
+1. **Collect.** EV status mapping: `"0"` → occupied, `"1"` → available, `""` → unavailable.
+   Store both `provider_ts` and `collected_ts`. Car parks: keep `lot_type = "C"`. Use the HDB
+   data.gov.sg feed for HDB car parks and LTA's feed for URA and mall car parks only, so no
+   car park is counted twice. Never query the HDB feed at exactly 00:00:00. One bad record
+   is logged and skipped; it never fails the run.
+2. **Static loads.** URA places with `NO_CAR > 0` only. Petrol stations filtered to service
+   stations by name; if too noisy, drop them and record why.
+3. **Conform.** Convert SVY21 to WGS84 with pyproj (EPSG:3414 → 4326); compute every distance
+   in EPSG:3414 metres. Set `connector.ever_active` once a connector is seen available or
+   occupied. Build `candidate_site` from car parks plus amenities with **no** car park within
+   `AMENITY_LINK_M`; an amenity near a car park becomes `site_context.amenities_nearby` for
+   that car park, never a second site. Build `station_site` at the thresholds in
+   `MATCH_THRESHOLDS_M`, keeping one row per station-site pair with the smallest threshold
+   met. Fill `site_context` by point-in-polygon on MP2025 land use and planning areas.
+4. **Coverage (#12).** Write to `coverage_report`: snapshot completeness per feed, median
+   freshness (`collected_ts − provider_ts`), share of stations matched at each threshold,
+   share of sites with a planning area, amenities linked to a car park.
+
+**Checked by.** Tests on sample shapes; coverage numbers reported (targets in §6).
+
+### 4.2 Stage 2 · Measurement & inference (`analysis/`) · knowledge discovery
+
+**Purpose.** Measure how busy each site is, infer demand including drivers turned away,
+discover usage patterns, and estimate demand where no charger exists.
+
+**Modules and interface**
+
+```python
+# optev/analysis/indicators.py
+def site_indicators(window_start: datetime, window_end: datetime) -> list[SiteIndicators]
+def occupancy_by_bin(window_start: datetime, window_end: datetime) -> dict[str, dict[str, float]]
+    # site_id -> time_bin -> mean occupancy
+
+# optev/analysis/demand.py
+def erlang_b(c: int, a: float) -> float
+def invert_occupancy(c: int, occupancy: float) -> float          # arrivals per hour
+def infer_demand(indicators: list[SiteIndicators],
+                 occupancy: dict[str, dict[str, float]]) -> list[DemandEstimate]
+
+# optev/analysis/patterns.py
+def find_patterns(occupancy: dict[str, dict[str, float]]) -> dict[str, int]   # site -> cluster
+
+# optev/analysis/unserved.py
+def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate],
+                      context: dict[str, dict[str, float]]) -> list[DemandEstimate]
+```
+
+**Method**
+
+1. **Indicators (#13).** Per snapshot, occupancy = occupied ÷ (occupied + available) over the
+   site's matched connectors; unavailable connectors are excluded. `utilisation` = mean over
+   snapshots; `saturated_fraction` = share of snapshots with none available and at least one
+   occupied; `observation_coverage` = snapshots seen ÷ expected. `supply_state`: `no_supply`
+   with no active connectors, `supply_idle` below `IDLE_BELOW`, else `supply_active`;
+   `unobserved` when coverage is too low to say.
+2. **Demand (#14).** Erlang loss model (Erlang B). For each site and **each time bin**:
+   offered load `a` is the value giving the observed occupancy on `c` active connectors
+   (bisection; occupancy rises monotonically in `a`); arrivals per hour =
+   `a ÷ MEAN_SESSION_HOURS`. If occupancy ≥ `RELIABLE_UP_TO`, report the arrivals that give
+   exactly `RELIABLE_UP_TO`, with `kind = lower_bound`. Write per-bin rows plus `all`;
+   `all` is a lower bound if any bin is. `method = queueing`. **Estimate per bin, never once
+   per whole window**: the sample shows a whole-window inversion underestimates busy sites by
+   30–40% because demand peaks in the evening.
+3. **Patterns (#15).** k-means (scikit-learn) on each site's 48-value occupancy profile
+   (`wd-00…wd-23`, `we-00…we-23`), min-max normalised per site; k from 3 to 6, chosen by
+   silhouette score; fixed `random_state`. Write `site_pattern` with a human label per cluster
+   (e.g. "evening residential").
+4. **Sites with no chargers (#16).** Supervised regression. Training rows: sites with
+   `supply_active` and an `all` estimate of `kind = point` (lower-bound labels are excluded in
+   version 1; a censored regression is the stated improvement). Features: mean car park
+   occupancy at night (wd-00…wd-05) and by day (wd-09…wd-17), total lots, site kind, land use,
+   amenities nearby, residents in area, distance to the nearest charging point. Models: linear
+   regression as the baseline, then scikit-learn `HistGradientBoostingRegressor`; keep the
+   better under leave-area-out validation. Predict `all` for `no_supply` sites, then spread it
+   across bins with the mean normalised profile of training sites of the same kind.
+   `method = regression`.
+
+**Checked by.** Silhouette (patterns); MAPE against simulated known demand, which also
+measures `RELIABLE_UP_TO` (queueing); MAE and Spearman ρ on hidden sites and hidden areas
+against the planning-area average (regression). See §6.
+
+### 4.3 Stage 3 · Scenarios & planned capacity (`scenario/`)
+
+**Purpose.** Project demand to 2030 under declared growth, as a separate simulated layer,
+and record planner selections without touching observed data.
+
+```python
+# optev/scenario/project.py
+def make_scenarios() -> list[Scenario]                                   # low, base, high
+def project(estimates: list[DemandEstimate], scenario: Scenario) -> list[DemandEstimate]
+
+# optev/scenario/planned.py
+def select_site(scenario_id: str, site_id: str, connectors: int,
+                selected_by: str) -> PlannedCapacity
+def clear_selection(scenario_id: str, site_id: str) -> None
+def effective_connectors(scenario_id: str, sites: list[CandidateSite]) -> dict[str, int]
+```
+
+**Method.** Scenarios use `GROWTH` and `HORIZON_MONTHS`; #28 replaces the placeholder
+multipliers with a growth rate fitted to monthly EV registrations and checked against the
+LTA dashboard. Projected demand = observed estimate × multiplier, per site and bin, written
+to `scenario_demand` with its `scenario_id`, **never** to `demand_estimate`. Lower bounds stay
+lower bounds. Planner selections go to `planned_capacity`. When solving a scenario,
+`effective_connectors` = existing + planned for that scenario only.
+
+**Checked by.** Top-10 stability under ±20% growth and cost, ±10% demand; back-cast error of
+the growth fit on recent months.
+
+### 4.4 Stage 4 · Reasoning & optimisation (`reasoning/`) · decision automation + optimisation
+
+**Rules (#17–#19, Gurneet)**
+
+```python
+# optev/reasoning/rules.py
+REGISTER = Path(__file__).parent / "register.toml"
+def load_register(path: Path = REGISTER) -> tuple[list[Rule], dict[str, Outcome]]
+def site_facts(site: CandidateSite, car_park: CarPark | None,
+               indicators: SiteIndicators, context: dict[str, object]) -> dict[str, object]
+def evaluate(site_id: str, facts: dict[str, object], rules: list[Rule],
+             on_fail: dict[str, Outcome], scenario_id: str | None = None) -> Decision
+```
+
+- **Register.** `reasoning/register.toml`, one entry per rule with every `Rule` field plus
+  `on_fail` (`reject` or `conditional`). Each rule cites its source class and `source_ref`:
+  a document, dataset or assumption id. Rules come from the policy documents and datasets in
+  the proposal's references; any rule based on our own judgement is `project_assumption`.
+- **Facts.** Keys available to rules: `kind`, `planning_area`, `total_lots`,
+  `existing_connectors`, `car_park_type`, `supply_state`, `utilisation`, `land_use`,
+  `amenities_nearby`, `nearest_point_m`. A missing value is absent from the dict, never 0.
+- **Evaluation.** Evaluate **every** rule, never stop at the first failure. A rule whose
+  required fact is missing gives `passed = None`.
+- **Outcome policy**, in this order: any failing rule with `on_fail = reject` → **reject**;
+  else any unevaluated rule → **defer**; else any failing `conditional` rule →
+  **conditional**; else **accept**. A missing fact alone never rejects.
+
+**Allocation (#20–#21, Shrey)**
+
+```python
+# optev/reasoning/allocate.py
+def allocate(decisions: list[Decision], sites: list[CandidateSite],
+             demand: list[DemandEstimate], scenario: Scenario, budget: float,
+             requested_connectors: int | None = None) -> Allocation | InfeasibilityReport
+```
+
+- **Eligible sites:** outcome accept or conditional. Room per site =
+  `floor(MAX_SHARE_OF_LOTS × total_lots) − effective_connectors`, floored at 0.
+- **Objective:** maximise average drivers per hour rescued,
+  `Σ_site Σ_bin w_bin × λ_bin × (B(c, a_bin) − B(c + x, a_bin))`, with `w = 5/7 ÷ 24` for
+  weekday bins and `2/7 ÷ 24` for weekend bins, `λ` from `scenario_demand` (or
+  `demand_estimate` for `observed`), `c` = effective connectors.
+- **CP-SAT formulation:** binary `y[site, k]` for the k-th new point, `x = Σ_k y`, ordered
+  `y[k] ≥ y[k+1]`; objective coefficients are the marginal gains, scaled ×1000 to integers.
+  Constraints: `Σ cost × x ≤ budget` (`COST_PER_POINT_SGD`); `x ≤ room`; every planning area
+  with an eligible site gets at least `MIN_POINTS_PER_AREA`; `Σ x = requested_connectors` if
+  given. Time limit 30 s; record solver status and optimality gap.
+
+**Checker (#22, Shrey).** `optev/reasoning/checker.py`, `check(allocation, decisions, sites,
+budget) -> Allocation`. It **must not import `allocate.py`**. It re-tests every constraint above
+independently, fills `violations`, and sets `checked = True`. Only checked allocations are
+written or shown.
+
+**Unmet requirement (#23).** When infeasible: `max_feasible` = the most connectors any feasible
+plan allows; `binding_constraints` = each constraint group (budget, room, coverage, requested)
+whose removal makes the request feasible; `affected_areas` = areas whose coverage cannot be met.
+
+**Checked by.** Rules: 100% agreement with 30 test sites labelled in advance by two people who
+did not write the rules (agreement measured with Cohen's κ), and 100% reason codes. Allocation:
+0 violations, the checker catches every planted fault, and the plan beats every baseline in §6.
+
+### 4.5 Stage 5 · Explanation (`graph/`) · cognitive techniques
+
+```python
+# optev/graph/schema.py, ddl.py   (#24, PR #47)
+# optev/graph/load.py
+def load_all(database_url: str) -> dict[str, int]             # nodes and relationships merged
+# optev/graph/retrieve.py
+def retrieve(question_type: str, **params: str) -> list[dict[str, object]]
+# optev/graph/explain.py
+def explain(question: str) -> Answer          # Answer: text, evidence, refused (bool)
+```
+
+- **Schema** as in `specs/005-knowledge-graph`: 16 node types keyed on contract ids; every rule
+  linked to its source class and evidence.
+- **Loader (#25).** Reads Postgres after each pipeline run; MERGE in batches of 500 using the
+  key helpers in `schema.py`; order: areas, car parks, stations, connectors, sites,
+  `station_site`, indicators, `all` demand estimates, datasets, documents, assumptions, rules,
+  scenarios, decisions with `EVALUATED`, allocations, infeasibility. Never loads raw readings
+  or per-bin estimates.
+- **Retrieval (#26).** Fixed, parameterised Cypher per question type: `why_site`,
+  `why_not_site`, `demand_basis`, `compare_sites`, `rule_sources`, `infeasible_request`. Never
+  generated Cypher. An empty result is returned as "no evidence", never filled in.
+- **Explanation (#27).** LangGraph flow: classify the question → refuse if out of scope →
+  retrieve → the LLM answers **only** from the retrieved evidence → every number in the answer
+  must appear in the evidence → retry once, otherwise refuse.
+
+**Checked by.** ≥ 90% of 20 questions answered correctly (answers written in advance from the
+source tables), 100% citing evidence, 0 unsupported claims, Precision@k on retrieval.
+
+### 4.6 App (`app/`)
+
+Streamlit multipage app. `app/data.py` is the only module that reads data: from Postgres when
+`DATABASE_URL` is set, otherwise from `optev.sample`, so every page works before the database
+is ready.
+
+| Page | Owner | Shows |
+|---|---|---|
+| Map (shell, #30) | Gurneet | Sites coloured by outcome, sized by allocated points; demand as H3 hexagons; controls |
+| Rules (#31) | Gurneet | Each site's decision and every rule result with its source class |
+| Allocation (#32) | Shrey | The plan, cost against budget, checker result, unmet requirement |
+| Demand (#33) | Sushant | Indicators, patterns, estimates; lower bounds marked as such |
+| Evidence (#34) | Ghanashyam | Ask why; answer with its evidence trail |
+
+Sidebar controls: scenario, budget, requested points. Selecting a site calls
+`scenario.planned.select_site` and re-runs allocation. **No business logic in the app.**
+
+---
+
+## 5. Pipeline (#35)
+
+`optev/pipeline.py`, run as `uv run python -m optev.pipeline run --scenario base --budget 180000`.
+Order: migrate check → `conform` → `site_indicators` + `occupancy_by_bin` → `infer_demand` →
+`find_patterns` → `estimate_unserved` → `make_scenarios` + `project` → rules for every site →
+`allocate` → `check` → graph `load_all`. Each step reads only what earlier steps wrote and can
+be re-run on its own. Target: one planning area end to end in under 10 minutes.
+
+---
+
+## 6. Evaluation (`evaluation/`, #36–#39)
+
+| Stage | Metric | Answer key | Baseline | Target |
+|---|---|---|---|---|
+| 1 | Completeness, freshness, join coverage | Collection schedule | — | ≥ 95% complete; 100% of sites in an area |
+| 2 patterns | Silhouette | — | — | ≥ 0.5 |
+| 2 queueing | MAPE by occupancy band | Simulation with known demand (`truth()`) | Occupancy alone | ≤ 10% below `RELIABLE_UP_TO` |
+| 2 regression | MAE, Spearman ρ | Hidden sites, hidden areas | Planning-area average | Beat baseline; ρ ≥ 0.5 |
+| 3 | Top-10 stability; back-cast MAPE | Recent months hidden | — | ≥ 7 of 10 stay |
+| 4 rules | Agreement, reason codes | 30 test sites, two raters, κ ≥ 0.7 | — | 100%; 100% |
+| 4 allocation | Violations; uplift in drivers rescued | Same budget and rules | See below | 0; beat all |
+| 5 | Accuracy, citation rate, unsupported claims, Precision@k | 20 questions answered from source tables | — | ≥ 90%; 100%; 0 |
+
+**Baselines**, each producing an `Allocation` under the same budget and rules, scored by the
+same objective: busiest first (#36), spatial spread (#37), extend sites that already have
+chargers (#38), population share and random averaged over 100 seeds (in the harness, #39).
+**End-to-end number:** unmet demand covered per new point against the best baseline.
+
+---
+
+## 7. Engineering rules
+
+- **Branches:** `<name>/<issue>-<short>`. One issue per branch. Never commit to `main`.
+- **Specs:** plan in `specs/NNN-<name>/spec.md` before coding, quoting the §4 section you are
+  implementing. Append a `## Checkpoint` before stopping.
+- **Tests:** every public function has tests that run on `optev.sample`. Lint (ruff), types
+  (mypy) and tests (pytest) pass before a PR.
+- **Code:** type hints everywhere; contracts at every boundary; modules under ~300 lines; SQL
+  through psycopg with parameters, never string formatting; logging with `logging`, `print`
+  only in CLIs; secrets only from the environment.
+- **Never:** change contracts without all four owners; commit `.env`, credentials or data
+  (except `optev/sample`); merge your own PR.
+
+## 8. Definition of done (every PR)
+
+- [ ] Implements a §4 section with the exact module paths, function names, tables and bins.
+- [ ] Uses `optev.assumptions` for every declared value.
+- [ ] Respects the three invariants (§2.3).
+- [ ] Tests run on `optev.sample`; ruff, mypy and pytest pass.
+- [ ] Spec updated with a checkpoint; reviewed by a CODEOWNER other than the author.
+
+## 9. Open decisions
+
+| # | Decision | Owner | By |
+|---|---|---|---|
+| 1 | LLM provider and key for #27 | Ghanashyam | 12 Oct |
+| 2 | Confirm the demo-area criterion (§1) | Team | Before results |
+| 3 | Cited values for `COST_PER_POINT_SGD` and `MAX_SHARE_OF_LOTS` | Shrey | 13 Oct |
+| 4 | Growth multipliers fitted from registrations | Sushant (#28) | 14 Oct |
+| 5 | Contract additions (estimate method, scenario on estimates, pattern label) | All four | Only if tables prove insufficient |
+
+## 10. Change log
+
+- **1.0 · 10 Oct 2026.** First binding version.
