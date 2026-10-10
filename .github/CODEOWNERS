@@ -5,7 +5,7 @@
 # Data foundation: collectors and conform (#7, #8, #9), spatial joins and areas (#10, #11),
 # coverage reporting (#12); collection moving to a scheduled job (#2)
 /SystemCode/optev/ingest/      @Hayzzy @GurneetKB @MSSushant @gshyam-diff
-/SystemCode/migrations/        @MSSushant @Hayzzy @GurneetKB
+/SystemCode/migrations/        @MSSushant @Hayzzy @GurneetKB @gshyam-diff
 
 # Knowledge discovery: indicators, demand inference, patterns, no-charger sites (#13–#16)
 /SystemCode/optev/analysis/    @MSSushant
@@ -30,6 +30,10 @@
 
 # Frozen. Every owner approves a contract change.
 /SystemCode/optev/contracts/   @gshyam-diff @GurneetKB @Hayzzy @MSSushant
+
+# Binding design, data model and declared values. Every owner approves a change.
+/SYSTEM_DESIGN.md                    @gshyam-diff @GurneetKB @Hayzzy @MSSushant
+/SystemCode/optev/assumptions.py     @gshyam-diff @GurneetKB @Hayzzy @MSSushant
 
 # Repo setup and CI (#1)
 /.github/                      @gshyam-diff

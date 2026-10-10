@@ -6,6 +6,15 @@ why — with the evidence retained. NUS-ISS IRS practice module, Group 25. Ships
 These instructions are for any AI coding assistant (Codex, Cursor, Copilot, Claude Code).
 Claude Code reads them through `CLAUDE.md`.
 
+## The design is binding
+
+**`SYSTEM_DESIGN.md` defines what to build and what to call it.** Before planning any task,
+read its §0–3 and the §4 section for your package. Use its module paths, function signatures,
+table and column names, time-bin format and `optev.assumptions` values exactly. Never invent a
+table, function, file layout or threshold. If the task needs something the design does not
+define, or the design looks wrong, **stop and ask the human**; the fix is a PR to
+`SYSTEM_DESIGN.md`, not a workaround in code.
+
 ## Layout
 
 `SystemCode/optev/` — one package per workstream:
@@ -54,13 +63,22 @@ uv run streamlit run optev/app/main.py    # the app
 
 1. **One issue, one branch:** `<name>/<issue>-<short>`, e.g. `gurneet/17-rule-register`. Never commit to `main`.
 2. **Plan before code.** Copy `specs/000-template/spec.md` to `specs/NNN-<short-name>/spec.md`
-   (next free number) and fill in the problem, the contracts used, the approach and how it
-   will be verified. Show the plan to the human and wait for an OK before writing code.
+   (next free number). Quote the `SYSTEM_DESIGN.md` section you are implementing, then fill in
+   the problem, the contracts and tables used, the approach and how it will be verified. Show
+   the plan to the human and wait for an OK before writing code.
 3. **Every function gets a test.** Run the three verify steps; all must pass before a PR.
 4. **Checkpoint before stopping.** Append a dated `## Checkpoint` section to the spec: what
    works, what is half-built, decisions taken and why, what to do next. Under 20 lines.
 5. **Never** change `contracts/` without all four owners, commit `.env`, credentials or
    data files, or merge your own PR.
+
+## Prompt header
+
+Humans: start every prompt to an AI assistant with this line, then describe the task.
+
+> Follow SYSTEM_DESIGN.md strictly. Read §0–3 and the §4 section for this package, quote the
+> section you are implementing, and use only the names it defines. If something is not
+> specified, stop and ask me instead of inventing it.
 
 ## Deeper docs
 
