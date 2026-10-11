@@ -42,6 +42,7 @@ def test_sample_uses_the_declared_values():
     assert A.RELIABLE_UP_TO.value == sample.RELIABLE_UP_TO
     assert A.IDLE_BELOW.value == sample.IDLE_BELOW
     assert A.COST_PER_POINT_SGD.value == sample.COST_PER_POINT
+    assert A.MAX_SHARE_OF_LOTS.value == sample.MAX_SHARE
     assert A.MIN_POINTS_PER_AREA.value == sample.MIN_PER_AREA
     assert dict(sample.SCENARIOS) == {k: v.value for k, v in A.GROWTH.items()}
 
@@ -50,6 +51,12 @@ def test_every_assumption_states_its_unit_and_source():
     declared = [v for v in vars(A).values() if isinstance(v, A.Assumption)]
     assert declared
     assert all(a.unit and a.source for a in declared)
+
+
+def test_cost_and_lot_share_are_cited_not_placeholders():
+    for a in (A.COST_PER_POINT_SGD, A.COST_LOW_SGD, A.COST_HIGH_SGD, A.MAX_SHARE_OF_LOTS):
+        assert "PLACEHOLDER" not in a.source and "LTA" in a.source
+    assert A.COST_LOW_SGD.value <= A.COST_PER_POINT_SGD.value <= A.COST_HIGH_SGD.value
 
 
 def test_every_package_in_the_design_table_exists():

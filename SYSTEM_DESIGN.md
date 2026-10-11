@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.0 · 10 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.1 · 11 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -34,12 +34,27 @@ presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`spec
 
 ## 1. What the system does
 
-A government planner gives a **budget of new public charging points**. OptEV+ returns the
-proposal's three outputs:
+A government planner asks **how many new public charging points to add, and where**. They give:
+
+| Input | Values | Required |
+|---|---|---|
+| Area | One planning area (URA `PLN_AREA_C`), or island-wide | Yes (island-wide by default) |
+| Points | The number of new charging points to place | The main input |
+| Budget | SGD, turned into a cap on points with `COST_PER_POINT_SGD` | Optional |
+| Scenario | `observed`, or growth scenario `low`, `base`, `high` | Yes (`observed` by default) |
+
+At least one of points or budget must be given. **No dataset supplies a budget or a points
+target**: both come from the planner. Points is the main input because that is how the
+government plans: LTA's target is stated in points (60,000 by 2030, 40,000 of them in public
+car parks), and HDB car park chargers are installed by operators who pay the government a
+concession fee for the right, so public spending per point is not the usual lever. Sources are
+in §3.5.
+
+OptEV+ returns the proposal's three outputs:
 
 1. a **ranked set of candidate sites**,
-2. a **constrained allocation**: how many new points go to each site, within budget, site
-   capacity and coverage limits,
+2. a **constrained allocation**: how many new points go to each site, within the requested
+   number (and the budget, if given), site capacity and coverage limits,
 3. a **traceable reason** for every site accepted, rejected, deferred or made conditional.
 
 **Scope.** Data is collected island-wide. Analysis is aggregated over the 55 planning areas.
@@ -193,9 +208,20 @@ The database rejects any other value.
 `optev/assumptions.py` holds every declared value, with its unit and source:
 `MEAN_SESSION_HOURS` (3.0 h), `RELIABLE_UP_TO` (0.93, to be measured), `IDLE_BELOW` (0.05),
 `GROWTH_LOW/BASE/HIGH` (placeholders until #28), `HORIZON_MONTHS` (51),
-`MAX_SHARE_OF_LOTS` (0.10, placeholder), `COST_PER_POINT_SGD` (15,000, placeholder),
-`MIN_POINTS_PER_AREA` (2), `MATCH_THRESHOLDS_M` (50, 100, 200), `AMENITY_LINK_M` (150),
-`SNAPSHOT_MINUTES` (30). Placeholders must be replaced with cited values before the report.
+`MAX_SHARE_OF_LOTS` (0.15), `COST_PER_POINT_SGD` (9,250; tested at `COST_LOW_SGD` 5,500 and
+`COST_HIGH_SGD` 10,500), `MIN_POINTS_PER_AREA` (2), `MATCH_THRESHOLDS_M` (50, 100, 200),
+`AMENITY_LINK_M` (150), `SNAPSHOT_MINUTES` (30). Placeholders must be replaced with cited
+values before the report.
+
+**Cited values and planning facts**
+
+| Value or fact | Source | What the source says | How we use it |
+|---|---|---|---|
+| `MAX_SHARE_OF_LOTS` = 0.15 | [LTA factsheet, 4 Mar 2021](https://www.lta.gov.sg/content/ltagov/en/newsroom/2021/3/news-release/Accelerating_nationwide_deployment_of_electric_vehicle_charging_points.html) | New HDB car parks get electrical capacity for slow charging at 15% of their lots | Upper limit on points per site. Older car parks may have less, so electrical checks stay out of scope (§1) |
+| `COST_PER_POINT_SGD` = 9,250 (5,500 to 10,500) | [LTA ECCG Guidelines and FAQs, 5 Mar 2025](https://www.lta.gov.sg/content/dam/ltagov/industry_innovations/Technologies/Electric_Vehicles/PDF/ECCG_Guidelines_and_FAQs_05032025.pdf) | Worked examples of installed cost per charger: equipment, licensed electrical worker fees, cabling. Example 3 averages $9,250; examples 1 and 2 total $5,500 and $10,500 | Used only when a budget is given. These are grant examples for condominium chargers, not a market survey; we count one charger as one point and report results at both ends |
+| Points are the planning unit | LTA factsheet, 4 Mar 2021 (above) | 60,000 points by 2030: 40,000 in public car parks, 20,000 in private premises | Why points is the main input |
+| Operators fund HDB chargers | [LTA, 2 Nov 2022](https://www.lta.gov.sg/content/ltagov/en/newsroom/2022/11/news-releases/more_EV_charging_points_to_be_deployed.html) | Five operators won the HDB tender; they pay a concession fee for the right to install and operate | Why budget is optional |
+| Demand first, capacity permitting | [MOT written reply, 14 Oct 2025](https://www.mot.gov.sg/news-resources/newsroom/progress-on-installation-of-ev-chargers-in-hdb-car-parks-and-public-spaces/) | Scale up in "carparks with high charging demand, electrical capacity permitting" | Matches our objective (demand) and the room limit per site |
 
 ### 3.6 Sample data
 
@@ -217,7 +243,7 @@ Availability, HDB Carpark Availability) · B registry (HDB Carpark Information, 
 Capacity) · C boundaries (MP2025 Planning Areas, MP2025 Land Use) · D amenities (NEA hawker
 centres, PA community clubs, Customs petroleum premises) · E residents by planning area
 (SingStat) · F growth (car registrations, LTA EV dashboard; read by stage 3) · G optional
-quarterly charger CSV, cost assumption.
+quarterly charger CSV; cost per point from the LTA ECCG guidelines (§3.5).
 
 **Modules and interface**
 
@@ -343,7 +369,8 @@ to `scenario_demand` with its `scenario_id`, **never** to `demand_estimate`. Low
 lower bounds. Planner selections go to `planned_capacity`. When solving a scenario,
 `effective_connectors` = existing + planned for that scenario only.
 
-**Checked by.** Top-10 stability under ±20% growth and cost, ±10% demand; back-cast error of
+**Checked by.** Top-10 stability under ±20% growth, ±10% demand, and (when a budget is given)
+cost at `COST_LOW_SGD` and `COST_HIGH_SGD`; back-cast error of
 the growth fit on recent months.
 
 ### 4.4 Stage 4 · Reasoning & optimisation (`reasoning/`) · decision automation + optimisation
@@ -378,11 +405,15 @@ def evaluate(site_id: str, facts: dict[str, object], rules: list[Rule],
 ```python
 # optev/reasoning/allocate.py
 def allocate(decisions: list[Decision], sites: list[CandidateSite],
-             demand: list[DemandEstimate], scenario: Scenario, budget: float,
-             requested_connectors: int | None = None) -> Allocation | InfeasibilityReport
+             demand: list[DemandEstimate], scenario: Scenario, *,
+             planning_area: str | None = None, requested_connectors: int | None = None,
+             budget: float | None = None) -> Allocation | InfeasibilityReport
 ```
 
-- **Eligible sites:** outcome accept or conditional. Room per site =
+- **Request:** `requested_connectors` (the planner's points), `budget`, or both; neither raises
+  `ValueError`. `planning_area` None means island-wide. The request is copied onto the
+  `Allocation` or `InfeasibilityReport`.
+- **Eligible sites:** outcome accept or conditional, inside `planning_area` if given. Room per site =
   `floor(MAX_SHARE_OF_LOTS × total_lots) − effective_connectors`, floored at 0.
 - **Objective:** maximise average drivers per hour rescued,
   `Σ_site Σ_bin w_bin × λ_bin × (B(c, a_bin) − B(c + x, a_bin))`, with `w = 5/7 ÷ 24` for
@@ -390,18 +421,22 @@ def allocate(decisions: list[Decision], sites: list[CandidateSite],
   `demand_estimate` for `observed`), `c` = effective connectors.
 - **CP-SAT formulation:** binary `y[site, k]` for the k-th new point, `x = Σ_k y`, ordered
   `y[k] ≥ y[k+1]`; objective coefficients are the marginal gains, scaled ×1000 to integers.
-  Constraints: `Σ cost × x ≤ budget` (`COST_PER_POINT_SGD`); `x ≤ room`; every planning area
-  with an eligible site gets at least `MIN_POINTS_PER_AREA`; `Σ x = requested_connectors` if
-  given. Time limit 30 s; record solver status and optimality gap.
+  Constraints: `Σ x = requested_connectors` if given; `Σ COST_PER_POINT_SGD × x ≤ budget` if
+  given (with only a budget, place as many points as it pays for); `x ≤ room`; every planning
+  area in scope with an eligible site gets at least `MIN_POINTS_PER_AREA`. Each item's `cost` is
+  `COST_PER_POINT_SGD × connectors`, shown as an estimate even without a budget. Time limit
+  30 s; record solver status and optimality gap.
 
-**Checker (#22, Shrey).** `optev/reasoning/checker.py`, `check(allocation, decisions, sites,
-budget) -> Allocation`. It **must not import `allocate.py`**. It re-tests every constraint above
+**Checker (#22, Shrey).** `optev/reasoning/checker.py`, `check(allocation, decisions, sites)
+-> Allocation`; the request (area, points, budget) is read from the allocation. It **must not
+import `allocate.py`**. It re-tests every constraint above
 independently, fills `violations`, and sets `checked = True`. Only checked allocations are
 written or shown.
 
 **Unmet requirement (#23).** When infeasible: `max_feasible` = the most connectors any feasible
-plan allows; `binding_constraints` = each constraint group (budget, room, coverage, requested)
-whose removal makes the request feasible; `affected_areas` = areas whose coverage cannot be met.
+plan allows; `binding_constraints` = each constraint group (requested, budget, room, coverage)
+whose removal alone makes the request feasible; `affected_areas` = areas whose coverage cannot
+be met. With only a budget, `requested_connectors` = `floor(budget / COST_PER_POINT_SGD)`.
 
 **Checked by.** Rules: 100% agreement with 30 test sites labelled in advance by two people who
 did not write the rules (agreement measured with Cohen's κ), and 100% reason codes. Allocation:
@@ -446,18 +481,20 @@ is ready.
 |---|---|---|
 | Map (shell, #30) | Gurneet | Sites coloured by outcome, sized by allocated points; demand as H3 hexagons; controls |
 | Rules (#31) | Gurneet | Each site's decision and every rule result with its source class |
-| Allocation (#32) | Shrey | The plan, cost against budget, checker result, unmet requirement |
+| Allocation (#32) | Shrey | The plan, estimated cost (against the budget if given), checker result, unmet requirement |
 | Demand (#33) | Sushant | Indicators, patterns, estimates; lower bounds marked as such |
 | Evidence (#34) | Ghanashyam | Ask why; answer with its evidence trail |
 
-Sidebar controls: scenario, budget, requested points. Selecting a site calls
-`scenario.planned.select_site` and re-runs allocation. **No business logic in the app.**
+Sidebar controls: planning area (or island-wide), number of points, optional budget, scenario.
+Selecting a site calls `scenario.planned.select_site` and re-runs allocation. **No business logic in the app.**
 
 ---
 
 ## 5. Pipeline (#35)
 
-`optev/pipeline.py`, run as `uv run python -m optev.pipeline run --scenario base --budget 180000`.
+`optev/pipeline.py`, run as `uv run python -m optev.pipeline run --scenario base --area TM --points 12`.
+`--area` is a planning-area code (omit it for island-wide); `--points`, `--budget` or both must be
+given.
 Order: migrate check → `conform` → `site_indicators` + `occupancy_by_bin` → `infer_demand` →
 `find_patterns` → `estimate_unserved` → `make_scenarios` + `project` → rules for every site →
 `allocate` → `check` → graph `load_all`. Each step reads only what earlier steps wrote and can
@@ -475,10 +512,10 @@ be re-run on its own. Target: one planning area end to end in under 10 minutes.
 | 2 regression | MAE, Spearman ρ | Hidden sites, hidden areas | Planning-area average | Beat baseline; ρ ≥ 0.5 |
 | 3 | Top-10 stability; back-cast MAPE | Recent months hidden | — | ≥ 7 of 10 stay |
 | 4 rules | Agreement, reason codes | 30 test sites, two raters, κ ≥ 0.7 | — | 100%; 100% |
-| 4 allocation | Violations; uplift in drivers rescued | Same budget and rules | See below | 0; beat all |
+| 4 allocation | Violations; uplift in drivers rescued | Same request (area, points) and rules | See below | 0; beat all |
 | 5 | Accuracy, citation rate, unsupported claims, Precision@k | 20 questions answered from source tables | — | ≥ 90%; 100%; 0 |
 
-**Baselines**, each producing an `Allocation` under the same budget and rules, scored by the
+**Baselines**, each producing an `Allocation` for the same request (area, points) and rules, scored by the
 same objective: busiest first (#36), spatial spread (#37), extend sites that already have
 chargers (#38), population share and random averaged over 100 seeds (in the harness, #39).
 **End-to-end number:** unmet demand covered per new point against the best baseline.
@@ -512,10 +549,15 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 |---|---|---|---|
 | 1 | LLM provider and key for #27 | Ghanashyam | 12 Oct |
 | 2 | Confirm the demo-area criterion (§1) | Team | Before results |
-| 3 | Cited values for `COST_PER_POINT_SGD` and `MAX_SHARE_OF_LOTS` | Shrey | 13 Oct |
+| 3 | Minimum points per chosen site? The HDB tender asked for 3 to 6 per car park ([LTA, 29 Mar 2022](https://www.lta.gov.sg/content/ltagov/en/newsroom/2022/3/news-releases/ramping_up_charging_infrastructure.html)) | Shrey, Gurneet | 14 Oct |
 | 4 | Growth multipliers fitted from registrations | Sushant (#28) | 14 Oct |
 | 5 | Contract additions (estimate method, scenario on estimates, pattern label) | All four | Only if tables prove insufficient |
 
 ## 10. Change log
 
 - **1.0 · 10 Oct 2026.** First binding version.
+- **1.1 · 11 Oct 2026.** Planner inputs are area and points, with budget optional (§1, §4.4,
+  §4.6, §5); no dataset supplies a budget. Cited `MAX_SHARE_OF_LOTS` (0.15) and
+  `COST_PER_POINT_SGD` (9,250, range 5,500 to 10,500) in §3.5. Contracts: `Allocation.budget`
+  is optional and `planning_area` is added to `Allocation` and `InfeasibilityReport`, which
+  needs all four owners' approval. Checker no longer takes `budget`.

@@ -52,6 +52,12 @@ def test_allocation_totals():
     assert a.checked is False
 
 
+def test_allocation_needs_points_or_budget():
+    assert Allocation(scenario_id="sc1", requested_connectors=12).budget is None
+    with pytest.raises(ValidationError):
+        Allocation(scenario_id="sc1")
+
+
 def test_contracts_round_trip_through_json():
     a = Allocation(scenario_id="sc1", budget=1.0,
                    items=[AllocationItem(site_id="s1", connectors=1, cost=1.0)])

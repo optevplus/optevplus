@@ -1,9 +1,10 @@
 """Every declared number in one place. Import from here; never hard-code a value inline.
 
 The proposal promises that assumptions are declared and kept separate from measurement, so
-each value carries its unit and where it comes from. PLACEHOLDER values must be replaced
-with a cited source before the final report. Changing a value is a design change: say so in
-the PR, because it moves every downstream result.
+each value carries its unit and where it comes from; SYSTEM_DESIGN.md §3.5 links the cited
+sources. PLACEHOLDER values must be replaced with a cited source before the final report.
+Changing a value is a design change: say so in the PR, because it moves every downstream
+result.
 """
 
 from dataclasses import dataclass
@@ -31,9 +32,19 @@ HORIZON_MONTHS = Assumption(51, "months", "Oct 2026 to Dec 2030")
 
 # Stage 4 · rules and allocation
 MAX_SHARE_OF_LOTS = Assumption(
-    0.10, "share of car lots", "PLACEHOLDER: cap on points per site; cite LTA or HDB guidance")
+    0.15, "share of car lots",
+    "LTA factsheet, 4 Mar 2021: new HDB car parks have electrical capacity for slow charging "
+    "at 15% of lots. Used as the upper limit per site; existing car parks may have less")
+# A charger in the ECCG examples is one slow AC unit; we count it as one charging point.
+# Only used when the planner gives a budget; the number of points needs no cost at all.
 COST_PER_POINT_SGD = Assumption(
-    15_000.0, "SGD per charging point", "PLACEHOLDER: cite a published installed cost")
+    9_250.0, "SGD per charging point",
+    "LTA ECCG Guidelines and FAQs, 5 Mar 2025, example 3: equipment, electrician fees and "
+    "cabling averaged per charger")
+COST_LOW_SGD = Assumption(
+    5_500.0, "SGD per charging point", "LTA ECCG Guidelines and FAQs, example 1 (low end)")
+COST_HIGH_SGD = Assumption(
+    10_500.0, "SGD per charging point", "LTA ECCG Guidelines and FAQs, example 2 (high end)")
 MIN_POINTS_PER_AREA = Assumption(
     2, "charging points", "Project assumption: coverage floor per planning area")
 

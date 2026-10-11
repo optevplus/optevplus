@@ -24,13 +24,13 @@ readings = connector_readings() # 46 connectors x 96 snapshots, every 30 min ove
 | `estimates` | Arrivals per hour per site; one lower bound | 30 |
 | `rules`, `decisions` | Five sample rules across all four source classes; all four outcomes appear | 5, 30 |
 | `scenarios` | low / base / high growth; one planner selection in base | 3 |
-| `allocation`, `infeasibility` | A reference plan for 12 points on a 180k budget, and an impossible request | 1, 1 |
+| `allocation`, `infeasibility` | A reference plan for 12 points island-wide with no budget, and an impossible request: 40 points in Pasir Ris on $300k | 1, 1 |
 | `references` | Datasets, a policy document and declared assumptions the rules cite | |
 
 ## Where to start, by workstream
 
 - **Rules (#17–19):** feed `sites`, `car_parks` and `indicators` to your engine; compare with `decisions`.
-- **Optimiser (#20–23):** use `estimates`, `decisions` and the cost assumption; compare with `allocation` and `infeasibility`.
+- **Optimiser (#20–23):** use `estimates`, `decisions` and the cited cost per point; compare with `allocation` and `infeasibility`.
 - **Demand (#13–16):** compute indicators from `connector_readings()`, infer demand, and score it against `truth()`.
 - **Graph (#25–26):** load everything, including `near` and `references`.
 - **App (#30–34):** sites have coordinates, and `allocation` gives something to draw.
@@ -44,7 +44,7 @@ readings = connector_readings() # 46 connectors x 96 snapshots, every 30 min ove
 - **No-charger estimates are a stand-in** for the regression (#16), not a model.
 - **Rules and decisions are illustrative.** The real register comes from #17. `rule_on_fail` is
   sample-only: the contract leaves that choice to the rules engine.
-- **The allocation is a greedy reference,** with at least 2 points per planning area. It is not the
+- **The allocation is a greedy reference,** with at least 2 points per planning area and at most 15% of a site's lots. It is not the
   CP-SAT optimiser, but its plan respects every constraint, so it's a fair check.
 - **`truth.json` is an answer key.** Use it to score models, never as a model input.
 

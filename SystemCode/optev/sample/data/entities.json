@@ -164,7 +164,7 @@
     "lon": 103.941764
    },
    "planning_area": "TM",
-   "total_lots": 30,
+   "total_lots": 24,
    "car_park_type": "SURFACE CAR PARK",
    "has_live_feed": true
   },
@@ -938,7 +938,7 @@
    },
    "planning_area": "TM",
    "car_park_id": "SYN-CP-13",
-   "total_lots": 30,
+   "total_lots": 24,
    "existing_connectors": 3,
    "provenance": "observed"
   },
@@ -1764,7 +1764,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 58"
+     "detail": "room 89"
     },
     {
      "rule_id": "R04",
@@ -1796,7 +1796,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 46"
+     "detail": "room 73"
     },
     {
      "rule_id": "R04",
@@ -1828,7 +1828,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 46"
+     "detail": "room 70"
     },
     {
      "rule_id": "R04",
@@ -1860,7 +1860,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 19"
+     "detail": "room 29"
     },
     {
      "rule_id": "R04",
@@ -1892,7 +1892,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 64"
+     "detail": "room 99"
     },
     {
      "rule_id": "R04",
@@ -1924,7 +1924,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 38"
+     "detail": "room 57"
     },
     {
      "rule_id": "R04",
@@ -1956,7 +1956,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 52"
+     "detail": "room 78"
     },
     {
      "rule_id": "R04",
@@ -1988,7 +1988,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 45"
+     "detail": "room 68"
     },
     {
      "rule_id": "R04",
@@ -2020,7 +2020,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 16"
+     "detail": "room 24"
     },
     {
      "rule_id": "R04",
@@ -2052,7 +2052,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 59"
+     "detail": "room 88"
     },
     {
      "rule_id": "R04",
@@ -2084,7 +2084,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 29"
+     "detail": "room 45"
     },
     {
      "rule_id": "R04",
@@ -2116,7 +2116,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 61"
+     "detail": "room 91"
     },
     {
      "rule_id": "R04",
@@ -2180,7 +2180,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 86"
+     "detail": "room 131"
     },
     {
      "rule_id": "R04",
@@ -2212,7 +2212,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 75"
+     "detail": "room 112"
     },
     {
      "rule_id": "R04",
@@ -2244,7 +2244,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 50"
+     "detail": "room 75"
     },
     {
      "rule_id": "R04",
@@ -2276,7 +2276,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 46"
+     "detail": "room 69"
     },
     {
      "rule_id": "R04",
@@ -2308,7 +2308,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 19"
+     "detail": "room 28"
     },
     {
      "rule_id": "R04",
@@ -2340,7 +2340,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 52"
+     "detail": "room 80"
     },
     {
      "rule_id": "R04",
@@ -2372,7 +2372,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 48"
+     "detail": "room 72"
     },
     {
      "rule_id": "R04",
@@ -2404,7 +2404,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 50"
+     "detail": "room 76"
     },
     {
      "rule_id": "R04",
@@ -2436,7 +2436,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 17"
+     "detail": "room 26"
     },
     {
      "rule_id": "R04",
@@ -2468,7 +2468,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 58"
+     "detail": "room 90"
     },
     {
      "rule_id": "R04",
@@ -2500,7 +2500,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 49"
+     "detail": "room 74"
     },
     {
      "rule_id": "R04",
@@ -2532,7 +2532,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 43"
+     "detail": "room 64"
     },
     {
      "rule_id": "R04",
@@ -2564,7 +2564,7 @@
     {
      "rule_id": "R03",
      "passed": true,
-     "detail": "room 15"
+     "detail": "room 22"
     },
     {
      "rule_id": "R04",
@@ -2731,14 +2731,14 @@
   },
   {
    "rule_id": "R03",
-   "condition": "Existing plus one new point stays within 10% of car lots",
+   "condition": "Existing plus one new point stays within 15% of car lots",
    "source": "math_constraint",
-   "source_ref": null,
+   "source_ref": "doc-lta-ev-factsheet-2021",
    "required_facts": [
     "total_lots",
     "existing_connectors"
    ],
-   "explanation_template": "Room for {room} more points within 10% of {total_lots} lots."
+   "explanation_template": "Room for {room} more points within 15% of {total_lots} lots."
   },
   {
    "rule_id": "R04",
@@ -2807,6 +2807,18 @@
     "title": "Regulating the Safety of EV Chargers",
     "publisher": "LTA",
     "url": "https://www.lta.gov.sg/content/ltagov/en/industry_innovations/technologies/electric_vehicles/regulating_safety_of_ev_chargers.html"
+   },
+   {
+    "doc_id": "doc-lta-ev-factsheet-2021",
+    "title": "Accelerating Nationwide Deployment of EV Charging Points (factsheet)",
+    "publisher": "LTA",
+    "url": "https://www.lta.gov.sg/content/ltagov/en/newsroom/2021/3/news-release/Accelerating_nationwide_deployment_of_electric_vehicle_charging_points.html"
+   },
+   {
+    "doc_id": "doc-lta-eccg-2025",
+    "title": "Guidelines and FAQs for the EV Common Charger Grant",
+    "publisher": "LTA",
+    "url": "https://www.lta.gov.sg/content/dam/ltagov/industry_innovations/Technologies/Electric_Vehicles/PDF/ECCG_Guidelines_and_FAQs_05032025.pdf"
    }
   ],
   "assumptions": [
@@ -2820,9 +2832,9 @@
    {
     "assumption_id": "asm-cost-per-point",
     "name": "Cost per charging point",
-    "value": 15000.0,
+    "value": 9250.0,
     "unit": "SGD",
-    "source_ref": "placeholder, to be cited"
+    "source_ref": "doc-lta-eccg-2025, example 3"
    },
    {
     "assumption_id": "asm-idle-threshold",
@@ -2842,43 +2854,44 @@
  },
  "allocation": {
   "scenario_id": "base",
-  "budget": 180000.0,
+  "planning_area": null,
   "requested_connectors": 12,
+  "budget": null,
   "items": [
    {
     "site_id": "SYN-S-03",
     "connectors": 1,
-    "cost": 15000.0,
+    "cost": 9250.0,
     "marginal_relief": 0.3119
    },
    {
     "site_id": "SYN-S-04",
     "connectors": 6,
-    "cost": 90000.0,
+    "cost": 55500.0,
     "marginal_relief": 1.8935
    },
    {
     "site_id": "SYN-S-12",
     "connectors": 1,
-    "cost": 15000.0,
+    "cost": 9250.0,
     "marginal_relief": 0.3112
    },
    {
     "site_id": "SYN-S-15",
     "connectors": 2,
-    "cost": 30000.0,
+    "cost": 18500.0,
     "marginal_relief": 0.6241
    },
    {
     "site_id": "SYN-S-20",
     "connectors": 1,
-    "cost": 15000.0,
+    "cost": 9250.0,
     "marginal_relief": 0.3067
    },
    {
     "site_id": "SYN-S-24",
     "connectors": 1,
-    "cost": 15000.0,
+    "cost": 9250.0,
     "marginal_relief": 0.3073
    }
   ],
@@ -2887,8 +2900,9 @@
  },
  "infeasibility": {
   "scenario_id": "base",
+  "planning_area": "PR",
   "requested_connectors": 40,
-  "max_feasible": 12,
+  "max_feasible": 32,
   "binding_constraints": [
    "budget"
   ],

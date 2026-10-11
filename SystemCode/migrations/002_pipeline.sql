@@ -128,14 +128,17 @@ CREATE TABLE IF NOT EXISTS rule_result (
         ON DELETE CASCADE
 );
 
+-- The planner asks for points, a budget, or both; planning_area NULL means island-wide.
 CREATE TABLE IF NOT EXISTS allocation (
     allocation_id        text PRIMARY KEY,
     scenario_id          text NOT NULL,
-    budget               double precision NOT NULL CHECK (budget >= 0),
+    planning_area        text REFERENCES planning_area(code),
     requested_connectors integer CHECK (requested_connectors >= 0),
+    budget               double precision CHECK (budget >= 0),
     checked              boolean NOT NULL DEFAULT false,
     violations           text[] NOT NULL DEFAULT '{}',
-    created_at           timestamptz NOT NULL DEFAULT now()
+    created_at           timestamptz NOT NULL DEFAULT now(),
+    CHECK (requested_connectors IS NOT NULL OR budget IS NOT NULL)
 );
 
 CREATE TABLE IF NOT EXISTS allocation_item (
@@ -150,6 +153,7 @@ CREATE TABLE IF NOT EXISTS allocation_item (
 CREATE TABLE IF NOT EXISTS infeasibility (
     report_id            text PRIMARY KEY,
     scenario_id          text NOT NULL,
+    planning_area        text REFERENCES planning_area(code),
     requested_connectors integer NOT NULL CHECK (requested_connectors >= 0),
     max_feasible         integer NOT NULL CHECK (max_feasible >= 0),
     binding_constraints  text[] NOT NULL DEFAULT '{}',

@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from optev.contracts import Outcome, SupplyState
 from optev.sample import DATA, connector_readings, load, truth
-from optev.sample.generate import RELIABLE_UP_TO, write
+from optev.sample.generate import COST_PER_POINT, MAX_SHARE, RELIABLE_UP_TO, write
 
 S = load()
 
@@ -103,16 +103,23 @@ def test_reference_allocation_respects_every_constraint():
     a, site = S.allocation, {s.site_id: s for s in S.sites}
     allowed = {d.site_id for d in S.decisions if d.outcome in (Outcome.ACCEPT, Outcome.CONDITIONAL)}
     assert a.checked and not a.violations
-    assert a.total_cost <= a.budget
+    assert a.budget is None or a.total_cost <= a.budget
     assert a.total_connectors == a.requested_connectors
     per_area: dict[str | None, int] = defaultdict(int)
     for item in a.items:
         s = site[item.site_id]
         assert item.site_id in allowed
         assert s.total_lots is not None
-        assert s.existing_connectors + item.connectors <= int(0.1 * s.total_lots)
+        assert s.existing_connectors + item.connectors <= int(MAX_SHARE * s.total_lots)
+        assert item.cost == item.connectors * COST_PER_POINT
         per_area[s.planning_area] += item.connectors
     assert all(per_area[area.code] >= 2 for area in S.planning_areas)
+
+
+def test_impossible_request_says_what_is_short():
+    r = S.infeasibility
+    assert r.max_feasible < r.requested_connectors
+    assert r.binding_constraints and r.planning_area in {a.code for a in S.planning_areas}
 
 
 def test_regenerates_byte_for_byte(tmp_path):

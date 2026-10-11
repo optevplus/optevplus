@@ -22,9 +22,12 @@ START = datetime(2026, 10, 1, tzinfo=SGT)
 HOURS = 48
 SNAP_EVERY = 30  # minutes
 MEAN_SESSION_H = 3.0  # the declared assumption the estimates use
-COST_PER_POINT = 15_000.0
-BUDGET = 180_000.0
+COST_PER_POINT = 9_250.0
+MAX_SHARE = 0.15  # of car lots, per site
 MIN_PER_AREA = 2
+POINTS = 12  # the reference request: 12 new points, island-wide, no budget
+# The impossible request: 40 points in Pasir Ris, but a budget that pays for fewer.
+OVER_AREA, OVER_POINTS, OVER_BUDGET = "PR", 40, 300_000.0
 RELIABLE_UP_TO = 0.93
 IDLE_BELOW = 0.05
 
@@ -172,7 +175,7 @@ CAR_PARKS = [
     ("TM", "hdb", MSCP, 590, None),
     ("TM", "hdb", BASE, 330, (4, 0, 2.0)),
     ("TM", "hdb", MSCP, 610, None),
-    ("TM", "public", SURF, 30, (3, 0, 0.9)),
+    ("TM", "public", SURF, 24, (3, 0, 0.9)),
     ("TM", "public", MSCP, 900, (4, 0, 0.05)),
     ("TM", "public", MSCP, 750, None),
     ("TM", "hdb", MSCP, 505, None),
@@ -217,11 +220,11 @@ RULES = [
     },
     {
         "rule_id": "R03",
-        "condition": "Existing plus one new point stays within 10% of car lots",
+        "condition": "Existing plus one new point stays within 15% of car lots",
         "source": "math_constraint",
-        "source_ref": None,
+        "source_ref": "doc-lta-ev-factsheet-2021",
         "required_facts": ["total_lots", "existing_connectors"],
-        "explanation_template": "Room for {room} more points within 10% of {total_lots} lots.",
+        "explanation_template": "Room for {room} more points within 15% of {total_lots} lots.",
     },
     {
         "rule_id": "R04",
@@ -283,6 +286,20 @@ REFERENCES = {
             "url": "https://www.lta.gov.sg/content/ltagov/en/industry_innovations/technologies/"
             "electric_vehicles/regulating_safety_of_ev_chargers.html",
         },
+        {
+            "doc_id": "doc-lta-ev-factsheet-2021",
+            "title": "Accelerating Nationwide Deployment of EV Charging Points (factsheet)",
+            "publisher": "LTA",
+            "url": "https://www.lta.gov.sg/content/ltagov/en/newsroom/2021/3/news-release/"
+            "Accelerating_nationwide_deployment_of_electric_vehicle_charging_points.html",
+        },
+        {
+            "doc_id": "doc-lta-eccg-2025",
+            "title": "Guidelines and FAQs for the EV Common Charger Grant",
+            "publisher": "LTA",
+            "url": "https://www.lta.gov.sg/content/dam/ltagov/industry_innovations/Technologies/"
+            "Electric_Vehicles/PDF/ECCG_Guidelines_and_FAQs_05032025.pdf",
+        },
     ],
     "assumptions": [
         {
@@ -297,7 +314,7 @@ REFERENCES = {
             "name": "Cost per charging point",
             "value": COST_PER_POINT,
             "unit": "SGD",
-            "source_ref": "placeholder, to be cited",
+            "source_ref": "doc-lta-eccg-2025, example 3",
         },
         {
             "assumption_id": "asm-idle-threshold",
@@ -633,13 +650,7 @@ def build(rng: random.Random) -> dict:
     estimates = {e["site_id"]: e["arrivals_per_hour"] for e in out["estimates"]}
     allocation, plan_scenario = allocate(out, site_facts, estimates)
     out["allocation"] = allocation
-    out["infeasibility"] = {
-        "scenario_id": plan_scenario,
-        "requested_connectors": 40,
-        "max_feasible": int(BUDGET // COST_PER_POINT),
-        "binding_constraints": ["budget"],
-        "affected_areas": [],
-    }
+    out["infeasibility"] = over_request(out, site_facts, plan_scenario)
     top = max(allocation["items"], key=lambda it: it["marginal_relief"])
     out["scenarios"] = [
         {
@@ -693,13 +704,21 @@ def evaluate(f: dict) -> list[dict]:
         r.append(
             {
                 "rule_id": "R03",
-                "passed": existing + 1 <= 0.1 * lots,
-                "detail": f"room {int(0.1 * lots) - existing}",
+                "passed": existing + 1 <= MAX_SHARE * lots,
+                "detail": f"room {room(lots, existing)}",
             }
         )
     r.append({"rule_id": "R04", "passed": f["supply_state"] != "supply_idle", "detail": None})
     r.append({"rule_id": "R05", "passed": f["planning_area"] is not None, "detail": None})
     return r
+
+
+def room(lots: int, existing: int) -> int:
+    return max(0, int(MAX_SHARE * lots) - existing)
+
+
+def eligible(out: dict) -> set[str]:
+    return {d["site_id"] for d in out["decisions"] if d["outcome"] in ("accept", "conditional")}
 
 
 def outcome(results: list[dict]) -> str:
@@ -716,10 +735,10 @@ def allocate(out: dict, facts: dict[str, dict], est: dict[str, float]) -> tuple[
     Gains are concave per site, so greedy is optimal without the area minimum and close
     with it. A reference answer, not the CP-SAT optimiser."""
     scenario, growth = "base", dict(SCENARIOS)["base"]
-    allowed = {d["site_id"] for d in out["decisions"] if d["outcome"] in ("accept", "conditional")}
+    allowed = eligible(out)
 
-    def room(s: str) -> int:
-        return int(0.1 * facts[s]["total_lots"]) - facts[s]["existing_connectors"]
+    def space(s: str) -> int:
+        return room(facts[s]["total_lots"], facts[s]["existing_connectors"])
 
     def gain(s: str, added: int) -> float:
         c, lam = facts[s]["existing_connectors"], est[s] * growth
@@ -727,18 +746,17 @@ def allocate(out: dict, facts: dict[str, dict], est: dict[str, float]) -> tuple[
         return lam * (erlang_b(c + added, a) - erlang_b(c + added + 1, a))
 
     added = {s: 0 for s in allowed}
-    budget_pts = int(BUDGET // COST_PER_POINT)
 
     def best(pool: set[str]) -> str | None:
-        options = [s for s in pool if added[s] < room(s)]
+        options = [s for s in pool if added[s] < space(s)]
         return max(sorted(options), key=lambda s: gain(s, added[s])) if options else None
 
     for code in sorted({facts[s]["planning_area"] for s in allowed}):
         for _ in range(MIN_PER_AREA):
             s = best({x for x in allowed if facts[x]["planning_area"] == code})
-            if s is not None and sum(added.values()) < budget_pts:
+            if s is not None and sum(added.values()) < POINTS:
                 added[s] += 1
-    while sum(added.values()) < budget_pts and (s := best(allowed)) is not None:
+    while sum(added.values()) < POINTS and (s := best(allowed)) is not None:
         added[s] += 1
     items = []
     for s in sorted(added):
@@ -755,14 +773,38 @@ def allocate(out: dict, facts: dict[str, dict], est: dict[str, float]) -> tuple[
     return (
         {
             "scenario_id": scenario,
-            "budget": BUDGET,
-            "requested_connectors": budget_pts,
+            "planning_area": None,
+            "requested_connectors": POINTS,
+            "budget": None,
             "items": items,
             "checked": True,
             "violations": [],
         },
         scenario,
     )
+
+
+def over_request(out: dict, facts: dict[str, dict], scenario: str) -> dict:
+    """The unmet-requirement report for OVER_POINTS in OVER_AREA under OVER_BUDGET. A group
+    binds when removing it alone would make the request feasible (design §4.4)."""
+    in_area = [s for s in sorted(eligible(out)) if facts[s]["planning_area"] == OVER_AREA]
+    caps = {
+        "budget": int(OVER_BUDGET // COST_PER_POINT),
+        "room": sum(room(facts[s]["total_lots"], facts[s]["existing_connectors"]) for s in in_area),
+    }
+    binding = [
+        g
+        for g in caps
+        if caps[g] < OVER_POINTS and all(v >= OVER_POINTS for k, v in caps.items() if k != g)
+    ]
+    return {
+        "scenario_id": scenario,
+        "planning_area": OVER_AREA,
+        "requested_connectors": OVER_POINTS,
+        "max_feasible": min(OVER_POINTS, *caps.values()),
+        "binding_constraints": binding,
+        "affected_areas": [],
+    }
 
 
 def write(target: Path) -> None:
