@@ -2,6 +2,10 @@
 
 **Owner:** P?  ·  **Status:** draft  ·  **Branch:** `p?/<name>`
 
+## Design section
+Quote the `SYSTEM_DESIGN.md` §4 section this implements: module paths, functions, tables.
+Anything this spec needs that the design does not define goes under Open questions, not into code.
+
 ## Problem
 What is not possible today, in two or three sentences.
 

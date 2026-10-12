@@ -1,0 +1,2947 @@
+{
+ "planning_areas": [
+  {
+   "code": "TM",
+   "name": "TAMPINES",
+   "region": "EAST REGION"
+  },
+  {
+   "code": "PR",
+   "name": "PASIR RIS",
+   "region": "EAST REGION"
+  }
+ ],
+ "car_parks": [
+  {
+   "car_park_id": "SYN-CP-01",
+   "name": "Sample car park 1",
+   "coord": {
+    "lat": 1.350047,
+    "lon": 103.959364
+   },
+   "planning_area": "TM",
+   "total_lots": 620,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-02",
+   "name": "Sample car park 2",
+   "coord": {
+    "lat": 1.344947,
+    "lon": 103.957075
+   },
+   "planning_area": "TM",
+   "total_lots": 540,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-03",
+   "name": "Sample car park 3",
+   "coord": {
+    "lat": 1.342297,
+    "lon": 103.939877
+   },
+   "planning_area": "TM",
+   "total_lots": 480,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-04",
+   "name": "Sample car park 4",
+   "coord": {
+    "lat": 1.352912,
+    "lon": 103.943728
+   },
+   "planning_area": "TM",
+   "total_lots": 210,
+   "car_park_type": "SURFACE CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-05",
+   "name": "Sample car park 5",
+   "coord": {
+    "lat": 1.344728,
+    "lon": 103.946112
+   },
+   "planning_area": "TM",
+   "total_lots": 700,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-06",
+   "name": "Sample car park 6",
+   "coord": {
+    "lat": 1.350237,
+    "lon": 103.932415
+   },
+   "planning_area": "TM",
+   "total_lots": 380,
+   "car_park_type": "BASEMENT CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-07",
+   "name": "Sample car park 7",
+   "coord": {
+    "lat": 1.343391,
+    "lon": 103.945448
+   },
+   "planning_area": "TM",
+   "total_lots": 520,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-08",
+   "name": "Sample car park 8",
+   "coord": {
+    "lat": 1.362783,
+    "lon": 103.947445
+   },
+   "planning_area": "TM",
+   "total_lots": 455,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-09",
+   "name": "Sample car park 9",
+   "coord": {
+    "lat": 1.364258,
+    "lon": 103.951319
+   },
+   "planning_area": "TM",
+   "total_lots": 160,
+   "car_park_type": "SURFACE CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-10",
+   "name": "Sample car park 10",
+   "coord": {
+    "lat": 1.357964,
+    "lon": 103.931755
+   },
+   "planning_area": "TM",
+   "total_lots": 590,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-11",
+   "name": "Sample car park 11",
+   "coord": {
+    "lat": 1.356469,
+    "lon": 103.939718
+   },
+   "planning_area": "TM",
+   "total_lots": 330,
+   "car_park_type": "BASEMENT CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-12",
+   "name": "Sample car park 12",
+   "coord": {
+    "lat": 1.348548,
+    "lon": 103.929882
+   },
+   "planning_area": "TM",
+   "total_lots": 610,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-13",
+   "name": "Sample car park 13",
+   "coord": {
+    "lat": 1.36124,
+    "lon": 103.941764
+   },
+   "planning_area": "TM",
+   "total_lots": 24,
+   "car_park_type": "SURFACE CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-14",
+   "name": "Sample car park 14",
+   "coord": {
+    "lat": 1.358947,
+    "lon": 103.937183
+   },
+   "planning_area": "TM",
+   "total_lots": 900,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-15",
+   "name": "Sample car park 15",
+   "coord": {
+    "lat": 1.345578,
+    "lon": 103.926418
+   },
+   "planning_area": "TM",
+   "total_lots": 750,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-16",
+   "name": "Sample car park 16",
+   "coord": {
+    "lat": 1.363142,
+    "lon": 103.939525
+   },
+   "planning_area": "TM",
+   "total_lots": 505,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-17",
+   "name": "Sample car park 17",
+   "coord": {
+    "lat": 1.345261,
+    "lon": 103.936941
+   },
+   "planning_area": "TM",
+   "total_lots": 465,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-18",
+   "name": "Sample car park 18",
+   "coord": {
+    "lat": 1.358585,
+    "lon": 103.933375
+   },
+   "planning_area": "TM",
+   "total_lots": 190,
+   "car_park_type": "SURFACE CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-19",
+   "name": "Sample car park 19",
+   "coord": {
+    "lat": 1.377338,
+    "lon": 103.954965
+   },
+   "planning_area": "PR",
+   "total_lots": 560,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-20",
+   "name": "Sample car park 20",
+   "coord": {
+    "lat": 1.375847,
+    "lon": 103.957995
+   },
+   "planning_area": "PR",
+   "total_lots": 480,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-21",
+   "name": "Sample car park 21",
+   "coord": {
+    "lat": 1.37449,
+    "lon": 103.937783
+   },
+   "planning_area": "PR",
+   "total_lots": 520,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-22",
+   "name": "Sample car park 22",
+   "coord": {
+    "lat": 1.369767,
+    "lon": 103.963563
+   },
+   "planning_area": "PR",
+   "total_lots": 175,
+   "car_park_type": "SURFACE CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-23",
+   "name": "Sample car park 23",
+   "coord": {
+    "lat": 1.367802,
+    "lon": 103.947137
+   },
+   "planning_area": "PR",
+   "total_lots": 640,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-24",
+   "name": "Sample car park 24",
+   "coord": {
+    "lat": 1.367488,
+    "lon": 103.943666
+   },
+   "planning_area": "PR",
+   "total_lots": 495,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-25",
+   "name": "Sample car park 25",
+   "coord": {
+    "lat": 1.375732,
+    "lon": 103.961622
+   },
+   "planning_area": "PR",
+   "total_lots": 430,
+   "car_park_type": "MULTI-STOREY CAR PARK",
+   "has_live_feed": true
+  },
+  {
+   "car_park_id": "SYN-CP-26",
+   "name": "Sample car park 26",
+   "coord": {
+    "lat": 1.36802,
+    "lon": 103.946673
+   },
+   "planning_area": "PR",
+   "total_lots": 150,
+   "car_park_type": "SURFACE CAR PARK",
+   "has_live_feed": true
+  }
+ ],
+ "stations": [
+  {
+   "station_id": "SYN-ST-01",
+   "coord": {
+    "lat": 1.350047,
+    "lon": 103.959364
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 1",
+   "planning_area": "TM",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-02",
+   "coord": {
+    "lat": 1.344947,
+    "lon": 103.957075
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 2",
+   "planning_area": "TM",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-03",
+   "coord": {
+    "lat": 1.342297,
+    "lon": 103.939877
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 3",
+   "planning_area": "TM",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-04",
+   "coord": {
+    "lat": 1.352912,
+    "lon": 103.943728
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 4",
+   "planning_area": "TM",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-05",
+   "coord": {
+    "lat": 1.344728,
+    "lon": 103.946112
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 5",
+   "planning_area": "TM",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-06",
+   "coord": {
+    "lat": 1.356469,
+    "lon": 103.939718
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 11",
+   "planning_area": "TM",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-07",
+   "coord": {
+    "lat": 1.36124,
+    "lon": 103.941764
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 13",
+   "planning_area": "TM",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-08",
+   "coord": {
+    "lat": 1.358947,
+    "lon": 103.937183
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 14",
+   "planning_area": "TM",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-09",
+   "coord": {
+    "lat": 1.377338,
+    "lon": 103.954965
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 19",
+   "planning_area": "PR",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-10",
+   "coord": {
+    "lat": 1.37449,
+    "lon": 103.937783
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 21",
+   "planning_area": "PR",
+   "provenance": "observed"
+  },
+  {
+   "station_id": "SYN-ST-11",
+   "coord": {
+    "lat": 1.367802,
+    "lon": 103.947137
+   },
+   "operator": "Sample operator",
+   "address": "Sample address 23",
+   "planning_area": "PR",
+   "provenance": "observed"
+  }
+ ],
+ "connectors": [
+  {
+   "connector_id": "SYN-ST-01-1",
+   "station_id": "SYN-ST-01",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-01-2",
+   "station_id": "SYN-ST-01",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-01-3",
+   "station_id": "SYN-ST-01",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-01-4",
+   "station_id": "SYN-ST-01",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-1",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-2",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-3",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-4",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-5",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-6",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-7",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-8",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-02-9",
+   "station_id": "SYN-ST-02",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": false
+  },
+  {
+   "connector_id": "SYN-ST-03-1",
+   "station_id": "SYN-ST-03",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-03-2",
+   "station_id": "SYN-ST-03",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-04-1",
+   "station_id": "SYN-ST-04",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-04-2",
+   "station_id": "SYN-ST-04",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-05-1",
+   "station_id": "SYN-ST-05",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-05-2",
+   "station_id": "SYN-ST-05",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-05-3",
+   "station_id": "SYN-ST-05",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-05-4",
+   "station_id": "SYN-ST-05",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-05-5",
+   "station_id": "SYN-ST-05",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-05-6",
+   "station_id": "SYN-ST-05",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-06-1",
+   "station_id": "SYN-ST-06",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-06-2",
+   "station_id": "SYN-ST-06",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-06-3",
+   "station_id": "SYN-ST-06",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-06-4",
+   "station_id": "SYN-ST-06",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-07-1",
+   "station_id": "SYN-ST-07",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-07-2",
+   "station_id": "SYN-ST-07",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-07-3",
+   "station_id": "SYN-ST-07",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-08-1",
+   "station_id": "SYN-ST-08",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-08-2",
+   "station_id": "SYN-ST-08",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-08-3",
+   "station_id": "SYN-ST-08",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-08-4",
+   "station_id": "SYN-ST-08",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-09-1",
+   "station_id": "SYN-ST-09",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-09-2",
+   "station_id": "SYN-ST-09",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-09-3",
+   "station_id": "SYN-ST-09",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-09-4",
+   "station_id": "SYN-ST-09",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-10-1",
+   "station_id": "SYN-ST-10",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-10-2",
+   "station_id": "SYN-ST-10",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-11-1",
+   "station_id": "SYN-ST-11",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-11-2",
+   "station_id": "SYN-ST-11",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-11-3",
+   "station_id": "SYN-ST-11",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-11-4",
+   "station_id": "SYN-ST-11",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-11-5",
+   "station_id": "SYN-ST-11",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  },
+  {
+   "connector_id": "SYN-ST-11-6",
+   "station_id": "SYN-ST-11",
+   "plug_type": "Type 2",
+   "power_kw": 7.4,
+   "ever_active": true
+  }
+ ],
+ "sites": [
+  {
+   "site_id": "SYN-S-01",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.350047,
+    "lon": 103.959364
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-01",
+   "total_lots": 620,
+   "existing_connectors": 4,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-02",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.344947,
+    "lon": 103.957075
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-02",
+   "total_lots": 540,
+   "existing_connectors": 8,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-03",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.342297,
+    "lon": 103.939877
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-03",
+   "total_lots": 480,
+   "existing_connectors": 2,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-04",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.352912,
+    "lon": 103.943728
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-04",
+   "total_lots": 210,
+   "existing_connectors": 2,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-05",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.344728,
+    "lon": 103.946112
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-05",
+   "total_lots": 700,
+   "existing_connectors": 6,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-06",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.350237,
+    "lon": 103.932415
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-06",
+   "total_lots": 380,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-07",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.343391,
+    "lon": 103.945448
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-07",
+   "total_lots": 520,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-08",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.362783,
+    "lon": 103.947445
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-08",
+   "total_lots": 455,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-09",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.364258,
+    "lon": 103.951319
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-09",
+   "total_lots": 160,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-10",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.357964,
+    "lon": 103.931755
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-10",
+   "total_lots": 590,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-11",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.356469,
+    "lon": 103.939718
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-11",
+   "total_lots": 330,
+   "existing_connectors": 4,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-12",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.348548,
+    "lon": 103.929882
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-12",
+   "total_lots": 610,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-13",
+   "kind": "public_car_park",
+   "coord": {
+    "lat": 1.36124,
+    "lon": 103.941764
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-13",
+   "total_lots": 24,
+   "existing_connectors": 3,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-14",
+   "kind": "public_car_park",
+   "coord": {
+    "lat": 1.358947,
+    "lon": 103.937183
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-14",
+   "total_lots": 900,
+   "existing_connectors": 4,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-15",
+   "kind": "public_car_park",
+   "coord": {
+    "lat": 1.345578,
+    "lon": 103.926418
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-15",
+   "total_lots": 750,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-16",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.363142,
+    "lon": 103.939525
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-16",
+   "total_lots": 505,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-17",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.345261,
+    "lon": 103.936941
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-17",
+   "total_lots": 465,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-18",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.358585,
+    "lon": 103.933375
+   },
+   "planning_area": "TM",
+   "car_park_id": "SYN-CP-18",
+   "total_lots": 190,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-19",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.377338,
+    "lon": 103.954965
+   },
+   "planning_area": "PR",
+   "car_park_id": "SYN-CP-19",
+   "total_lots": 560,
+   "existing_connectors": 4,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-20",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.375847,
+    "lon": 103.957995
+   },
+   "planning_area": "PR",
+   "car_park_id": "SYN-CP-20",
+   "total_lots": 480,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-21",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.37449,
+    "lon": 103.937783
+   },
+   "planning_area": "PR",
+   "car_park_id": "SYN-CP-21",
+   "total_lots": 520,
+   "existing_connectors": 2,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-22",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.369767,
+    "lon": 103.963563
+   },
+   "planning_area": "PR",
+   "car_park_id": "SYN-CP-22",
+   "total_lots": 175,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-23",
+   "kind": "public_car_park",
+   "coord": {
+    "lat": 1.367802,
+    "lon": 103.947137
+   },
+   "planning_area": "PR",
+   "car_park_id": "SYN-CP-23",
+   "total_lots": 640,
+   "existing_connectors": 6,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-24",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.367488,
+    "lon": 103.943666
+   },
+   "planning_area": "PR",
+   "car_park_id": "SYN-CP-24",
+   "total_lots": 495,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-25",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.375732,
+    "lon": 103.961622
+   },
+   "planning_area": "PR",
+   "car_park_id": "SYN-CP-25",
+   "total_lots": 430,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-26",
+   "kind": "hdb_car_park",
+   "coord": {
+    "lat": 1.36802,
+    "lon": 103.946673
+   },
+   "planning_area": "PR",
+   "car_park_id": "SYN-CP-26",
+   "total_lots": 150,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-27",
+   "kind": "hawker_centre",
+   "coord": {
+    "lat": 1.353816,
+    "lon": 103.954751
+   },
+   "planning_area": "TM",
+   "car_park_id": null,
+   "total_lots": null,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-28",
+   "kind": "community_facility",
+   "coord": {
+    "lat": 1.372376,
+    "lon": 103.9642
+   },
+   "planning_area": "PR",
+   "car_park_id": null,
+   "total_lots": null,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-29",
+   "kind": "petrol_station",
+   "coord": {
+    "lat": 1.347284,
+    "lon": 103.926775
+   },
+   "planning_area": "TM",
+   "car_park_id": null,
+   "total_lots": 12,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  },
+  {
+   "site_id": "SYN-S-30",
+   "kind": "petrol_station",
+   "coord": {
+    "lat": 1.377567,
+    "lon": 103.953382
+   },
+   "planning_area": "PR",
+   "car_park_id": null,
+   "total_lots": null,
+   "existing_connectors": 0,
+   "provenance": "observed"
+  }
+ ],
+ "near": [
+  {
+   "station_id": "SYN-ST-01",
+   "site_id": "SYN-S-01",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-02",
+   "site_id": "SYN-S-02",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-03",
+   "site_id": "SYN-S-03",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-04",
+   "site_id": "SYN-S-04",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-05",
+   "site_id": "SYN-S-05",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-06",
+   "site_id": "SYN-S-11",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-07",
+   "site_id": "SYN-S-13",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-08",
+   "site_id": "SYN-S-14",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-09",
+   "site_id": "SYN-S-19",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-10",
+   "site_id": "SYN-S-21",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  },
+  {
+   "station_id": "SYN-ST-11",
+   "site_id": "SYN-S-23",
+   "distance_m": 0.0,
+   "threshold_m": 50
+  }
+ ],
+ "indicators": [
+  {
+   "site_id": "SYN-S-01",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 4,
+   "utilisation": 0.7604,
+   "saturated_fraction": 0.4792,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-02",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 8,
+   "utilisation": 0.7679,
+   "saturated_fraction": 0.3438,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-03",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 2,
+   "utilisation": 0.901,
+   "saturated_fraction": 0.8229,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-04",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 2,
+   "utilisation": 0.9479,
+   "saturated_fraction": 0.9062,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-05",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 6,
+   "utilisation": 0.5163,
+   "saturated_fraction": 0.0761,
+   "observation_coverage": 0.9583
+  },
+  {
+   "site_id": "SYN-S-06",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-07",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-08",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-09",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-10",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-11",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 4,
+   "utilisation": 0.7005,
+   "saturated_fraction": 0.3542,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-12",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-13",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 3,
+   "utilisation": 0.5,
+   "saturated_fraction": 0.2708,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-14",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_idle",
+   "active_connectors": 4,
+   "utilisation": 0.0391,
+   "saturated_fraction": 0.0,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-15",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-16",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-17",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-18",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-19",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 4,
+   "utilisation": 0.763,
+   "saturated_fraction": 0.4688,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-20",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-21",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 2,
+   "utilisation": 0.6875,
+   "saturated_fraction": 0.5417,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-22",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-23",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "supply_active",
+   "active_connectors": 6,
+   "utilisation": 0.5903,
+   "saturated_fraction": 0.3333,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-24",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-25",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-26",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-27",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-28",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-29",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  },
+  {
+   "site_id": "SYN-S-30",
+   "window_start": "2026-10-01T00:00:00+08:00",
+   "window_end": "2026-10-03T00:00:00+08:00",
+   "supply_state": "no_supply",
+   "active_connectors": 0,
+   "utilisation": null,
+   "saturated_fraction": null,
+   "observation_coverage": 1.0
+  }
+ ],
+ "estimates": [
+  {
+   "site_id": "SYN-S-01",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.7222,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-02",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.6955,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-03",
+   "time_bin": "all",
+   "arrivals_per_hour": 3.3126,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-04",
+   "time_bin": "all",
+   "arrivals_per_hour": 4.7207,
+   "kind": "lower_bound",
+   "note": "occupancy above the reliable limit; demand is at least this"
+  },
+  {
+   "site_id": "SYN-S-05",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.1129,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-06",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.77,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-07",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.28,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-08",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.04,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-09",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.12,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-10",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.53,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-11",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.3841,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-12",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.6,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-13",
+   "time_bin": "all",
+   "arrivals_per_hour": 0.6152,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-14",
+   "time_bin": "all",
+   "arrivals_per_hour": 0.0521,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-15",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.88,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-16",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.22,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-17",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.08,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-18",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.12,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-19",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.7402,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-20",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.13,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-21",
+   "time_bin": "all",
+   "arrivals_per_hour": 0.9272,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-22",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.12,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-23",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.3391,
+   "kind": "point",
+   "note": "queueing inversion of observed occupancy"
+  },
+  {
+   "site_id": "SYN-S-24",
+   "time_bin": "all",
+   "arrivals_per_hour": 2.19,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-25",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.95,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-26",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.12,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-27",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.1,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-28",
+   "time_bin": "all",
+   "arrivals_per_hour": 0.7,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-29",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.6,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  },
+  {
+   "site_id": "SYN-S-30",
+   "time_bin": "all",
+   "arrivals_per_hour": 1.3,
+   "kind": "point",
+   "note": "synthetic stand-in for the no-charger regression (#16)"
+  }
+ ],
+ "decisions": [
+  {
+   "site_id": "SYN-S-01",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 89"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-02",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 73"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-03",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 70"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-04",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 29"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-05",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 99"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-06",
+   "outcome": "conditional",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": false,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 57"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-07",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 78"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-08",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 68"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-09",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 24"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-10",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 88"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-11",
+   "outcome": "conditional",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": false,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 45"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-12",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 91"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-13",
+   "outcome": "reject",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": false,
+     "detail": "room 0"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-14",
+   "outcome": "reject",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 131"
+    },
+    {
+     "rule_id": "R04",
+     "passed": false,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-15",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 112"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-16",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 75"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-17",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 69"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-18",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 28"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-19",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 80"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-20",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 72"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-21",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 76"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-22",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 26"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-23",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 90"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-24",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 74"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-25",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 64"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-26",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 22"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-27",
+   "outcome": "defer",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": null,
+     "detail": "total_lots missing"
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": "not a car park"
+    },
+    {
+     "rule_id": "R03",
+     "passed": null,
+     "detail": "total_lots missing"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-28",
+   "outcome": "defer",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": null,
+     "detail": "total_lots missing"
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": "not a car park"
+    },
+    {
+     "rule_id": "R03",
+     "passed": null,
+     "detail": "total_lots missing"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-29",
+   "outcome": "accept",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": "not a car park"
+    },
+    {
+     "rule_id": "R03",
+     "passed": true,
+     "detail": "room 1"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  },
+  {
+   "site_id": "SYN-S-30",
+   "outcome": "defer",
+   "results": [
+    {
+     "rule_id": "R01",
+     "passed": null,
+     "detail": "total_lots missing"
+    },
+    {
+     "rule_id": "R02",
+     "passed": true,
+     "detail": "not a car park"
+    },
+    {
+     "rule_id": "R03",
+     "passed": null,
+     "detail": "total_lots missing"
+    },
+    {
+     "rule_id": "R04",
+     "passed": true,
+     "detail": null
+    },
+    {
+     "rule_id": "R05",
+     "passed": true,
+     "detail": null
+    }
+   ],
+   "scenario_id": null
+  }
+ ],
+ "rules": [
+  {
+   "rule_id": "R01",
+   "condition": "Car capacity is published for the site",
+   "source": "gov_dataset",
+   "source_ref": "ds-ura-capacity",
+   "required_facts": [
+    "total_lots"
+   ],
+   "explanation_template": "Capacity is known: {total_lots} car lots."
+  },
+  {
+   "rule_id": "R02",
+   "condition": "A basement car park needs a fire-safety review first",
+   "source": "gov_policy",
+   "source_ref": "doc-lta-ev-safety",
+   "required_facts": [
+    "car_park_type"
+   ],
+   "explanation_template": "Basement car park: conditional on a fire-safety review."
+  },
+  {
+   "rule_id": "R03",
+   "condition": "Existing plus one new point stays within 15% of car lots",
+   "source": "math_constraint",
+   "source_ref": "doc-lta-ev-factsheet-2021",
+   "required_facts": [
+    "total_lots",
+    "existing_connectors"
+   ],
+   "explanation_template": "Room for {room} more points within 15% of {total_lots} lots."
+  },
+  {
+   "rule_id": "R04",
+   "condition": "Sites whose chargers are idle (under 5% use) get no more points",
+   "source": "project_assumption",
+   "source_ref": "asm-idle-threshold",
+   "required_facts": [
+    "supply_state"
+   ],
+   "explanation_template": "Existing chargers are used {utilisation:.0%} of the time."
+  },
+  {
+   "rule_id": "R05",
+   "condition": "The site lies inside a Master Plan 2025 planning area",
+   "source": "gov_dataset",
+   "source_ref": "ds-mp2025-areas",
+   "required_facts": [
+    "planning_area"
+   ],
+   "explanation_template": "Planning area: {planning_area}."
+  }
+ ],
+ "rule_on_fail": {
+  "R01": "reject",
+  "R02": "conditional",
+  "R03": "reject",
+  "R04": "reject",
+  "R05": "reject"
+ },
+ "references": {
+  "datasets": [
+   {
+    "dataset_id": "ds-lta-evcbatch",
+    "name": "EV Charging Points Batch",
+    "publisher": "LTA DataMall",
+    "url": "https://datamall.lta.gov.sg/content/datamall/en/dynamic-data.html"
+   },
+   {
+    "dataset_id": "ds-hdb-availability",
+    "name": "Carpark Availability (HDB)",
+    "publisher": "data.gov.sg",
+    "url": "https://api.data.gov.sg/v1/transport/carpark-availability"
+   },
+   {
+    "dataset_id": "ds-hdb-info",
+    "name": "HDB Carpark Information",
+    "publisher": "data.gov.sg",
+    "url": "https://data.gov.sg/datasets/d_23f946fa557947f93a8043bbef41dd09/view"
+   },
+   {
+    "dataset_id": "ds-ura-capacity",
+    "name": "Capacity of URA Parking Places",
+    "publisher": "data.gov.sg",
+    "url": "https://data.gov.sg"
+   },
+   {
+    "dataset_id": "ds-mp2025-areas",
+    "name": "Master Plan 2025 Planning Area Boundary",
+    "publisher": "data.gov.sg (URA)",
+    "url": "https://data.gov.sg/datasets/d_2cc750190544007400b2cfd5d7f53209/view"
+   }
+  ],
+  "documents": [
+   {
+    "doc_id": "doc-lta-ev-safety",
+    "title": "Regulating the Safety of EV Chargers",
+    "publisher": "LTA",
+    "url": "https://www.lta.gov.sg/content/ltagov/en/industry_innovations/technologies/electric_vehicles/regulating_safety_of_ev_chargers.html"
+   },
+   {
+    "doc_id": "doc-lta-ev-factsheet-2021",
+    "title": "Accelerating Nationwide Deployment of EV Charging Points (factsheet)",
+    "publisher": "LTA",
+    "url": "https://www.lta.gov.sg/content/ltagov/en/newsroom/2021/3/news-release/Accelerating_nationwide_deployment_of_electric_vehicle_charging_points.html"
+   },
+   {
+    "doc_id": "doc-lta-eccg-2025",
+    "title": "Guidelines and FAQs for the EV Common Charger Grant",
+    "publisher": "LTA",
+    "url": "https://www.lta.gov.sg/content/dam/ltagov/industry_innovations/Technologies/Electric_Vehicles/PDF/ECCG_Guidelines_and_FAQs_05032025.pdf"
+   }
+  ],
+  "assumptions": [
+   {
+    "assumption_id": "asm-session-hours",
+    "name": "Mean charging session",
+    "value": 3.0,
+    "unit": "hours",
+    "source_ref": "project assumption, varied in sensitivity tests"
+   },
+   {
+    "assumption_id": "asm-cost-per-point",
+    "name": "Cost per charging point",
+    "value": 9250.0,
+    "unit": "SGD",
+    "source_ref": "doc-lta-eccg-2025, example 3"
+   },
+   {
+    "assumption_id": "asm-idle-threshold",
+    "name": "Idle utilisation threshold",
+    "value": 0.05,
+    "unit": "share of time",
+    "source_ref": "project assumption"
+   },
+   {
+    "assumption_id": "asm-reliable-up-to",
+    "name": "Reliable occupancy limit",
+    "value": 0.93,
+    "unit": "share of time",
+    "source_ref": "simulation, to be measured"
+   }
+  ]
+ },
+ "allocation": {
+  "scenario_id": "base",
+  "planning_area": null,
+  "requested_connectors": 12,
+  "budget": null,
+  "items": [
+   {
+    "site_id": "SYN-S-03",
+    "connectors": 1,
+    "cost": 9250.0,
+    "marginal_relief": 0.3119
+   },
+   {
+    "site_id": "SYN-S-04",
+    "connectors": 6,
+    "cost": 55500.0,
+    "marginal_relief": 1.8935
+   },
+   {
+    "site_id": "SYN-S-12",
+    "connectors": 1,
+    "cost": 9250.0,
+    "marginal_relief": 0.3112
+   },
+   {
+    "site_id": "SYN-S-15",
+    "connectors": 2,
+    "cost": 18500.0,
+    "marginal_relief": 0.6241
+   },
+   {
+    "site_id": "SYN-S-20",
+    "connectors": 1,
+    "cost": 9250.0,
+    "marginal_relief": 0.3067
+   },
+   {
+    "site_id": "SYN-S-24",
+    "connectors": 1,
+    "cost": 9250.0,
+    "marginal_relief": 0.3073
+   }
+  ],
+  "checked": true,
+  "violations": []
+ },
+ "infeasibility": {
+  "scenario_id": "base",
+  "planning_area": "PR",
+  "requested_connectors": 40,
+  "max_feasible": 32,
+  "binding_constraints": [
+   "budget"
+  ],
+  "affected_areas": []
+ },
+ "scenarios": [
+  {
+   "scenario_id": "low",
+   "seed": 25,
+   "growth_multiplier": 1.4,
+   "horizon_months": 51,
+   "baseline_window": "2026-10-01/2026-10-03",
+   "planned": [],
+   "provenance": "simulated"
+  },
+  {
+   "scenario_id": "base",
+   "seed": 25,
+   "growth_multiplier": 1.8,
+   "horizon_months": 51,
+   "baseline_window": "2026-10-01/2026-10-03",
+   "planned": [
+    {
+     "site_id": "SYN-S-04",
+     "connectors": 2,
+     "selected_by": "planner-demo",
+     "provenance": "planned"
+    }
+   ],
+   "provenance": "simulated"
+  },
+  {
+   "scenario_id": "high",
+   "seed": 25,
+   "growth_multiplier": 2.2,
+   "horizon_months": 51,
+   "baseline_window": "2026-10-01/2026-10-03",
+   "planned": [],
+   "provenance": "simulated"
+  }
+ ]
+}
