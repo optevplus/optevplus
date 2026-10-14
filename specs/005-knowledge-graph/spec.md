@@ -127,14 +127,23 @@ uv run pytest tests/test_graph_live.py        # applies twice, checks constraint
 
 ## Open questions
 
-1. **Scenario-specific demand.** `DemandEstimate` has no `scenario_id`, so a 2030 estimate
-   and today's estimate for the same site and time bin would share a key. Either the
-   contract gains `scenario_id`, or simulated estimates get their own label. Needs all
-   four owners; raise before 6.1 starts loading.
-2. **Estimate method.** No field says whether an estimate came from the queueing model or
-   the regression. For now, the absence of `BASED_ON` marks a regression estimate. A
-   `method` field would make that explicit.
-3. **Which NEAR to keep.** Proposal: one `NEAR` per station–site pair, carrying the measured
-   distance and the smallest threshold it met, rather than one edge per threshold.
-4. **Aura is not provisioned yet (#3).** Everything above runs without it; the live test
-   and `apply-schema` wait on it.
+1. **Scenario-specific demand.** Settled by the design: projections live in their own
+   `scenario_demand` table (§3.2) and the graph loads only observed `all` estimates (§4.5),
+   so the two never share a key.
+2. **Estimate method.** Partly settled: `demand_estimate.method` exists in Postgres (§3.2) but
+   not on the contract. Until it does (design §9, decision 5), the absence of `BASED_ON` marks
+   a regression estimate.
+3. **Which NEAR to keep.** Settled by `station_site` (§3.2): one row per station–site pair with
+   the measured distance and the smallest threshold met, so one `NEAR` per pair.
+4. **Aura.** Done (#3): provisioned, secrets set, schema applied, live tests pass. The
+   heartbeat now writes daily, since the weekly one let the instance pause on 11 Oct.
+
+## Checkpoint · 14 Oct 2026
+- **Works:** `schema.py` (16 labels, 24 relationships, key helpers), `ddl.py` (16 constraints,
+  3 indexes, source-class seed), CLI `ping|schema|apply-schema|heartbeat`, certifi fallback for
+  macOS Python. Schema applied on Aura; unit and live tests pass.
+- **Decided:** keys follow design 1.1–1.2: allocations keyed on the whole request
+  (scenario, area, points, budget to the cent), reports on (scenario, area, requested); the
+  allocator writes the same ids to Postgres (§3.3). `on_fail` on Rule. Heartbeat daily.
+- **Half-built:** nothing in this PR. The loader is #25 (PR #50, stacked on this one).
+- **Next:** merge this, then #50; then #26 retrieval templates against the loaded sample.

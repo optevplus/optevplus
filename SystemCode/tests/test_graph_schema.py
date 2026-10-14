@@ -52,7 +52,11 @@ def test_keys_are_deterministic_and_scenario_aware():
     assert schema.decision_key("S1", None) == schema.decision_key("S1", None) == "observed:S1"
     assert schema.decision_key("S1", "base") != schema.decision_key("S1", None)
     assert schema.allocation_key("base", None, 12, None) == "base:all:points=12:budget=-"
-    assert schema.allocation_key("base", "TM", None, 1e6) == "base:TM:points=-:budget=1e+06"
+    assert schema.allocation_key("base", "TM", None, 1e6) == "base:TM:points=-:budget=1000000.00"
+    # Every budget gets its own id; :g would have merged these two.
+    assert schema.allocation_key("base", None, None, 1_234_567) != schema.allocation_key(
+        "base", None, None, 1_234_568
+    )
     assert schema.infeasibility_key("base", "PR", 40) == "base:PR:requested=40"
     assert schema.indicator_key("S1", "a", "b") != schema.indicator_key("S1", "a", "c")
 
