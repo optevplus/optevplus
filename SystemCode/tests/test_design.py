@@ -8,9 +8,9 @@ from optev import assumptions as A
 from optev.sample import generate as sample
 
 ROOT = Path(__file__).resolve().parents[2]
-DESIGN = (ROOT / "SYSTEM_DESIGN.md").read_text()
+DESIGN = (ROOT / "SYSTEM_DESIGN.md").read_text(encoding="utf-8")
 MIGRATIONS = "\n".join(
-    p.read_text() for p in sorted((ROOT / "SystemCode/migrations").glob("*.sql"))
+    p.read_text(encoding="utf-8") for p in sorted((ROOT / "SystemCode/migrations").glob("*.sql"))
 )
 
 

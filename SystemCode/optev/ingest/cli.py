@@ -16,7 +16,7 @@ def migrate() -> int:
         return 1
     with psycopg.connect(url) as conn, conn.cursor() as cur:
         for path in sorted(MIGRATIONS.glob("*.sql")):
-            cur.execute(path.read_text())
+            cur.execute(path.read_text(encoding="utf-8"))
             print(f"applied {path.name}")
         cur.execute("SELECT postgis_version()")
         row = cur.fetchone()

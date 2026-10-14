@@ -60,7 +60,7 @@ class Sample:
 
 
 def load() -> Sample:
-    raw = json.loads((DATA / "entities.json").read_text())
+    raw = json.loads((DATA / "entities.json").read_text(encoding="utf-8"))
     return Sample(
         planning_areas=[PlanningArea.model_validate(x) for x in raw["planning_areas"]],
         car_parks=[CarPark.model_validate(x) for x in raw["car_parks"]],
@@ -82,18 +82,18 @@ def load() -> Sample:
 
 def connector_readings() -> list[ConnectorReading]:
     """30-minute charger statuses over two days, simulated from a known demand."""
-    with (DATA / "connector_readings.csv").open() as fh:
+    with (DATA / "connector_readings.csv").open(encoding="utf-8", newline="") as fh:
         return [ConnectorReading.model_validate(row) for row in csv.DictReader(fh)]
 
 
 def car_park_readings() -> list[CarParkReading]:
     """30-minute lots-available readings for every sample car park."""
-    with (DATA / "car_park_readings.csv").open() as fh:
+    with (DATA / "car_park_readings.csv").open(encoding="utf-8", newline="") as fh:
         return [CarParkReading.model_validate(row) for row in csv.DictReader(fh)]
 
 
 def truth() -> dict[str, Any]:
     """The demand the readings were simulated from. An answer key for evaluation only:
     never feed it to a model."""
-    result: dict[str, Any] = json.loads((DATA / "truth.json").read_text())
+    result: dict[str, Any] = json.loads((DATA / "truth.json").read_text(encoding="utf-8"))
     return result
