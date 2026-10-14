@@ -810,8 +810,10 @@ def over_request(out: dict, facts: dict[str, dict], scenario: str) -> dict:
 def write(target: Path) -> None:
     data = build(random.Random(SEED))
     target.mkdir(parents=True, exist_ok=True)
-    (target / "entities.json").write_text(json.dumps(data["entities"], indent=1) + "\n")
-    (target / "truth.json").write_text(json.dumps(data["truth"], indent=1) + "\n")
+    for name in ("entities", "truth"):
+        (target / f"{name}.json").write_text(
+            json.dumps(data[name], indent=1) + "\n", encoding="utf-8", newline="\n"
+        )
     for name, header in (
         ("connector_readings", ["connector_id", "status", "provider_ts", "collected_ts"]),
         (
