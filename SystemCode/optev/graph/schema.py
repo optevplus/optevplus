@@ -28,6 +28,8 @@ class NodeSpec:
     """The contract model this node mirrors; empty when the node exists only in the graph."""
     properties: tuple[str, ...] = ()
     meaning: str = ""
+    table_only: tuple[str, ...] = ()
+    """Properties the Postgres table holds but the contract does not (design §3.2)."""
 
 
 @dataclass(frozen=True)
@@ -71,8 +73,11 @@ NODES: tuple[NodeSpec, ...] = (
              ("meaning",),
              "Why a rule exists: dataset, policy, arithmetic or our own assumption."),
     NodeSpec("Rule", "rule_id", "Rule",
-             ("condition", "source", "source_ref", "required_facts", "explanation_template"),
-             "One entry in the rule register."),
+             ("condition", "source", "source_ref", "required_facts", "explanation_template",
+              "on_fail"),
+             "One entry in the rule register. on_fail says whether failing it rejects a site "
+             "or only makes it conditional.",
+             table_only=("on_fail",)),
     NodeSpec("Assumption", "assumption_id", "",
              ("name", "value", "unit", "source_ref"),
              "A declared value, e.g. mean session length or growth rate."),
@@ -83,10 +88,11 @@ NODES: tuple[NodeSpec, ...] = (
              ("site_id", "outcome", "scenario_id"),
              "The verdict for one site, with every rule that was evaluated."),
     NodeSpec("Allocation", "allocation_id", "Allocation",
-             ("budget", "requested_connectors", "checked", "violations"),
-             "The allocator's output for one scenario, after the independent check."),
+             ("planning_area", "requested_connectors", "budget", "checked", "violations"),
+             "The allocator's answer to one request (area, points, optional budget), after "
+             "the independent check."),
     NodeSpec("Infeasibility", "report_id", "InfeasibilityReport",
-             ("requested_connectors", "max_feasible", "binding_constraints"),
+             ("planning_area", "requested_connectors", "max_feasible", "binding_constraints"),
              "Why a request could not be met, and how far it could go."),
 )
 
@@ -148,13 +154,25 @@ def estimate_key(site_id: str, time_bin: str) -> str:
     return f"{site_id}@{time_bin}"
 
 
-def allocation_key(scenario_id: str, budget: float) -> str:
-    """One allocation per scenario and budget, so re-running a budget replaces it."""
-    return f"{scenario_id}:budget={budget:g}"
+ISLAND_WIDE = "all"
+"""Area part of a key when the request covers every planning area."""
 
 
-def infeasibility_key(scenario_id: str, requested_connectors: int) -> str:
-    return f"{scenario_id}:requested={requested_connectors}"
+def allocation_key(
+    scenario_id: str, planning_area: str | None, requested_connectors: int | None,
+    budget: float | None,
+) -> str:
+    """One allocation per request, so re-running the same request replaces it. Points and
+    budget are each optional (design §1), so an absent one is written as "-"."""
+    points = "-" if requested_connectors is None else str(requested_connectors)
+    money = "-" if budget is None else f"{budget:g}"
+    return f"{scenario_id}:{planning_area or ISLAND_WIDE}:points={points}:budget={money}"
+
+
+def infeasibility_key(
+    scenario_id: str, planning_area: str | None, requested_connectors: int
+) -> str:
+    return f"{scenario_id}:{planning_area or ISLAND_WIDE}:requested={requested_connectors}"
 
 
 DERIVED_KEYS = {"decision_id", "indicator_id", "estimate_id", "allocation_id", "report_id"}

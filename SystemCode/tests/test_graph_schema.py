@@ -25,7 +25,7 @@ def test_node_properties_exist_on_their_contract():
     for n in schema.NODES:
         if not n.contract:
             continue
-        fields = set(getattr(contracts, n.contract).model_fields)
+        fields = set(getattr(contracts, n.contract).model_fields) | set(n.table_only)
         assert set(n.properties) - COORD_FIELDS <= fields, n.label
         assert n.key in fields or n.key in schema.DERIVED_KEYS, n.label
 
@@ -51,7 +51,9 @@ def test_verdict_keeps_unevaluated_distinct_from_failed():
 def test_keys_are_deterministic_and_scenario_aware():
     assert schema.decision_key("S1", None) == schema.decision_key("S1", None) == "observed:S1"
     assert schema.decision_key("S1", "base") != schema.decision_key("S1", None)
-    assert schema.allocation_key("base", 1_000_000.0) == "base:budget=1e+06"
+    assert schema.allocation_key("base", None, 12, None) == "base:all:points=12:budget=-"
+    assert schema.allocation_key("base", "TM", None, 1e6) == "base:TM:points=-:budget=1e+06"
+    assert schema.infeasibility_key("base", "PR", 40) == "base:PR:requested=40"
     assert schema.indicator_key("S1", "a", "b") != schema.indicator_key("S1", "a", "c")
 
 
