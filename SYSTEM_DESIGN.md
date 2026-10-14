@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.1 · 11 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.2 · 14 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -191,7 +191,12 @@ Stable, deterministic ids, so every join and every graph MERGE lines up:
 | Station | LTA `locationId` |
 | Connector | LTA `evCpId` |
 | Planning area | URA `PLN_AREA_C` |
+| Dataset | `ds-<short>` (e.g. `ds-lta-evcbatch`) |
+| Policy document | `doc-<short>` (e.g. `doc-lta-eccg-2025`) |
+| Declared assumption | `asm-<short>` (e.g. `asm-session-hours`) |
 | Sample data | `SYN-…` (never appears in real tables) |
+
+A rule's `source_ref` is one of the last three; its prefix says which kind of evidence it is.
 
 ### 3.4 Time bins
 
@@ -447,7 +452,9 @@ did not write the rules (agreement measured with Cohen's κ), and 100% reason co
 ```python
 # optev/graph/schema.py, ddl.py   (#24, PR #47)
 # optev/graph/load.py
-def load_all(database_url: str) -> dict[str, int]             # nodes and relationships merged
+def load(data: Sample, session: Session) -> dict[str, int]    # MERGE a bundle of contracts
+def load_all(database_url: str) -> dict[str, int]             # read Postgres, then load()
+def clear_sample(session: Session) -> int                     # remove what --sample loaded
 # optev/graph/retrieve.py
 def retrieve(question_type: str, **params: str) -> list[dict[str, object]]
 # optev/graph/explain.py
@@ -456,11 +463,17 @@ def explain(question: str) -> Answer          # Answer: text, evidence, refused 
 
 - **Schema** as in `specs/005-knowledge-graph`: 16 node types keyed on contract ids; every rule
   linked to its source class and evidence.
-- **Loader (#25).** Reads Postgres after each pipeline run; MERGE in batches of 500 using the
-  key helpers in `schema.py`; order: areas, car parks, stations, connectors, sites,
-  `station_site`, indicators, `all` demand estimates, datasets, documents, assumptions, rules,
-  scenarios, decisions with `EVALUATED`, allocations, infeasibility. Never loads raw readings
-  or per-bin estimates.
+- **Loader (#25).** `load_all` reads Postgres after each pipeline run into the same bundle
+  as `optev.sample.Sample` and calls `load`, which MERGEs in batches of 500 using the key
+  helpers in `schema.py`. Order: areas, datasets, documents, assumptions (first, so everything
+  that cites them can link), car parks, stations, connectors, sites, `station_site`,
+  indicators, `all` demand estimates, rules, scenarios, decisions with `EVALUATED`,
+  allocations, infeasibility. Links: every indicator `DERIVED_FROM` `ds-lta-evcbatch`; every
+  estimate `ASSUMES` `asm-session-hours`, lower bounds also `asm-reliable-up-to`; a rule links
+  to whatever its `source_ref` names. A missing value is written as an absent property.
+  Never loads raw readings or per-bin estimates. Until Postgres is live,
+  `python -m optev.graph load --sample` loads the sample, labelled `:Sample`, and
+  `clear --sample` removes it before real data goes in.
 - **Retrieval (#26).** Fixed, parameterised Cypher per question type: `why_site`,
   `why_not_site`, `demand_basis`, `compare_sites`, `rule_sources`, `infeasible_request`. Never
   generated Cypher. An empty result is returned as "no evidence", never filled in.
@@ -561,3 +574,6 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   `COST_PER_POINT_SGD` (9,250, range 5,500 to 10,500) in §3.5. Contracts: `Allocation.budget`
   is optional and `planning_area` is added to `Allocation` and `InfeasibilityReport`, which
   needs all four owners' approval. Checker no longer takes `budget`.
+- **1.2 · 14 Oct 2026.** Loader split into `load` (a bundle of contracts) and `load_all`
+  (Postgres), so the graph is built and tested on the sample before Postgres is live.
+  Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
