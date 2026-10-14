@@ -176,9 +176,11 @@ def allocation_key(
     budget: float | None,
 ) -> str:
     """One allocation per request, so re-running the same request replaces it. Points and
-    budget are each optional (design §1), so an absent one is written as "-"."""
+    budget are each optional (design §1), so an absent one is written as "-". The budget is
+    written in full to the cent: any rounding would give two budgets the same id. The
+    allocator writes this same id to Postgres (design §3.3)."""
     points = "-" if requested_connectors is None else str(requested_connectors)
-    money = "-" if budget is None else f"{budget:g}"
+    money = "-" if budget is None else f"{budget:.2f}"
     return f"{scenario_id}:{planning_area or ISLAND_WIDE}:points={points}:budget={money}"
 
 

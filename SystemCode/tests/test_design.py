@@ -59,6 +59,17 @@ def test_cost_and_lot_share_are_cited_not_placeholders():
     assert A.COST_LOW_SGD.value <= A.COST_PER_POINT_SGD.value <= A.COST_HIGH_SGD.value
 
 
+def test_allocation_and_report_ids_match_the_design_examples():
+    from optev.graph.schema import allocation_key, infeasibility_key
+
+    for example in (
+        allocation_key("base", "TM", 12, None),
+        allocation_key("base", None, None, 150_000.0),
+        infeasibility_key("base", "PR", 40),
+    ):
+        assert f"`{example}`" in _section("### 3.3 Identifiers"), example
+
+
 def test_every_package_in_the_design_table_exists():
     pkg = ROOT / "SystemCode/optev"
     for name in re.findall(r"^\| `([a-z_]+)/` \| §", DESIGN, flags=re.M):
