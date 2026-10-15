@@ -138,7 +138,7 @@ Check: `SELECT feed, count(*) FROM stg_collect_slot GROUP BY feed` returns 330 f
 Approved as proposed by Sushant, 15 Oct 2026. Where the spec made a proposal, it stands:
 
 1. **Neon storage.** *Decided:* free plan, 1 GiB per branch; the week took 690 MB in total.
-2. **Design PR.** *Decided:* agreed by Ghanashyam; `SYSTEM_DESIGN.md` 1.2 is in this branch.
+2. **Design PR.** *Decided:* agreed by Ghanashyam; `SYSTEM_DESIGN.md` 1.3 is in this branch.
 3. **Manifest.** *Decided:* `stg_collect_slot` in `003_collect.sql`, as proposed.
 4. **URA and mall car parks** were not collected. *Decided:* HDB only for the study; to be
    stated in the design PR.
@@ -162,7 +162,7 @@ Approved as proposed by Sushant, 15 Oct 2026. Where the spec made a proposal, it
 
 ## Checkpoint · 15 Oct 2026 (loaded)
 
-- **Works:** `SYSTEM_DESIGN.md` 1.2 carries the agreed change. `003_collect.sql`, `collect.py`
+- **Works:** `SYSTEM_DESIGN.md` 1.3 carries the agreed change. `003_collect.sql`, `collect.py`
   and `optev-db load-collected <path> [--day]` are built; ruff, mypy and pytest pass (40 tests,
   the live ones included, rolled back).
 - **Loaded into Neon:** 330 slots per feed, 7 Oct 14:00 to 14 Oct 10:30 SGT, max offset 101 s,
