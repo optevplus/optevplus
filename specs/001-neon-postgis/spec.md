@@ -1,6 +1,6 @@
 # 001 · Neon Postgres with PostGIS
 
-**Owner:** Sushant  ·  **Status:** approved 14 Oct 2026  ·  **Branch:** `sushant/2-neon-postgis` · Issue #2
+**Owner:** Sushant  ·  **Status:** done 15 Oct 2026  ·  **Branch:** `sushant/2-neon-postgis` · Issue #2
 
 ## Design section
 This is setup for the database every stage writes to; there is no §4 module of its own.
@@ -112,5 +112,5 @@ connection): both clean, PostGIS reported. `uv run --env-file .env pytest tests/
 4 passed, including the live test (migrate twice, every migration table present, PostGIS).
 Rebased onto main after #49; ruff, mypy, pytest pass (26 passed, live test skipped without env).
 The 14 Oct timeout on port 5432 did not recur; no code change was needed for it.
-**Left.** Sushant adds `DATABASE_URL` as a GitHub Actions repository secret (needed by #7, #8).
-Team decides Neon plan tier before collection fills 1 GB (~8–9 days, estimate above).
+`DATABASE_URL` is a GitHub Actions repository secret (set 14 Oct), ready for #7, #8.
+**Left.** Team decides Neon plan tier before collection fills 1 GB (~8–9 days, estimate above).
