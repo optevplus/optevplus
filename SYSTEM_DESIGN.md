@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.1 · 11 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.2 · 14 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -191,7 +191,14 @@ Stable, deterministic ids, so every join and every graph MERGE lines up:
 | Station | LTA `locationId` |
 | Connector | LTA `evCpId` |
 | Planning area | URA `PLN_AREA_C` |
+| Allocation | `<scenario>:<area or all>:points=<n or ->:budget=<SGD to 2 dp, or ->`, e.g. `base:TM:points=12:budget=-`, `base:all:points=-:budget=150000.00` |
+| Infeasibility report | `<scenario>:<area or all>:requested=<n>`, e.g. `base:PR:requested=40` |
 | Sample data | `SYN-…` (never appears in real tables) |
+
+The allocator (#21, #23) writes the allocation and report ids in exactly this format to
+`allocation.allocation_id` and `infeasibility.report_id`. The graph builds the same ids with
+`allocation_key` and `infeasibility_key` in `optev/graph/schema.py`, so one allocation has one
+id everywhere. Re-running the same request replaces its rows.
 
 ### 3.4 Time bins
 
@@ -561,3 +568,5 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   `COST_PER_POINT_SGD` (9,250, range 5,500 to 10,500) in §3.5. Contracts: `Allocation.budget`
   is optional and `planning_area` is added to `Allocation` and `InfeasibilityReport`, which
   needs all four owners' approval. Checker no longer takes `budget`.
+- **1.2 · 14 Oct 2026.** Allocation and infeasibility report ids defined in §3.3, so the
+  allocator and the graph use one id per allocation. Budgets are written to the cent.

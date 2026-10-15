@@ -1,9 +1,10 @@
 # Aura Free pauses after 3 days without a WRITE and deletes a paused instance after 30.
-# Reads do not count. This writes one node a week so the demo URL is alive on marking day.
+# Reads do not count. This writes one node every day (11:00 SGT): a weekly write let the
+# instance pause on 11 Oct, so the interval must stay well under 3 days.
 name: Aura heartbeat
 on:
   schedule:
-    - cron: "0 3 * * 1"
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 jobs:
