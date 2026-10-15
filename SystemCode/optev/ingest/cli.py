@@ -9,7 +9,9 @@ MIGRATIONS = pathlib.Path(__file__).resolve().parents[2] / "migrations"
 
 def migrate() -> int:
     import psycopg
+    from dotenv import load_dotenv
 
+    load_dotenv(MIGRATIONS.parent / ".env")  # never overrides a variable already set
     url = os.environ.get("DATABASE_URL")
     if not url:
         print("DATABASE_URL is not set. Copy .env.example to .env and fill it in.")
