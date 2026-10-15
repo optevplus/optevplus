@@ -1,6 +1,6 @@
 # 002 · Collected week: load HDB car park and EV charging readings
 
-**Owner:** Sushant  ·  **Status:** approved 15 Oct 2026, code waits for the design PR  ·  **Branch:** `sushant/7-collectors` · Issues #7, #8
+**Owner:** Sushant  ·  **Status:** approved 15 Oct 2026; built and loaded  ·  **Branch:** `sushant/7-collectors` · Issues #7, #8
 
 ## Design section
 
@@ -51,7 +51,7 @@ contract model before insert, so validation is the "bad record" check. No contra
 - §4.1 interface: replace `collect_ev` / `collect_car_parks` with
   ```python
   # optev/ingest/collect.py
-  def load_collected(root: Path) -> dict[str, int]   # rows written per reading table
+  def load_collected(root: Path, day: date | None = None) -> dict[str, int]
   ```
 - §4.1 Method 1 keeps the status mapping, `lot_type = "C"`, both timestamps and
   skip-bad-records, and adds: "Keep the poll nearest each :00 and :30 SGT slot, within 150 s.
@@ -78,12 +78,14 @@ wrong provider timestamp. The folder stays on my machine and is never committed.
 3. `_parse_ev(payload, collected_ts)`: walk `evLocationsData → chargingPoints → plugTypes →
    evIds`. For each `evCpId`: `ConnectorReading(status=<§4.1 mapping>, provider_ts=
    LastUpdatedTime)`. Unknown status: logged and skipped. Unavailable connectors are kept.
-4. `_insert(conn, rows)`: `executemany` with parameters, one transaction per table.
-5. `load_collected(root)`: slots → parse → insert, and returns
-   `{"car_park_reading": n, "connector_reading": m}`. It refuses to run (returns without
-   writing, logs why) if readings for that window are already there, so a second run never
-   duplicates; the tables have `bigserial` keys, so §2.3.6's upsert cannot dedupe them.
-6. CLI: `optev-db load-collected <path>` in `ingest/cli.py`, next to `migrate`.
+4. `_copy(cur, rows)`: `COPY ... FROM STDIN` with `write_row` (values through psycopg, never
+   string formatting); `_write_slot` checks the manifest, copies, and adds the manifest row.
+5. `load_collected(root, day)`: slots → parse → copy, and returns
+   `{"car_park_reading": n, "connector_reading": m}`. Each slot is written in one transaction
+   with its `stg_collect_slot` row, and a slot already there is skipped, so a re-run writes
+   nothing; the tables have `bigserial` keys, so §2.3.6's upsert cannot dedupe them. `day`
+   loads only that SGT day's slots, for loading one day first.
+6. CLI: `optev-db load-collected <path> [--day YYYY-MM-DD]` in `ingest/cli.py`, next to `migrate`.
 
 `station` and `connector` rows and `ever_active` stay with `conform()` (#9), which reads these
 tables.
@@ -125,19 +127,18 @@ no real data in git):
 ```
 uv run ruff check . && uv run mypy optev && uv run pytest
 uv run optev-db migrate
-uv run optev-db load-collected "C:/Users/Sushant/Desktop/collected_data"
-# car_park_reading ~800,000 · connector_reading ~3,860,000 · slots 330 / 330 EV, 329 / 329 car park
+uv run optev-db load-collected "C:/Users/Sushant/Desktop/collected_data" --day 2026-10-08
+uv run optev-db load-collected "C:/Users/Sushant/Desktop/collected_data"   # the rest
+# per day: car_park_reading +96,336 · connector_reading +556,395 (8 Oct, 48 slots each)
 ```
-Check: `SELECT count(DISTINCT collected_ts) FROM connector_reading` returns 330.
+Check: `SELECT feed, count(*) FROM stg_collect_slot GROUP BY feed` returns 330 for each feed.
 
 ## Open questions
 
 Approved as proposed by Sushant, 15 Oct 2026. Where the spec made a proposal, it stands:
 
-1. **Neon storage.** About 4.7M rows, roughly 400 MB with indexes. *Open:* Sushant is checking
-   the Neon plan. Loading waits for the answer.
-2. **Design PR.** *Open:* Sushant is agreeing the `SYSTEM_DESIGN.md` change with Ghanashyam.
-   Code in `optev/ingest/` waits for it, per AGENTS.md.
+1. **Neon storage.** *Decided:* free plan, 1 GiB per branch; the week took 690 MB in total.
+2. **Design PR.** *Decided:* agreed by Ghanashyam; `SYSTEM_DESIGN.md` 1.2 is in this branch.
 3. **Manifest.** *Decided:* `stg_collect_slot` in `003_collect.sql`, as proposed.
 4. **URA and mall car parks** were not collected. *Decided:* HDB only for the study; to be
    stated in the design PR.
@@ -158,3 +159,18 @@ Approved as proposed by Sushant, 15 Oct 2026. Where the spec made a proposal, it
 - **To do outside code:** rotate the LTA DataMall key that was hard-coded in the laptop copy.
 - **Next:** once Ghanashyam agrees the design change, write `collect.py` with tests first, then
   load into Neon.
+
+## Checkpoint · 15 Oct 2026 (loaded)
+
+- **Works:** `SYSTEM_DESIGN.md` 1.2 carries the agreed change. `003_collect.sql`, `collect.py`
+  and `optev-db load-collected <path> [--day]` are built; ruff, mypy and pytest pass (40 tests,
+  the live ones included, rolled back).
+- **Loaded into Neon:** 330 slots per feed, 7 Oct 14:00 to 14 Oct 10:30 SGT, max offset 101 s,
+  0 records skipped, 0 duplicate (connector, time) pairs. `connector_reading` 3,832,874 rows
+  (577 MB); `car_park_reading` 662,310 rows (96 MB). Database 690 MB of the 1 GiB limit.
+  Median EV staleness (`collected_ts − provider_ts`) 76 s.
+- **Re-runnable:** loading 8 Oct again wrote 0 rows.
+- **Decisions:** branch rebased onto `sushant/2-neon-postgis` (PR #51) because both change
+  `cli.py`; this PR merges after #51. COPY instead of `executemany` for speed.
+- **Next:** push and open the PR; update issues #7 and #8 wording; rotate the LTA key; #9
+  `conform()` can now build `station`, `connector` and `ever_active` from these tables.
