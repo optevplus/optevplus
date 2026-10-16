@@ -278,11 +278,13 @@ def coverage_report(window_start: datetime, window_end: datetime) -> dict[str, f
    `load_collected` reads the raw files only and keeps the poll nearest each :00 and :30 SGT
    slot, within 150 s; a slot with no poll is missing, never filled. `collected_ts` is the
    poll's fetch time. EV status mapping: `"0"` → occupied, `"1"` → available, `""` →
-   unavailable; every connector is kept, including unavailable ones. Car parks: HDB only
-   (URA and mall car parks were not collected), id `hdb:<car_park_no>`, keep
-   `lot_type = "C"`, `provider_ts` is that car park's own `update_datetime`. One bad record is
-   logged and skipped; it never fails the run. Each slot loaded is recorded in
-   `stg_collect_slot`, and a slot already there is skipped, so a re-run writes nothing.
+   unavailable; every connector is kept, including unavailable ones. Car parks: id
+   `hdb:<car_park_no>`, keep `lot_type = "C"`, `provider_ts` is that car park's own
+   `update_datetime`. One bad record is logged and skipped; it never fails the run. Each slot
+   loaded is recorded in `stg_collect_slot`, and a slot already there is skipped, so a re-run
+   writes nothing.
+   **Scope decision:** URA and mall car parks are out of scope for readings because their feed
+   (LTA Carpark Availability) was not collected; car park readings cover HDB car parks only.
 2. **Static loads.** URA places with `NO_CAR > 0` only. Petrol stations filtered to service
    stations by name; if too noisy, drop them and record why.
 3. **Conform.** Convert SVY21 to WGS84 with pyproj (EPSG:3414 → 4326); compute every distance

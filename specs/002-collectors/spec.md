@@ -31,6 +31,9 @@
 the week collected on my laptop, 7–14 Oct 2026, is the observed dataset for the project. There
 is no live collector and no `collect.yml`.
 
+**Scope decision:** URA and mall car parks are out of scope for readings because their feed
+(LTA Carpark Availability) was not collected; car park readings cover HDB car parks only.
+
 ## Problem
 
 `connector_reading` and `car_park_reading` are empty, so stage 2 has nothing real to measure.
@@ -140,8 +143,8 @@ Approved as proposed by Sushant, 15 Oct 2026. Where the spec made a proposal, it
 1. **Neon storage.** *Decided:* free plan, 1 GiB per branch; the week took 690 MB in total.
 2. **Design PR.** *Decided:* agreed by Ghanashyam; `SYSTEM_DESIGN.md` 1.3 is in this branch.
 3. **Manifest.** *Decided:* `stg_collect_slot` in `003_collect.sql`, as proposed.
-4. **URA and mall car parks** were not collected. *Decided:* HDB only for the study; to be
-   stated in the design PR.
+4. **URA and mall car parks** were not collected. *Decided* by Ghanashyam, 16 Oct 2026: out of
+   scope for readings; stated in §4.1 and under Design section above.
 5. **One branch, two issues.** *Decided:* #7 and #8 together on `sushant/7-collectors`.
 6. **Issue text.** *Decided:* update #7 and #8 to say the data is a one-off week, once the
    design PR is agreed.
