@@ -23,7 +23,9 @@ CAR_PARKS = [cp.model_copy(update={"car_park_id": _prefixed(cp.car_park_id)}) fo
 AMENITIES = [s for s in S.sites if s.car_park_id is None]
 CONNECTORS = [c.model_copy(update={"ever_active": False}) for c in S.connectors]
 ACTIVE = C.seen_active(connector_readings())
-FEED = {_prefixed(r.car_park_id) for r in car_park_readings()}
+# latest lot count per car park, as conform() reads it from car_park_reading
+FEED = {_prefixed(r.car_park_id): r.total_lots
+        for r in sorted(car_park_readings(), key=lambda r: r.collected_ts)}
 # sample site id for each conformed site id
 TO_SAMPLE = {_prefixed(k): v.site_id for k, v in SAMPLE_SITE.items()} | {
     a.site_id: a.site_id for a in AMENITIES
@@ -32,7 +34,7 @@ TO_SAMPLE = {_prefixed(k): v.site_id for k, v in SAMPLE_SITE.items()} | {
 
 def _run(**overrides):
     args = dict(car_parks=CAR_PARKS, amenities=AMENITIES, stations=S.stations,
-                connectors=CONNECTORS, active_ids=ACTIVE, feed_ids=FEED)
+                connectors=CONNECTORS, active_ids=ACTIVE, feed=FEED)
     return C.conform_records(**(args | overrides))
 
 
@@ -96,11 +98,25 @@ def test_every_sample_car_park_matches_the_feed():
 
 def test_unmatched_car_parks_are_counted_both_ways():
     no_feed = CAR_PARKS[0].car_park_id
-    out = _run(feed_ids=(FEED - {no_feed}) | {"hdb:ZZ99", "hdb:ZZ98"})
+    feed = {k: v for k, v in FEED.items() if k != no_feed} | {"hdb:ZZ99": 80, "hdb:ZZ98": None}
+    out = _run(feed=feed)
     assert [cp.car_park_id for cp in out.car_parks if not cp.has_live_feed] == [no_feed]
     assert out.issues == {"registry_without_feed": 1, "feed_without_registry": 2}
     # still a candidate site: no feed is reported, never a reason to drop it
     assert no_feed in {s.site_id for s in out.sites}
+
+
+def test_lot_counts_come_from_the_feed():
+    # the HDB registry has no lot counts; the availability feed is their only source
+    blank = [cp.model_copy(update={"total_lots": None}) for cp in CAR_PARKS]
+    out = _run(car_parks=blank)
+    assert {cp.car_park_id: cp.total_lots for cp in out.car_parks} == {
+        cp.car_park_id: cp.total_lots for cp in CAR_PARKS
+    }
+    assert all(s.total_lots is not None for s in out.sites if s.car_park_id)
+    # a feed row with no lot count leaves the registry value alone
+    out = _run(feed=dict.fromkeys(FEED))
+    assert [cp.total_lots for cp in out.car_parks] == [cp.total_lots for cp in CAR_PARKS]
 
 
 # Sites --------------------------------------------------------------------------------
@@ -221,8 +237,8 @@ def test_write_binds_parameters_and_reports_rows_per_table():
     assert written == {"car_park": 26, "connector": 45, "candidate_site": 30, "station_site": 14,
                        "site_context": 30}
     assert [sql for sql, _ in cur.calls] == [
-        C.MARK_FEED, C.MARK_ACTIVE, C.UPSERT_SITE, C.FILL_PLANNING_AREA, C.CLEAR_STATION_SITE,
-        C.INSERT_STATION_SITE, C.UPSERT_CONTEXT,
+        C.MARK_FEED, C.SET_LOTS, C.MARK_ACTIVE, C.UPSERT_SITE, C.FILL_PLANNING_AREA,
+        C.CLEAR_STATION_SITE, C.INSERT_STATION_SITE, C.UPSERT_CONTEXT,
     ]
     assert all("{" not in sql for sql, _ in cur.calls)
 

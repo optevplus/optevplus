@@ -155,19 +155,21 @@ def mark_ever_active(connectors: Iterable[Connector], active_ids: set[str]) -> l
 
 
 def match_feed(
-    car_parks: Iterable[CarPark], feed_ids: set[str], issues: dict[str, int]
+    car_parks: Iterable[CarPark], feed: Mapping[str, int | None], issues: dict[str, int]
 ) -> list[CarPark]:
-    """Match registry car parks to the live feed by their §3.3 id and set `has_live_feed`.
-    The match fails both ways, so both are counted: `registry_without_feed`, and
+    """Match registry car parks to the live feed by their §3.3 id. Sets `has_live_feed`, and
+    `total_lots` from the feed's latest reading, since the HDB feed is the only source of lot
+    counts. The match fails both ways, so both are counted: `registry_without_feed`, and
     `feed_without_registry` (no coordinate, so it cannot become a site)."""
     out = []
     for cp in car_parks:
-        live = cp.car_park_id in feed_ids
-        if not live:
+        update: dict[str, Any] = {"has_live_feed": cp.car_park_id in feed}
+        if cp.car_park_id not in feed:
             _count(issues, "registry_without_feed")
-        out.append(
-            cp if cp.has_live_feed == live else cp.model_copy(update={"has_live_feed": live}))
-    orphans = feed_ids - {cp.car_park_id for cp in out}
+        elif feed[cp.car_park_id] is not None:
+            update["total_lots"] = feed[cp.car_park_id]
+        out.append(cp.model_copy(update=update))
+    orphans = set(feed) - {cp.car_park_id for cp in out}
     if orphans:
         issues["feed_without_registry"] = issues.get("feed_without_registry", 0) + len(orphans)
         log.warning("%d feed car parks have no registry row, e.g. %s", len(orphans),
@@ -284,12 +286,12 @@ def conform_records(
     stations: Iterable[Station],
     connectors: Iterable[Connector],
     active_ids: set[str],
-    feed_ids: set[str],
+    feed: Mapping[str, int | None],
     issues: dict[str, int] | None = None,
 ) -> Conformed:
     """Everything in step 3 except point-in-polygon, which needs PostGIS."""
     issues = {} if issues is None else issues
-    cps = match_feed(unique(car_parks, "car_park_id", issues, "car_park"), feed_ids, issues)
+    cps = match_feed(unique(car_parks, "car_park_id", issues, "car_park"), feed, issues)
     ams = unique(amenities, "site_id", issues, "amenity")
     sts = unique(stations, "station_id", issues, "station")
     cons = mark_ever_active(unique(connectors, "connector_id", issues, "connector"), active_ids)
@@ -317,17 +319,18 @@ def conform_records(
 
 READ_CAR_PARKS = """SELECT car_park_id, name, ST_Y(geom) AS lat, ST_X(geom) AS lon,
     planning_area, total_lots, car_park_type, has_live_feed FROM car_park"""
-READ_AMENITIES = """SELECT amenity_id AS site_id, kind, total_lots,
-    ST_Y(geom) AS lat, ST_X(geom) AS lon FROM stg_amenity"""
 READ_STATIONS = """SELECT station_id, ST_Y(geom) AS lat, ST_X(geom) AS lon, operator,
     address, planning_area, provenance FROM station"""
 READ_CONNECTORS = "SELECT connector_id, station_id, plug_type, power_kw, ever_active FROM connector"
 READ_ACTIVE = """SELECT DISTINCT connector_id FROM connector_reading
     WHERE status IN ('available', 'occupied')"""
 
-READ_FEED = "SELECT DISTINCT car_park_id FROM car_park_reading"
+# the latest reading per car park: its lot count is the only one for HDB car parks
+READ_FEED = """SELECT DISTINCT ON (car_park_id) car_park_id, total_lots
+    FROM car_park_reading WHERE lot_type = 'C' ORDER BY car_park_id, collected_ts DESC"""
 
 MARK_FEED = "UPDATE car_park SET has_live_feed = (car_park_id = ANY(%s))"
+SET_LOTS = "UPDATE car_park SET total_lots = %s WHERE car_park_id = %s"
 MARK_ACTIVE = "UPDATE connector SET ever_active = true WHERE connector_id = ANY(%s)"
 UPSERT_SITE = """INSERT INTO candidate_site (site_id, kind, planning_area, car_park_id,
     total_lots, existing_connectors, provenance, geom)
@@ -356,7 +359,10 @@ def write(cur: Any, result: Conformed) -> dict[str, int]:
     """Upsert the conformed rows. Keyed on primary keys, so a rerun gives the same tables.
     `station_site` is rebuilt whole, since pairs can disappear when a station moves.
     `land_use` and `residents_in_area` are left for the polygon loads to fill."""
-    cur.execute(MARK_FEED, ([cp.car_park_id for cp in result.car_parks if cp.has_live_feed],))
+    live = [cp for cp in result.car_parks if cp.has_live_feed]
+    cur.execute(MARK_FEED, ([cp.car_park_id for cp in live],))
+    cur.executemany(SET_LOTS, [(cp.total_lots, cp.car_park_id) for cp in live
+                               if cp.total_lots is not None])
     active = [c.connector_id for c in result.connectors if c.ever_active]
     cur.execute(MARK_ACTIVE, (active,))
     cur.executemany(UPSERT_SITE, [
@@ -384,7 +390,7 @@ def write(cur: Any, result: Conformed) -> dict[str, int]:
 
 
 def conform() -> dict[str, int]:
-    """Rows upserted per table. Needs DATABASE_URL and migrations 001-004."""
+    """Rows upserted per table. Needs DATABASE_URL and migrations 001-002."""
     import psycopg
     from psycopg.rows import dict_row
 
@@ -395,15 +401,14 @@ def conform() -> dict[str, int]:
     with psycopg.connect(url, row_factory=dict_row) as conn, conn.cursor() as cur:
         car_parks = parse_rows(
             CarPark, map(_with_coord, cur.execute(READ_CAR_PARKS)), issues, "car_park")
-        amenities = parse_rows(
-            CandidateSite, map(_with_coord, cur.execute(READ_AMENITIES)), issues, "amenity")
+        # the collected data has no amenity source yet; amenity sites wait for one
+        log.info("conform: no amenity source in the collected data, car park sites only")
         stations = parse_rows(
             Station, map(_with_coord, cur.execute(READ_STATIONS)), issues, "station")
         connectors = parse_rows(Connector, cur.execute(READ_CONNECTORS), issues, "connector")
         active_ids = {r["connector_id"] for r in cur.execute(READ_ACTIVE)}
-        feed_ids = {r["car_park_id"] for r in cur.execute(READ_FEED)}
-        result = conform_records(
-            car_parks, amenities, stations, connectors, active_ids, feed_ids, issues)
+        feed = {r["car_park_id"]: r["total_lots"] for r in cur.execute(READ_FEED)}
+        result = conform_records(car_parks, [], stations, connectors, active_ids, feed, issues)
         written = write(cur, result)
         conn.commit()
     for key, n in sorted(result.issues.items()):

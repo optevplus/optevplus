@@ -21,8 +21,7 @@ Ids per §3.3. Tables per §3.2 (`car_park`, `station`, `connector`, `connector_
 ## Problem
 Nothing turns car parks, amenities, stations and readings into the candidate-site tables that
 stage 2 reads. This restarts 1.4 from `main`, built **only on what `optev.sample` contains**.
-The earlier attempt (`gurneetkb/data-conforming`) is not carried over; only `stg_amenity`
-returns, by decision (Q3).
+The earlier attempt (`gurneetkb/data-conforming`) is not carried over. No staging tables.
 
 ## What the sample does and doesn't give us
 | Has | Lacks |
@@ -73,9 +72,13 @@ Then ruff, mypy, full pytest.
    ST-05→S-07 (166 m, 200), ST-09→S-30 (178 m, 200), ST-11→S-26 (57 m, 100).
 2. **A station's connectors count at its nearest site only** (ties by id), so no plug is
    counted twice. The design is silent here: **needs a one-line PR to SYSTEM_DESIGN.md §4.1.**
-3. **Amenities come from `stg_amenity`** (`migrations/004_staging.sql`), which `load_static`
-   (#6–#11) will write: `amenity_id` (§3.3 id), `kind`, `total_lots`, `geom`. §3.2 allows `stg_`
-   tables; `test_design.py` now leaves them out of the design-table check.
+3. **Built on what Sushant's collected week provides** (`sushant/7-collectors`), tested on the
+   sample until that data is loaded. The week has `car_park_reading` (`hdb:<car_park_no>`,
+   lots available, **total lots**) and `connector_reading` (`evCpId`, status), nothing else.
+   So: car park `total_lots` comes from the feed's latest reading (the HDB registry has no lot
+   counts); no amenity staging table, because no collected source fills it. `conform()` builds
+   car-park sites only and logs that amenities wait for a source. The amenity logic stays in the
+   core, as §4.1 requires, and runs on the sample's four amenities.
 
 Also within the design's room:
 - Car-park site id = its §3.3 car-park id; kind from the prefix (`hdb:` → HDB, `ura:`/`mall:` →
@@ -102,13 +105,19 @@ Also within the design's room:
   move out, but the design names only `conform.py`.
 - **Windows:** sample data checked out before `.gitattributes` landed is CRLF and fails
   `test_sample`; delete the four files under `optev/sample/data/` and `git checkout` them.
-- **Next:** design PR for decision 2; `load_static` writes `stg_amenity`; coverage (#12) reads
+- **Next:** design PR for decision 2; coverage (#12) reads
   `Conformed.issues`.
 
 ## Checkpoint · 17 Oct 2026 (2)
 - Added the registry ↔ feed match. 22 conform tests; full suite 54 passed, 1 skipped.
-- Renumbered to spec 003 and migration `004_staging.sql`, because `sushant/7-collectors` already
-  uses specs 001/002 and migration 003. `test_design.py` now ignores `stg_` tables on both sides,
-  so it holds whether or not the design lists them (his v1.3 lists `stg_collect_slot`).
+- Renumbered to spec 003, because `sushant/7-collectors` already uses specs 001/002.
 - **Merge note:** `optev/ingest/cli.py` is changed on both branches; whichever merges second
   keeps both verbs (`load-collected`, `conform`) and his `_database_url()` helper.
+
+## Checkpoint · 17 Oct 2026 (3)
+- Based on Sushant's collected data (decision 3): lot counts from the feed; `stg_amenity`,
+  migration 004 and the `test_design.py` change removed. 23 conform tests; suite 55 passed.
+- **Gaps in the collected data** that conform needs from somewhere (team to decide):
+  car park coordinates and type (HDB Carpark Information), station coordinates and connector
+  details (in the raw EVCBatch files but not loaded into `station`/`connector`), planning-area
+  and land-use polygons (MP2025), amenities. Until then the sample stands in for all of them.
