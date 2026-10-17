@@ -26,7 +26,7 @@ There was no rule register. The sample's five rules are illustrative ("the real 
 from #17"). The engine (#18) needs a file it loads, not prose (WBS 3.1 "done when").
 
 ## Basis: the collected week
-Rules read only facts that Sushant's collected week can produce (`sushant/7-collectors`): HDB
+Rules read only facts that the collected week can produce (merged in #52, loaded in Neon): HDB
 car park availability (lots available, **total lots**) and LTA EVCBatch (connector status). From
 those, conform and the indicators give `total_lots`, `existing_connectors`, `supply_state` and
 `utilisation`. Tested on `optev.sample` until the week is loaded.
@@ -85,3 +85,10 @@ ruff, mypy, full pytest: 53 passed, 1 skipped.
 - **Works:** register, loader, 20 tests; verify steps pass.
 - **Next:** #18 `evaluate` (every rule, outcome policy in §4.4), then #19 `site_facts` and
   screening.
+
+## Checkpoint · 17 Oct 2026 (2)
+- Merged main (#51, #52). No shared files with the 1.4 branch (#53), which merges first.
+  Suite: 67 passed, 4 skipped (live DB tests).
+- The facts the rules read come from conform and the indicators. In Neon these need
+  `car_park`/`station`/`connector`, which are still empty (see spec 003 checkpoint 4), so the
+  register is exercised on the sample until they are loaded.
