@@ -13,3 +13,4 @@ data/raw/
 data/interim/
 *.duckdb
 .streamlit/secrets.toml
+collected_data/
