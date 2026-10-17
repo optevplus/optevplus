@@ -1,0 +1,37 @@
+# Rule register. SYSTEM_DESIGN.md §4.4; loaded by optev.reasoning.rules.load_register.
+#
+# Every rule reads only facts that the collected week provides (HDB car park availability and
+# LTA EVCBatch, see Miscellaneous/collector/README.md): total_lots, existing_connectors,
+# supply_state, utilisation. Rules that need data not yet collected wait for it; see
+# specs/004-rule-register/spec.md.
+#
+# Thresholds are never written here: a rule names the optev.assumptions value it uses.
+# source_ref is the id of what the rule cites: ds- dataset, doc- document, asm- assumption.
+# explanation_template may use only the rule's own required_facts.
+
+[[rule]]
+rule_id = "R01"
+condition = "Car capacity is published for the site"
+source = "gov_dataset"
+source_ref = "ds-hdb-availability"
+required_facts = ["total_lots"]
+explanation_template = "Capacity is known: {total_lots} car lots."
+on_fail = "reject"
+
+[[rule]]
+rule_id = "R03"
+condition = "Existing points plus one new point stay within MAX_SHARE_OF_LOTS of the car lots"
+source = "math_constraint"
+source_ref = "doc-lta-ev-factsheet-2021"
+required_facts = ["total_lots", "existing_connectors"]
+explanation_template = "{existing_connectors} charging points already serve {total_lots} car lots."
+on_fail = "reject"
+
+[[rule]]
+rule_id = "R04"
+condition = "Sites whose chargers are idle (used under IDLE_BELOW of the time) get no more points"
+source = "project_assumption"
+source_ref = "asm-idle-threshold"
+required_facts = ["supply_state"]
+explanation_template = "Charger supply at this site: {supply_state}."
+on_fail = "reject"
