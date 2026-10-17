@@ -248,9 +248,10 @@ def test_with_coord_nests_lat_and_lon():
     assert C._with_coord(row) == {"car_park_id": "hdb:A1", "coord": {"lat": 1.35, "lon": 103.9}}
 
 
-def test_cli_rejects_unknown_verbs_and_needs_a_database(monkeypatch):
-    monkeypatch.setattr("sys.argv", ["optev-db"])
-    assert cli.main() == 2
+def test_cli_conform_needs_a_database(monkeypatch, tmp_path):
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(cli, "MIGRATIONS", tmp_path / "migrations")  # no .env beside it
     monkeypatch.setattr("sys.argv", ["optev-db", "conform"])
     assert cli.main() == 1
+    monkeypatch.setattr("sys.argv", ["optev-db", "conform", "extra"])
+    assert cli.main() == 2

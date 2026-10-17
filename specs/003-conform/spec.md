@@ -111,8 +111,7 @@ Also within the design's room:
 ## Checkpoint · 17 Oct 2026 (2)
 - Added the registry ↔ feed match. 22 conform tests; full suite 54 passed, 1 skipped.
 - Renumbered to spec 003, because `sushant/7-collectors` already uses specs 001/002.
-- **Merge note:** `optev/ingest/cli.py` is changed on both branches; whichever merges second
-  keeps both verbs (`load-collected`, `conform`) and his `_database_url()` helper.
+- `optev/ingest/cli.py` conflict with #52 resolved by merging main (see checkpoint 4).
 
 ## Checkpoint · 17 Oct 2026 (3)
 - Based on Sushant's collected data (decision 3): lot counts from the feed; `stg_amenity`,
@@ -121,3 +120,10 @@ Also within the design's room:
   car park coordinates and type (HDB Carpark Information), station coordinates and connector
   details (in the raw EVCBatch files but not loaded into `station`/`connector`), planning-area
   and land-use polygons (MP2025), amenities. Until then the sample stands in for all of them.
+
+## Checkpoint · 17 Oct 2026 (4)
+- Merged main (#51 Neon, #52 collected week). `cli.py` keeps main's `_database_url()` (reads
+  `SystemCode/.env`) and `load-collected`, plus `optev-db conform`. Suite: 69 passed, 4 skipped.
+- **Neon holds only `car_park_reading` (662,310 rows) and `connector_reading` (3,832,874 rows).**
+  `car_park`, `station` and `connector` are empty, so `optev-db conform` on the real data builds
+  no sites yet: the readings carry ids, not coordinates.
