@@ -1,0 +1,376 @@
+"""Stage 1 · conform (SYSTEM_DESIGN.md §4.1, method step 3).
+
+Turns car parks, amenities, stations and connector readings into `candidate_site`,
+`station_site` and `site_context`. `conform_records` is the pure core and runs on
+`optev.sample`; `conform()` reads and writes the §3.2 tables.
+
+Coordinates are stored as WGS84. Every distance is computed in SVY21 (EPSG:3414) metres.
+A bad row is logged, counted and skipped; it never fails the run.
+"""
+
+import logging
+import os
+from collections import defaultdict
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from typing import Any, TypedDict
+
+import numpy as np
+from pydantic import BaseModel, ValidationError
+from pyproj import Transformer
+
+from optev.assumptions import AMENITY_LINK_M, MATCH_THRESHOLDS_M
+from optev.contracts import (
+    CandidateSite,
+    CarPark,
+    Connector,
+    ConnectorReading,
+    ConnectorStatus,
+    Coordinate,
+    SiteKind,
+    Station,
+)
+
+log = logging.getLogger(__name__)
+
+_TO_WGS84 = Transformer.from_crs("EPSG:3414", "EPSG:4326", always_xy=True)
+_TO_SVY21 = Transformer.from_crs("EPSG:4326", "EPSG:3414", always_xy=True)
+
+ACTIVE = frozenset({ConnectorStatus.AVAILABLE, ConnectorStatus.OCCUPIED})
+# §3.3: a car park's site id is its source-prefixed id, and the source decides the kind
+CAR_PARK_KIND = {
+    "hdb": SiteKind.HDB_CAR_PARK,
+    "ura": SiteKind.PUBLIC_CAR_PARK,
+    "mall": SiteKind.PUBLIC_CAR_PARK,
+}
+AMENITY_KINDS = frozenset(
+    {SiteKind.HAWKER_CENTRE, SiteKind.COMMUNITY_FACILITY, SiteKind.PETROL_STATION}
+)
+
+class StationSite(TypedDict):
+    station_id: str
+    site_id: str
+    distance_m: float
+    threshold_m: int
+
+
+@dataclass
+class Conformed:
+    connectors: list[Connector]
+    sites: list[CandidateSite]
+    station_site: list[StationSite]
+    amenities_nearby: dict[str, int]
+    nearest_point_m: dict[str, float | None]
+    issues: dict[str, int] = field(default_factory=dict)
+    """Rows counted rather than raised: unknown sources, duplicates, unlinked stations."""
+
+
+def _count(issues: dict[str, int], key: str) -> None:
+    issues[key] = issues.get(key, 0) + 1
+
+
+# Projection ---------------------------------------------------------------------------
+
+
+def svy21_to_wgs84(x: float, y: float) -> Coordinate | None:
+    """SVY21 easting and northing to WGS84. None when the point is not in Singapore."""
+    lon, lat = _TO_WGS84.transform(x, y)
+    try:
+        return Coordinate(lat=lat, lon=lon)
+    except ValidationError:
+        return None
+
+
+def to_svy21(coords: Iterable[Coordinate]) -> np.ndarray:
+    """WGS84 coordinates to an (n, 2) array of SVY21 metres."""
+    cs = list(coords)
+    if not cs:
+        return np.empty((0, 2))
+    x, y = _TO_SVY21.transform([c.lon for c in cs], [c.lat for c in cs])
+    return np.column_stack([x, y])
+
+
+def metres(a: Coordinate, b: Coordinate) -> float:
+    (ax, ay), (bx, by) = to_svy21([a, b])
+    return float(np.hypot(ax - bx, ay - by))
+
+
+def _distances(points: np.ndarray, origin: np.ndarray) -> np.ndarray:
+    return np.asarray(np.hypot(points[:, 0] - origin[0], points[:, 1] - origin[1]))
+
+
+# Defensive parsing --------------------------------------------------------------------
+
+
+def parse_rows[M: BaseModel](
+    model: type[M], rows: Iterable[Mapping[str, Any]], issues: dict[str, int], label: str
+) -> list[M]:
+    """Validate rows into contract objects. A malformed row is counted as `bad_<label>`."""
+    out: list[M] = []
+    for row in rows:
+        try:
+            out.append(model.model_validate(row))
+        except ValidationError as e:
+            _count(issues, f"bad_{label}")
+            log.warning("skipped %s row: %d errors, first: %s", label, e.error_count(),
+                        e.errors()[0]["msg"])
+    return out
+
+
+def unique[M: BaseModel](
+    items: Iterable[M], key: str, issues: dict[str, int], label: str
+) -> list[M]:
+    """Keep the first row per id. Later copies are counted as `duplicate_<label>`."""
+    seen: dict[str, M] = {}
+    for item in items:
+        k = getattr(item, key)
+        if k in seen:
+            _count(issues, f"duplicate_{label}")
+        else:
+            seen[k] = item
+    return list(seen.values())
+
+
+# Connectors ---------------------------------------------------------------------------
+
+
+def seen_active(readings: Iterable[ConnectorReading]) -> set[str]:
+    """Connectors ever seen available or occupied (invariant 3)."""
+    return {r.connector_id for r in readings if r.status in ACTIVE}
+
+
+def mark_ever_active(connectors: Iterable[Connector], active_ids: set[str]) -> list[Connector]:
+    """Set `ever_active`. Once true it stays true, so pruning old readings never
+    un-installs a connector."""
+    return [
+        c if c.ever_active or c.connector_id not in active_ids
+        else c.model_copy(update={"ever_active": True})
+        for c in connectors
+    ]
+
+
+# Sites --------------------------------------------------------------------------------
+
+
+def car_park_site(car_park: CarPark) -> CandidateSite | None:
+    """A car park as a candidate site. None when its id carries no known source prefix."""
+    prefix, sep, _ = car_park.car_park_id.partition(":")
+    kind = CAR_PARK_KIND.get(prefix) if sep else None
+    if kind is None:
+        return None
+    return CandidateSite(
+        site_id=car_park.car_park_id,
+        kind=kind,
+        coord=car_park.coord,
+        planning_area=car_park.planning_area,
+        car_park_id=car_park.car_park_id,
+        total_lots=car_park.total_lots,
+    )
+
+
+def build_sites(
+    car_parks: Sequence[CarPark], amenities: Sequence[CandidateSite], issues: dict[str, int]
+) -> tuple[list[CandidateSite], dict[str, int]]:
+    """Car parks become sites. An amenity within AMENITY_LINK_M of a car park adds to that
+    car park's `amenities_nearby` (the nearest one, ties by id); otherwise it is a site."""
+    sites: list[CandidateSite] = []
+    for cp in car_parks:
+        site = car_park_site(cp)
+        if site is None:
+            _count(issues, "unknown_source_car_park")
+            log.warning("car park %s has no known source prefix", cp.car_park_id)
+        else:
+            sites.append(site)
+    sites.sort(key=lambda s: s.site_id)
+    nearby = {s.site_id: 0 for s in sites}
+
+    kept = []
+    for a in amenities:
+        if a.kind in AMENITY_KINDS:
+            kept.append(a)
+        else:
+            _count(issues, "unknown_kind_amenity")
+    car_park_xy = to_svy21(s.coord for s in sites)
+    standalone = []
+    for amenity, xy in zip(kept, to_svy21(a.coord for a in kept), strict=True):
+        if len(sites):
+            d = _distances(car_park_xy, xy)
+            i = int(np.argmin(d))
+            if d[i] <= AMENITY_LINK_M:
+                nearby[sites[i].site_id] += 1
+                continue
+        standalone.append(amenity.model_copy(update={"car_park_id": None}))
+    return sites + sorted(standalone, key=lambda s: s.site_id), nearby
+
+
+def associate(stations: Sequence[Station], sites: Sequence[CandidateSite]) -> list[StationSite]:
+    """Every station-site pair within the largest threshold, tagged with the smallest
+    threshold it meets."""
+    thresholds = sorted(MATCH_THRESHOLDS_M)
+    site_xy = to_svy21(s.coord for s in sites)
+    pairs: list[StationSite] = []
+    for station, xy in zip(stations, to_svy21(s.coord for s in stations), strict=True):
+        d = _distances(site_xy, xy)
+        for i in np.flatnonzero(d <= thresholds[-1]):
+            dist = round(float(d[i]), 1)
+            pairs.append(StationSite(
+                station_id=station.station_id,
+                site_id=sites[int(i)].site_id,
+                distance_m=dist,
+                threshold_m=next(t for t in thresholds if dist <= t),
+            ))
+    return sorted(pairs, key=lambda p: (p["station_id"], p["site_id"]))
+
+
+def count_existing(
+    connectors: Iterable[Connector], pairs: Iterable[StationSite]
+) -> dict[str, int]:
+    """Active connectors per site. A station's connectors count at its nearest site only
+    (ties by id), so a plug between two car parks is never counted twice."""
+    home: dict[str, str] = {}
+    for p in sorted(pairs, key=lambda p: (p["distance_m"], p["site_id"])):
+        home.setdefault(p["station_id"], p["site_id"])
+    counts: dict[str, int] = defaultdict(int)
+    for c in connectors:
+        if c.ever_active and c.station_id in home:
+            counts[home[c.station_id]] += 1
+    return dict(counts)
+
+
+def nearest_point_m(
+    sites: Sequence[CandidateSite], stations: Sequence[Station], connectors: Iterable[Connector]
+) -> dict[str, float | None]:
+    """Metres to the closest station with an active connector; None when there is none."""
+    live_ids = {c.station_id for c in connectors if c.ever_active}
+    live = [s for s in stations if s.station_id in live_ids]
+    if not live:
+        return {s.site_id: None for s in sites}
+    live_xy = to_svy21(s.coord for s in live)
+    return {
+        s.site_id: round(float(_distances(live_xy, xy).min()), 1)
+        for s, xy in zip(sites, to_svy21(s.coord for s in sites), strict=True)
+    }
+
+
+def conform_records(
+    car_parks: Iterable[CarPark],
+    amenities: Iterable[CandidateSite],
+    stations: Iterable[Station],
+    connectors: Iterable[Connector],
+    active_ids: set[str],
+    issues: dict[str, int] | None = None,
+) -> Conformed:
+    """Everything in step 3 except point-in-polygon, which needs PostGIS."""
+    issues = {} if issues is None else issues
+    cps = unique(car_parks, "car_park_id", issues, "car_park")
+    ams = unique(amenities, "site_id", issues, "amenity")
+    sts = unique(stations, "station_id", issues, "station")
+    cons = mark_ever_active(unique(connectors, "connector_id", issues, "connector"), active_ids)
+
+    sites, nearby = build_sites(cps, ams, issues)
+    pairs = associate(sts, sites)
+    linked = {p["station_id"] for p in pairs}
+    for s in sts:
+        if s.station_id not in linked:
+            _count(issues, "station_unlinked")
+    counts = count_existing(cons, pairs)
+    sites = [s.model_copy(update={"existing_connectors": counts.get(s.site_id, 0)}) for s in sites]
+    return Conformed(
+        connectors=cons,
+        sites=sites,
+        station_site=pairs,
+        amenities_nearby={s.site_id: nearby.get(s.site_id, 0) for s in sites},
+        nearest_point_m=nearest_point_m(sites, sts, cons),
+        issues=issues,
+    )
+
+
+# Database -----------------------------------------------------------------------------
+
+READ_CAR_PARKS = """SELECT car_park_id, name, ST_Y(geom) AS lat, ST_X(geom) AS lon,
+    planning_area, total_lots, car_park_type, has_live_feed FROM car_park"""
+READ_AMENITIES = """SELECT amenity_id AS site_id, kind, total_lots,
+    ST_Y(geom) AS lat, ST_X(geom) AS lon FROM stg_amenity"""
+READ_STATIONS = """SELECT station_id, ST_Y(geom) AS lat, ST_X(geom) AS lon, operator,
+    address, planning_area, provenance FROM station"""
+READ_CONNECTORS = "SELECT connector_id, station_id, plug_type, power_kw, ever_active FROM connector"
+READ_ACTIVE = """SELECT DISTINCT connector_id FROM connector_reading
+    WHERE status IN ('available', 'occupied')"""
+
+MARK_ACTIVE = "UPDATE connector SET ever_active = true WHERE connector_id = ANY(%s)"
+UPSERT_SITE = """INSERT INTO candidate_site (site_id, kind, planning_area, car_park_id,
+    total_lots, existing_connectors, provenance, geom)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+    ON CONFLICT (site_id) DO UPDATE SET kind = EXCLUDED.kind,
+    planning_area = EXCLUDED.planning_area, car_park_id = EXCLUDED.car_park_id,
+    total_lots = EXCLUDED.total_lots, existing_connectors = EXCLUDED.existing_connectors,
+    provenance = EXCLUDED.provenance, geom = EXCLUDED.geom"""
+FILL_PLANNING_AREA = """UPDATE candidate_site s SET planning_area = pa.code
+    FROM planning_area pa WHERE s.planning_area IS NULL AND ST_Contains(pa.geom, s.geom)"""
+CLEAR_STATION_SITE = "DELETE FROM station_site"
+INSERT_STATION_SITE = """INSERT INTO station_site (station_id, site_id, distance_m, threshold_m)
+    VALUES (%s, %s, %s, %s)"""
+UPSERT_CONTEXT = """INSERT INTO site_context (site_id, amenities_nearby, nearest_point_m)
+    VALUES (%s, %s, %s) ON CONFLICT (site_id) DO UPDATE SET
+    amenities_nearby = EXCLUDED.amenities_nearby, nearest_point_m = EXCLUDED.nearest_point_m"""
+
+
+def _with_coord(row: Mapping[str, Any]) -> dict[str, Any]:
+    out = {k: v for k, v in row.items() if k not in ("lat", "lon")}
+    out["coord"] = {"lat": row["lat"], "lon": row["lon"]}
+    return out
+
+
+def write(cur: Any, result: Conformed) -> dict[str, int]:
+    """Upsert the conformed rows. Keyed on primary keys, so a rerun gives the same tables.
+    `station_site` is rebuilt whole, since pairs can disappear when a station moves.
+    `land_use` and `residents_in_area` are left for the polygon loads to fill."""
+    active = [c.connector_id for c in result.connectors if c.ever_active]
+    cur.execute(MARK_ACTIVE, (active,))
+    cur.executemany(UPSERT_SITE, [
+        (s.site_id, s.kind.value, s.planning_area, s.car_park_id, s.total_lots,
+         s.existing_connectors, s.provenance.value, s.coord.lon, s.coord.lat)
+        for s in result.sites
+    ])
+    cur.execute(FILL_PLANNING_AREA)
+    cur.execute(CLEAR_STATION_SITE)
+    cur.executemany(INSERT_STATION_SITE, [
+        (p["station_id"], p["site_id"], p["distance_m"], p["threshold_m"])
+        for p in result.station_site
+    ])
+    cur.executemany(UPSERT_CONTEXT, [
+        (s.site_id, result.amenities_nearby[s.site_id], result.nearest_point_m[s.site_id])
+        for s in result.sites
+    ])
+    return {
+        "connector": len(active),
+        "candidate_site": len(result.sites),
+        "station_site": len(result.station_site),
+        "site_context": len(result.sites),
+    }
+
+
+def conform() -> dict[str, int]:
+    """Rows upserted per table. Needs DATABASE_URL and migrations 001-003."""
+    import psycopg
+    from psycopg.rows import dict_row
+
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError("DATABASE_URL is not set. Copy .env.example to .env and fill it in.")
+    issues: dict[str, int] = {}
+    with psycopg.connect(url, row_factory=dict_row) as conn, conn.cursor() as cur:
+        car_parks = parse_rows(
+            CarPark, map(_with_coord, cur.execute(READ_CAR_PARKS)), issues, "car_park")
+        amenities = parse_rows(
+            CandidateSite, map(_with_coord, cur.execute(READ_AMENITIES)), issues, "amenity")
+        stations = parse_rows(
+            Station, map(_with_coord, cur.execute(READ_STATIONS)), issues, "station")
+        connectors = parse_rows(Connector, cur.execute(READ_CONNECTORS), issues, "connector")
+        active_ids = {r["connector_id"] for r in cur.execute(READ_ACTIVE)}
+        result = conform_records(car_parks, amenities, stations, connectors, active_ids, issues)
+        written = write(cur, result)
+        conn.commit()
+    for key, n in sorted(result.issues.items()):
+        log.warning("conform: %d %s", n, key)
+    return written
