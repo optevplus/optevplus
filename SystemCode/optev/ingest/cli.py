@@ -1,5 +1,5 @@
-"""Small CLI: `optev-db migrate`, `optev-db load-collected <path> [--day YYYY-MM-DD]`, and
-`optev-db conform`."""
+"""Small CLI: `optev-db migrate`, `optev-db load-collected <path> [--day YYYY-MM-DD]`,
+`optev-db load-static` and `optev-db conform`."""
 
 import logging
 import os
@@ -9,7 +9,7 @@ from datetime import date
 
 MIGRATIONS = pathlib.Path(__file__).resolve().parents[2] / "migrations"
 USAGE = ("usage: optev-db migrate | optev-db load-collected <path> [--day YYYY-MM-DD]"
-         " | optev-db conform")
+         " | optev-db load-static | optev-db conform")
 
 
 def _database_url() -> str | None:
@@ -62,6 +62,18 @@ def load_collected(args: list[str]) -> int:
     return 0
 
 
+def load_static() -> int:
+    from optev.ingest.static import load_static as load
+
+    if not _database_url():
+        return 1
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # it logs every pre-signed link
+    for source, n in load().items():
+        print(f"{source}: {n}")
+    return 0
+
+
 def conform() -> int:
     from optev.ingest.conform import conform as run
 
@@ -78,6 +90,8 @@ def main() -> int:
         return migrate()
     if len(sys.argv) >= 2 and sys.argv[1] == "load-collected":
         return load_collected(sys.argv[2:])
+    if len(sys.argv) == 2 and sys.argv[1] == "load-static":
+        return load_static()
     if len(sys.argv) == 2 and sys.argv[1] == "conform":
         return conform()
     print(USAGE)
