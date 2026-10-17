@@ -1,18 +1,30 @@
-"""Small CLI so day-one verification has something to run. `optev-db migrate`."""
+"""Small CLI: `optev-db migrate`, and `optev-db load-collected <path> [--day YYYY-MM-DD]`."""
 
+import logging
 import os
 import pathlib
 import sys
+from datetime import date
 
 MIGRATIONS = pathlib.Path(__file__).resolve().parents[2] / "migrations"
+USAGE = "usage: optev-db migrate | optev-db load-collected <path> [--day YYYY-MM-DD]"
+
+
+def _database_url() -> str | None:
+    from dotenv import load_dotenv
+
+    load_dotenv(MIGRATIONS.parent / ".env")  # never overrides a variable already set
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        print("DATABASE_URL is not set. Copy .env.example to .env and fill it in.")
+    return url
 
 
 def migrate() -> int:
     import psycopg
 
-    url = os.environ.get("DATABASE_URL")
+    url = _database_url()
     if not url:
-        print("DATABASE_URL is not set. Copy .env.example to .env and fill it in.")
         return 1
     with psycopg.connect(url) as conn, conn.cursor() as cur:
         for path in sorted(MIGRATIONS.glob("*.sql")):
@@ -25,11 +37,36 @@ def migrate() -> int:
     return 0
 
 
-def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] != "migrate":
-        print("usage: optev-db migrate")
+def load_collected(args: list[str]) -> int:
+    from optev.ingest.collect import load_collected as load
+
+    if len(args) not in (1, 3) or (len(args) == 3 and args[1] != "--day"):
+        print(USAGE)
         return 2
-    return migrate()
+    root = pathlib.Path(args[0])
+    if not root.is_dir():
+        print(f"not a folder: {root}")
+        return 2
+    try:
+        day = date.fromisoformat(args[2]) if len(args) == 3 else None
+    except ValueError:
+        print(f"not a date: {args[2]}")
+        return 2
+    if not _database_url():
+        return 1
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    for table, n in load(root, day).items():
+        print(f"{table} +{n}")
+    return 0
+
+
+def main() -> int:
+    if len(sys.argv) >= 2 and sys.argv[1] == "migrate":
+        return migrate()
+    if len(sys.argv) >= 2 and sys.argv[1] == "load-collected":
+        return load_collected(sys.argv[2:])
+    print(USAGE)
+    return 2
 
 
 if __name__ == "__main__":

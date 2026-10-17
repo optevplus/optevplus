@@ -57,7 +57,7 @@ schema: `Allocation.planning_area` and optional `budget`, so `allocation_key` an
 - **Works:** `optev/graph/load.py` (`rows`, `load`, `clear_sample`); CLI `load --sample` and
   `clear --sample`. 11 unit tests; live test loads the sample into Aura twice with identical
   counts. The sample is loaded in Aura now: 227 nodes labelled `:Sample`.
-- **Decided:** design 1.3 adds `load(data, session)` beside `load_all`, the `ds-`/`doc-`/`asm-`
+- **Decided:** design 1.4 adds `load(data, session)` beside `load_all`, the `ds-`/`doc-`/`asm-`
   reference ids, and references-first load order (the 1.1 order loaded datasets after the
   indicators that point at them). On #47: allocation keys follow design 1.1, `on_fail` on Rule.
 - **Not built:** `load_all` (the Postgres reader) waits for #2 and migration 002 on Neon.

@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.3 · 14 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.4 · 18 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -77,7 +77,7 @@ candidates; electrical capacity and land access need separate verification.
 ```mermaid
 flowchart LR
   subgraph S1["1 · Data foundation (ingest)"]
-    C[collectors] --> R[(connector_reading<br>car_park_reading)]
+    C[collected week] --> R[(connector_reading<br>car_park_reading)]
     ST[static loads] --> CF[conform + spatial]
     R --> CF
     CF --> CS[(candidate_site<br>station_site<br>site_context)]
@@ -118,7 +118,7 @@ flowchart LR
 |---|---|---|
 | Database | PostgreSQL + PostGIS on **Neon** | **Source of truth** for every number and record |
 | Knowledge graph | **Neo4j Aura Free** | Evidence and reasoning links for explanations. Rebuilt from Postgres; never the source of a number |
-| Collector | **GitHub Actions** cron, every 30 min | Writes readings to Postgres. Never depends on a laptop |
+| Collector | One week of 5-minute polls, 7–14 Oct 2026 (`Miscellaneous/collector/`) | Loaded once into Postgres at 30-minute snapshots. No scheduled collector |
 | Optimiser | **OR-Tools CP-SAT** | Allocation under constraints |
 | ML | **scikit-learn** | k-means patterns; regression for no-charger sites |
 | Explanation | **LangGraph** + one LLM provider (open decision §9) | Grounded answers from retrieved evidence only |
@@ -160,7 +160,8 @@ Migrations `001_init.sql` and `002_pipeline.sql` create every table below. Apply
 |---|---|---|---|
 | `planning_area` | PlanningArea | ingest | all |
 | `car_park`, `station`, `connector` | CarPark, Station, Connector | ingest | analysis, reasoning, graph |
-| `car_park_reading`, `connector_reading` | readings | ingest collectors | analysis |
+| `car_park_reading`, `connector_reading` | readings | ingest `load_collected` | analysis |
+| `stg_collect_slot` | one row per feed per 30-minute slot loaded | ingest `load_collected` | ingest coverage |
 | `candidate_site` | CandidateSite | ingest | all |
 | `station_site` | station-site association | ingest | analysis, graph |
 | `site_context` | features (land use, residents, amenities, nearest point) | ingest | analysis, reasoning |
@@ -259,9 +260,9 @@ quarterly charger CSV; cost per point from the LTA ECCG guidelines (§3.5).
 **Modules and interface**
 
 ```python
-# optev/ingest/collect.py   (run by .github/workflows/collect.yml every 30 minutes)
-def collect_ev(now: datetime) -> int            # rows written to connector_reading
-def collect_car_parks(now: datetime) -> int     # rows written to car_park_reading
+# optev/ingest/collect.py   (run once: optev-db load-collected <path> [--day YYYY-MM-DD])
+def load_collected(root: Path, day: date | None = None) -> dict[str, int]
+                                                # rows written per reading table
 
 # optev/ingest/static.py
 def load_static() -> dict[str, int]             # rows loaded per static source
@@ -275,11 +276,19 @@ def coverage_report(window_start: datetime, window_end: datetime) -> dict[str, f
 
 **Method**
 
-1. **Collect.** EV status mapping: `"0"` → occupied, `"1"` → available, `""` → unavailable.
-   Store both `provider_ts` and `collected_ts`. Car parks: keep `lot_type = "C"`. Use the HDB
-   data.gov.sg feed for HDB car parks and LTA's feed for URA and mall car parks only, so no
-   car park is counted twice. Never query the HDB feed at exactly 00:00:00. One bad record
-   is logged and skipped; it never fails the run.
+1. **Collect.** The observed readings are one week of 5-minute polls, 7 Oct 2026 13:55 to
+   14 Oct 2026 10:56 SGT, collected by `Miscellaneous/collector/poll_ev_data.py` (HDB
+   data.gov.sg car park availability and LTA `EVCBatch`). There is no live collector.
+   `load_collected` reads the raw files only and keeps the poll nearest each :00 and :30 SGT
+   slot, within 150 s; a slot with no poll is missing, never filled. `collected_ts` is the
+   poll's fetch time. EV status mapping: `"0"` → occupied, `"1"` → available, `""` →
+   unavailable; every connector is kept, including unavailable ones. Car parks: id
+   `hdb:<car_park_no>`, keep `lot_type = "C"`, `provider_ts` is that car park's own
+   `update_datetime`. One bad record is logged and skipped; it never fails the run. Each slot
+   loaded is recorded in `stg_collect_slot`, and a slot already there is skipped, so a re-run
+   writes nothing.
+   **Scope decision:** URA and mall car parks are out of scope for readings because their feed
+   (LTA Carpark Availability) was not collected; car park readings cover HDB car parks only.
 2. **Static loads.** URA places with `NO_CAR > 0` only. Petrol stations filtered to service
    stations by name; if too noisy, drop them and record why.
 3. **Conform.** Convert SVY21 to WGS84 with pyproj (EPSG:3414 → 4326); compute every distance
@@ -525,7 +534,7 @@ be re-run on its own. Target: one planning area end to end in under 10 minutes.
 
 | Stage | Metric | Answer key | Baseline | Target |
 |---|---|---|---|---|
-| 1 | Completeness, freshness, join coverage | Collection schedule | — | ≥ 95% complete; 100% of sites in an area |
+| 1 | Completeness, freshness, join coverage | The 330 half-hour slots of the collected week | — | ≥ 95% complete; 100% of sites in an area |
 | 2 patterns | Silhouette | — | — | ≥ 0.5 |
 | 2 queueing | MAPE by occupancy band | Simulation with known demand (`truth()`) | Occupancy alone | ≤ 10% below `RELIABLE_UP_TO` |
 | 2 regression | MAE, Spearman ρ | Hidden sites, hidden areas | Planning-area average | Beat baseline; ρ ≥ 0.5 |
@@ -582,6 +591,11 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   needs all four owners' approval. Checker no longer takes `budget`.
 - **1.2 · 14 Oct 2026.** Allocation and infeasibility report ids defined in §3.3, so the
   allocator and the graph use one id per allocation. Budgets are written to the cent.
-- **1.3 · 14 Oct 2026.** Loader split into `load` (a bundle of contracts) and `load_all`
+- **1.3 · 15 Oct 2026.** Observed readings are the week collected 7–14 Oct 2026, loaded once
+  at 30-minute snapshots; no scheduled collector (§2.2, §4.1). `collect_ev` and
+  `collect_car_parks` replaced by `load_collected`. New ingest table `stg_collect_slot`
+  (§3.2). HDB car parks only. Stage 1 completeness measured against the week's 330 slots
+  (§6). Agreed by Ghanashyam (spec 002).
+- **1.4 · 18 Oct 2026.** Loader split into `load` (a bundle of contracts) and `load_all`
   (Postgres), so the graph is built and tested on the sample before Postgres is live.
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
