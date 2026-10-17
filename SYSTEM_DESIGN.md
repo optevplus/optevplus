@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.3 · 15 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.4 · 17 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -153,7 +153,7 @@ contract needs all four owners.
 
 ### 3.2 Database tables
 
-Migrations `001_init.sql` and `002_pipeline.sql` create every table below. Apply with
+Migrations `001_init.sql` to `004_static.sql` create every table below. Apply with
 `uv run optev-db migrate`. Ingest-internal staging tables are allowed if prefixed `stg_`.
 
 | Table | Mirrors | Written by | Read by |
@@ -162,6 +162,9 @@ Migrations `001_init.sql` and `002_pipeline.sql` create every table below. Apply
 | `car_park`, `station`, `connector` | CarPark, Station, Connector | ingest | analysis, reasoning, graph |
 | `car_park_reading`, `connector_reading` | readings | ingest `load_collected` | analysis |
 | `stg_collect_slot` | one row per feed per 30-minute slot loaded | ingest `load_collected` | ingest coverage |
+| `stg_amenity` | hawker centres and community clubs, ids per §3.3 | ingest `load_static` | ingest conform |
+| `stg_land_use` | MP2025 land-use plots (`LU_DESC`, simplified polygon) | ingest `load_static` | ingest conform |
+| `stg_residents` | residents per planning area (Census 2020) | ingest `load_static` | ingest conform |
 | `candidate_site` | CandidateSite | ingest | all |
 | `station_site` | station-site association | ingest | analysis, graph |
 | `site_context` | features (land use, residents, amenities, nearest point) | ingest | analysis, reasoning |
@@ -584,3 +587,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   `collect_car_parks` replaced by `load_collected`. New ingest table `stg_collect_slot`
   (§3.2). HDB car parks only. Stage 1 completeness measured against the week's 330 slots
   (§6). Agreed by Ghanashyam (spec 002).
+- **1.4 · 17 Oct 2026.** New ingest staging tables `stg_amenity`, `stg_land_use` and
+  `stg_residents` (§3.2, migration `004_static.sql`), written by `load_static` and read by
+  conform. Petrol stations are dropped: the Customs licence list holds only terminals,
+  refineries and power stations (spec 004).
