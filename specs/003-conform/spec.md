@@ -1,4 +1,4 @@
-# 001 · conform
+# 003 · conform
 
 **Owner:** Gurneet  ·  **Status:** built, not yet run on a database  ·  **Branch:** `gurneetkb/1.4-conform-sites`
 **WBS:** 1.4 Conform: projection, entity resolution, defensive parsing
@@ -73,13 +73,18 @@ Then ruff, mypy, full pytest.
    ST-05→S-07 (166 m, 200), ST-09→S-30 (178 m, 200), ST-11→S-26 (57 m, 100).
 2. **A station's connectors count at its nearest site only** (ties by id), so no plug is
    counted twice. The design is silent here: **needs a one-line PR to SYSTEM_DESIGN.md §4.1.**
-3. **Amenities come from `stg_amenity`** (`migrations/003_staging.sql`), which `load_static`
+3. **Amenities come from `stg_amenity`** (`migrations/004_staging.sql`), which `load_static`
    (#6–#11) will write: `amenity_id` (§3.3 id), `kind`, `total_lots`, `geom`. §3.2 allows `stg_`
    tables; `test_design.py` now leaves them out of the design-table check.
 
 Also within the design's room:
 - Car-park site id = its §3.3 car-park id; kind from the prefix (`hdb:` → HDB, `ura:`/`mall:` →
   public). An id with no known prefix is counted as `unknown_source_car_park` and skipped.
+- **Registry ↔ feed match** (WBS 1.4 "done when") by §3.3 id, which the collector also uses
+  (`hdb:<car_park_no>`, `sushant/7-collectors`). Sets `car_park.has_live_feed`; counts
+  `registry_without_feed` and `feed_without_registry`. A car park without a feed stays a site.
+  URA and mall car parks will all count as `registry_without_feed`, since their feed is out of
+  scope (design 1.3 on that branch).
 - An amenity within `AMENITY_LINK_M` (≤ 150 m) links to its nearest car park.
 - `ever_active` never flips back to false.
 - `nearest_point_m` is the distance to the closest station with an active connector, at any range.
@@ -99,3 +104,11 @@ Also within the design's room:
   `test_sample`; delete the four files under `optev/sample/data/` and `git checkout` them.
 - **Next:** design PR for decision 2; `load_static` writes `stg_amenity`; coverage (#12) reads
   `Conformed.issues`.
+
+## Checkpoint · 17 Oct 2026 (2)
+- Added the registry ↔ feed match. 22 conform tests; full suite 54 passed, 1 skipped.
+- Renumbered to spec 003 and migration `004_staging.sql`, because `sushant/7-collectors` already
+  uses specs 001/002 and migration 003. `test_design.py` now ignores `stg_` tables on both sides,
+  so it holds whether or not the design lists them (his v1.3 lists `stg_collect_slot`).
+- **Merge note:** `optev/ingest/cli.py` is changed on both branches; whichever merges second
+  keeps both verbs (`load-collected`, `conform`) and his `_database_url()` helper.

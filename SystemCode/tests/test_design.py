@@ -24,11 +24,9 @@ def test_every_table_in_the_design_exists_and_no_other():
     for line in _section("### 3.2 Database tables").splitlines():
         if line.startswith("| `"):
             named |= set(re.findall(r"`([a-z_]+)`", line.split("|")[1]))
-    # §3.2 allows ingest-internal staging tables prefixed stg_
-    created = {
-        t for t in re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", MIGRATIONS)
-        if not t.startswith("stg_")
-    }
+    created = set(re.findall(r"CREATE TABLE IF NOT EXISTS (\w+)", MIGRATIONS))
+    # §3.2 allows ingest-internal staging tables prefixed stg_, listed in the design or not
+    named, created = ({t for t in ts if not t.startswith("stg_")} for ts in (named, created))
     assert named == created, f"in design only: {named - created}; in SQL only: {created - named}"
 
 

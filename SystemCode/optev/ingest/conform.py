@@ -56,13 +56,15 @@ class StationSite(TypedDict):
 
 @dataclass
 class Conformed:
+    car_parks: list[CarPark]
     connectors: list[Connector]
     sites: list[CandidateSite]
     station_site: list[StationSite]
     amenities_nearby: dict[str, int]
     nearest_point_m: dict[str, float | None]
     issues: dict[str, int] = field(default_factory=dict)
-    """Rows counted rather than raised: unknown sources, duplicates, unlinked stations."""
+    """Rows counted rather than raised: unknown sources, duplicates, unmatched car parks,
+    unlinked stations."""
 
 
 def _count(issues: dict[str, int], key: str) -> None:
@@ -147,6 +149,30 @@ def mark_ever_active(connectors: Iterable[Connector], active_ids: set[str]) -> l
         else c.model_copy(update={"ever_active": True})
         for c in connectors
     ]
+
+
+# Registry <-> live feed ----------------------------------------------------------------
+
+
+def match_feed(
+    car_parks: Iterable[CarPark], feed_ids: set[str], issues: dict[str, int]
+) -> list[CarPark]:
+    """Match registry car parks to the live feed by their §3.3 id and set `has_live_feed`.
+    The match fails both ways, so both are counted: `registry_without_feed`, and
+    `feed_without_registry` (no coordinate, so it cannot become a site)."""
+    out = []
+    for cp in car_parks:
+        live = cp.car_park_id in feed_ids
+        if not live:
+            _count(issues, "registry_without_feed")
+        out.append(
+            cp if cp.has_live_feed == live else cp.model_copy(update={"has_live_feed": live}))
+    orphans = feed_ids - {cp.car_park_id for cp in out}
+    if orphans:
+        issues["feed_without_registry"] = issues.get("feed_without_registry", 0) + len(orphans)
+        log.warning("%d feed car parks have no registry row, e.g. %s", len(orphans),
+                    sorted(orphans)[0])
+    return out
 
 
 # Sites --------------------------------------------------------------------------------
@@ -258,11 +284,12 @@ def conform_records(
     stations: Iterable[Station],
     connectors: Iterable[Connector],
     active_ids: set[str],
+    feed_ids: set[str],
     issues: dict[str, int] | None = None,
 ) -> Conformed:
     """Everything in step 3 except point-in-polygon, which needs PostGIS."""
     issues = {} if issues is None else issues
-    cps = unique(car_parks, "car_park_id", issues, "car_park")
+    cps = match_feed(unique(car_parks, "car_park_id", issues, "car_park"), feed_ids, issues)
     ams = unique(amenities, "site_id", issues, "amenity")
     sts = unique(stations, "station_id", issues, "station")
     cons = mark_ever_active(unique(connectors, "connector_id", issues, "connector"), active_ids)
@@ -276,6 +303,7 @@ def conform_records(
     counts = count_existing(cons, pairs)
     sites = [s.model_copy(update={"existing_connectors": counts.get(s.site_id, 0)}) for s in sites]
     return Conformed(
+        car_parks=cps,
         connectors=cons,
         sites=sites,
         station_site=pairs,
@@ -297,6 +325,9 @@ READ_CONNECTORS = "SELECT connector_id, station_id, plug_type, power_kw, ever_ac
 READ_ACTIVE = """SELECT DISTINCT connector_id FROM connector_reading
     WHERE status IN ('available', 'occupied')"""
 
+READ_FEED = "SELECT DISTINCT car_park_id FROM car_park_reading"
+
+MARK_FEED = "UPDATE car_park SET has_live_feed = (car_park_id = ANY(%s))"
 MARK_ACTIVE = "UPDATE connector SET ever_active = true WHERE connector_id = ANY(%s)"
 UPSERT_SITE = """INSERT INTO candidate_site (site_id, kind, planning_area, car_park_id,
     total_lots, existing_connectors, provenance, geom)
@@ -325,6 +356,7 @@ def write(cur: Any, result: Conformed) -> dict[str, int]:
     """Upsert the conformed rows. Keyed on primary keys, so a rerun gives the same tables.
     `station_site` is rebuilt whole, since pairs can disappear when a station moves.
     `land_use` and `residents_in_area` are left for the polygon loads to fill."""
+    cur.execute(MARK_FEED, ([cp.car_park_id for cp in result.car_parks if cp.has_live_feed],))
     active = [c.connector_id for c in result.connectors if c.ever_active]
     cur.execute(MARK_ACTIVE, (active,))
     cur.executemany(UPSERT_SITE, [
@@ -343,6 +375,7 @@ def write(cur: Any, result: Conformed) -> dict[str, int]:
         for s in result.sites
     ])
     return {
+        "car_park": len(result.car_parks),
         "connector": len(active),
         "candidate_site": len(result.sites),
         "station_site": len(result.station_site),
@@ -351,7 +384,7 @@ def write(cur: Any, result: Conformed) -> dict[str, int]:
 
 
 def conform() -> dict[str, int]:
-    """Rows upserted per table. Needs DATABASE_URL and migrations 001-003."""
+    """Rows upserted per table. Needs DATABASE_URL and migrations 001-004."""
     import psycopg
     from psycopg.rows import dict_row
 
@@ -368,7 +401,9 @@ def conform() -> dict[str, int]:
             Station, map(_with_coord, cur.execute(READ_STATIONS)), issues, "station")
         connectors = parse_rows(Connector, cur.execute(READ_CONNECTORS), issues, "connector")
         active_ids = {r["connector_id"] for r in cur.execute(READ_ACTIVE)}
-        result = conform_records(car_parks, amenities, stations, connectors, active_ids, issues)
+        feed_ids = {r["car_park_id"] for r in cur.execute(READ_FEED)}
+        result = conform_records(
+            car_parks, amenities, stations, connectors, active_ids, feed_ids, issues)
         written = write(cur, result)
         conn.commit()
     for key, n in sorted(result.issues.items()):

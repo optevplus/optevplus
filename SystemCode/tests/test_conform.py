@@ -7,7 +7,7 @@ import pytest
 from optev.contracts import CandidateSite, CarPark, Coordinate, SiteKind, Station
 from optev.ingest import cli
 from optev.ingest import conform as C
-from optev.sample import connector_readings, load
+from optev.sample import car_park_readings, connector_readings, load
 
 S = load()
 SAMPLE_SITE = {s.car_park_id: s for s in S.sites if s.car_park_id}
@@ -23,6 +23,7 @@ CAR_PARKS = [cp.model_copy(update={"car_park_id": _prefixed(cp.car_park_id)}) fo
 AMENITIES = [s for s in S.sites if s.car_park_id is None]
 CONNECTORS = [c.model_copy(update={"ever_active": False}) for c in S.connectors]
 ACTIVE = C.seen_active(connector_readings())
+FEED = {_prefixed(r.car_park_id) for r in car_park_readings()}
 # sample site id for each conformed site id
 TO_SAMPLE = {_prefixed(k): v.site_id for k, v in SAMPLE_SITE.items()} | {
     a.site_id: a.site_id for a in AMENITIES
@@ -31,7 +32,7 @@ TO_SAMPLE = {_prefixed(k): v.site_id for k, v in SAMPLE_SITE.items()} | {
 
 def _run(**overrides):
     args = dict(car_parks=CAR_PARKS, amenities=AMENITIES, stations=S.stations,
-                connectors=CONNECTORS, active_ids=ACTIVE)
+                connectors=CONNECTORS, active_ids=ACTIVE, feed_ids=FEED)
     return C.conform_records(**(args | overrides))
 
 
@@ -82,6 +83,24 @@ def test_ever_active_from_readings_matches_the_sample():
 def test_ever_active_never_flips_back():
     out = C.mark_ever_active(S.connectors, set())
     assert [c.ever_active for c in out] == [c.ever_active for c in S.connectors]
+
+
+# Registry <-> live feed ----------------------------------------------------------------
+
+def test_every_sample_car_park_matches_the_feed():
+    out = _run()
+    assert all(cp.has_live_feed for cp in out.car_parks)
+    assert "registry_without_feed" not in out.issues
+    assert "feed_without_registry" not in out.issues
+
+
+def test_unmatched_car_parks_are_counted_both_ways():
+    no_feed = CAR_PARKS[0].car_park_id
+    out = _run(feed_ids=(FEED - {no_feed}) | {"hdb:ZZ99", "hdb:ZZ98"})
+    assert [cp.car_park_id for cp in out.car_parks if not cp.has_live_feed] == [no_feed]
+    assert out.issues == {"registry_without_feed": 1, "feed_without_registry": 2}
+    # still a candidate site: no feed is reported, never a reason to drop it
+    assert no_feed in {s.site_id for s in out.sites}
 
 
 # Sites --------------------------------------------------------------------------------
@@ -170,8 +189,9 @@ def test_unknown_sources_duplicates_and_unlinked_stations_are_counted():
     odd = CandidateSite(site_id="x:1", kind=SiteKind.HDB_CAR_PARK, coord=far.coord)
     out = _run(car_parks=[*CAR_PARKS, CAR_PARKS[0], S.car_parks[0]],
                amenities=[*AMENITIES, odd], stations=[*S.stations, far])
-    assert out.issues == {"duplicate_car_park": 1, "unknown_source_car_park": 1,
-                          "unknown_kind_amenity": 1, "station_unlinked": 1}
+    assert out.issues == {"duplicate_car_park": 1, "registry_without_feed": 1,
+                          "unknown_source_car_park": 1, "unknown_kind_amenity": 1,
+                          "station_unlinked": 1}
     assert len(out.sites) == 30
 
 
@@ -198,10 +218,10 @@ def test_write_binds_parameters_and_reports_rows_per_table():
     out = _run()
     cur = FakeCursor()
     written = C.write(cur, out)
-    assert written == {"connector": 45, "candidate_site": 30, "station_site": 14,
+    assert written == {"car_park": 26, "connector": 45, "candidate_site": 30, "station_site": 14,
                        "site_context": 30}
     assert [sql for sql, _ in cur.calls] == [
-        C.MARK_ACTIVE, C.UPSERT_SITE, C.FILL_PLANNING_AREA, C.CLEAR_STATION_SITE,
+        C.MARK_FEED, C.MARK_ACTIVE, C.UPSERT_SITE, C.FILL_PLANNING_AREA, C.CLEAR_STATION_SITE,
         C.INSERT_STATION_SITE, C.UPSERT_CONTEXT,
     ]
     assert all("{" not in sql for sql, _ in cur.calls)

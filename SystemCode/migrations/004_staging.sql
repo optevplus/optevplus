@@ -1,4 +1,4 @@
--- 003 · Ingest staging, allowed by SYSTEM_DESIGN.md §3.2 when prefixed stg_.
+-- 004 · Ingest staging, allowed by SYSTEM_DESIGN.md §3.2 when prefixed stg_.
 -- Amenities have no table of their own before conform: an amenity becomes a candidate site
 -- only when no car park is within AMENITY_LINK_M. load_static writes here; conform reads.
 
