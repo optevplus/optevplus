@@ -6,4 +6,4 @@ Neo4j schema, loading and retrieval.
 
 The graph explains decisions; Postgres is the source of truth for numbers. Retrieval is parameterised Cypher, not generated queries. If a traversal returns nothing, say so — never let the model invent a justification.
 
-Labels, keys and relationships live in `schema.py`; loaders MERGE on those keys and build composite keys only with its helpers. `python -m optev.graph ping|schema|apply-schema|heartbeat`.
+Labels, keys and relationships live in `schema.py`; loaders MERGE on those keys and build composite keys only with its helpers. `python -m optev.graph ping|schema|apply-schema|heartbeat|load --sample|clear --sample`. `load.rows()` holds all loading logic; `load()` only sends it. Questions: `retrieve.TEMPLATES`, one fixed query each; `python -m optev.graph ask why_not_site site_id=SYN-S-13`.
