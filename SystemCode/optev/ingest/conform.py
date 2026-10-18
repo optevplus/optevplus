@@ -136,19 +136,47 @@ def unique[M: BaseModel](
 # Connectors ---------------------------------------------------------------------------
 
 
-def seen_active(readings: Iterable[ConnectorReading]) -> set[str]:
-    """Connectors ever seen available or occupied (invariant 3)."""
-    return {r.connector_id for r in readings if r.status in ACTIVE}
+def observed_connectors(readings: Iterable[ConnectorReading]) -> dict[str, bool]:
+    """Every connector in the readings, and whether it was ever seen available or occupied
+    (invariant 3)."""
+    seen: dict[str, bool] = {}
+    for r in readings:
+        seen[r.connector_id] = seen.get(r.connector_id, False) or r.status in ACTIVE
+    return seen
 
 
-def mark_ever_active(connectors: Iterable[Connector], active_ids: set[str]) -> list[Connector]:
+def mark_ever_active(
+    connectors: Iterable[Connector], observed: Mapping[str, bool]
+) -> list[Connector]:
     """Set `ever_active`. Once true it stays true, so pruning old readings never
     un-installs a connector."""
     return [
-        c if c.ever_active or c.connector_id not in active_ids
+        c if c.ever_active or not observed.get(c.connector_id, False)
         else c.model_copy(update={"ever_active": True})
         for c in connectors
     ]
+
+
+def match_readings(
+    connectors: Sequence[Connector], stations: Sequence[Station],
+    observed: Mapping[str, bool], issues: dict[str, int],
+) -> None:
+    """A connector reading gets its coordinate through connector -> station. Every break in
+    that chain is counted: `reading_without_connector`, `connector_without_reading` and
+    `connector_without_station`."""
+    known = {c.connector_id for c in connectors}
+    orphans = set(observed) - known
+    if orphans:
+        issues["reading_without_connector"] = (
+            issues.get("reading_without_connector", 0) + len(orphans))
+        log.warning("%d connectors in the readings have no connector row, e.g. %s",
+                    len(orphans), sorted(orphans)[0])
+    station_ids = {s.station_id for s in stations}
+    for c in connectors:
+        if c.connector_id not in observed:
+            _count(issues, "connector_without_reading")
+        if c.station_id not in station_ids:
+            _count(issues, "connector_without_station")
 
 
 # Registry <-> live feed ----------------------------------------------------------------
@@ -285,16 +313,19 @@ def conform_records(
     amenities: Iterable[CandidateSite],
     stations: Iterable[Station],
     connectors: Iterable[Connector],
-    active_ids: set[str],
+    observed: Mapping[str, bool],
     feed: Mapping[str, int | None],
     issues: dict[str, int] | None = None,
 ) -> Conformed:
-    """Everything in step 3 except point-in-polygon, which needs PostGIS."""
+    """Everything in step 3 except point-in-polygon, which needs PostGIS. `observed` maps
+    each connector in the readings to whether it was ever active; `feed` maps each car park
+    in the readings to its latest lot count."""
     issues = {} if issues is None else issues
     cps = match_feed(unique(car_parks, "car_park_id", issues, "car_park"), feed, issues)
     ams = unique(amenities, "site_id", issues, "amenity")
     sts = unique(stations, "station_id", issues, "station")
-    cons = mark_ever_active(unique(connectors, "connector_id", issues, "connector"), active_ids)
+    cons = mark_ever_active(unique(connectors, "connector_id", issues, "connector"), observed)
+    match_readings(cons, sts, observed, issues)
 
     sites, nearby = build_sites(cps, ams, issues)
     pairs = associate(sts, sites)
@@ -322,8 +353,9 @@ READ_CAR_PARKS = """SELECT car_park_id, name, ST_Y(geom) AS lat, ST_X(geom) AS l
 READ_STATIONS = """SELECT station_id, ST_Y(geom) AS lat, ST_X(geom) AS lon, operator,
     address, planning_area, provenance FROM station"""
 READ_CONNECTORS = "SELECT connector_id, station_id, plug_type, power_kw, ever_active FROM connector"
-READ_ACTIVE = """SELECT DISTINCT connector_id FROM connector_reading
-    WHERE status IN ('available', 'occupied')"""
+READ_OBSERVED = """SELECT connector_id,
+    bool_or(status IN ('available', 'occupied')) AS active
+    FROM connector_reading GROUP BY connector_id"""
 
 # the latest reading per car park: its lot count is the only one for HDB car parks
 READ_FEED = """SELECT DISTINCT ON (car_park_id) car_park_id, total_lots
@@ -406,9 +438,9 @@ def conform() -> dict[str, int]:
         stations = parse_rows(
             Station, map(_with_coord, cur.execute(READ_STATIONS)), issues, "station")
         connectors = parse_rows(Connector, cur.execute(READ_CONNECTORS), issues, "connector")
-        active_ids = {r["connector_id"] for r in cur.execute(READ_ACTIVE)}
+        observed = {r["connector_id"]: r["active"] for r in cur.execute(READ_OBSERVED)}
         feed = {r["car_park_id"]: r["total_lots"] for r in cur.execute(READ_FEED)}
-        result = conform_records(car_parks, [], stations, connectors, active_ids, feed, issues)
+        result = conform_records(car_parks, [], stations, connectors, observed, feed, issues)
         written = write(cur, result)
         conn.commit()
     for key, n in sorted(result.issues.items()):

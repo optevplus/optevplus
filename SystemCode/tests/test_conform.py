@@ -22,7 +22,7 @@ def _prefixed(car_park_id: str) -> str:
 CAR_PARKS = [cp.model_copy(update={"car_park_id": _prefixed(cp.car_park_id)}) for cp in S.car_parks]
 AMENITIES = [s for s in S.sites if s.car_park_id is None]
 CONNECTORS = [c.model_copy(update={"ever_active": False}) for c in S.connectors]
-ACTIVE = C.seen_active(connector_readings())
+OBSERVED = C.observed_connectors(connector_readings())
 # latest lot count per car park, as conform() reads it from car_park_reading
 FEED = {_prefixed(r.car_park_id): r.total_lots
         for r in sorted(car_park_readings(), key=lambda r: r.collected_ts)}
@@ -34,7 +34,7 @@ TO_SAMPLE = {_prefixed(k): v.site_id for k, v in SAMPLE_SITE.items()} | {
 
 def _run(**overrides):
     args = dict(car_parks=CAR_PARKS, amenities=AMENITIES, stations=S.stations,
-                connectors=CONNECTORS, active_ids=ACTIVE, feed=FEED)
+                connectors=CONNECTORS, observed=OBSERVED, feed=FEED)
     return C.conform_records(**(args | overrides))
 
 
@@ -75,7 +75,7 @@ def test_metres_agrees_with_great_circle_distance():
 # Connectors ---------------------------------------------------------------------------
 
 def test_ever_active_from_readings_matches_the_sample():
-    out = C.mark_ever_active(CONNECTORS, ACTIVE)
+    out = C.mark_ever_active(CONNECTORS, OBSERVED)
     assert [c.connector_id for c in out if not c.ever_active] == ["SYN-ST-02-9"]
     assert {c.connector_id: c.ever_active for c in out} == {
         c.connector_id: c.ever_active for c in S.connectors
@@ -83,7 +83,7 @@ def test_ever_active_from_readings_matches_the_sample():
 
 
 def test_ever_active_never_flips_back():
-    out = C.mark_ever_active(S.connectors, set())
+    out = C.mark_ever_active(S.connectors, {})
     assert [c.ever_active for c in out] == [c.ever_active for c in S.connectors]
 
 
@@ -117,6 +117,35 @@ def test_lot_counts_come_from_the_feed():
     # a feed row with no lot count leaves the registry value alone
     out = _run(feed=dict.fromkeys(FEED))
     assert [cp.total_lots for cp in out.car_parks] == [cp.total_lots for cp in CAR_PARKS]
+
+
+# Every collected row resolves to an id and a coordinate (WBS 1.4 done-when) -------------
+
+def test_every_sample_reading_resolves_to_a_coordinate():
+    out = _run()
+    assert not {k for k in out.issues if "without" in k}
+    # car park readings -> car park; connector readings -> connector -> station
+    car_parks = {cp.car_park_id: cp.coord for cp in out.car_parks}
+    assert all(cp_id in car_parks for cp_id in FEED)
+    stations = {s.station_id: s.coord for s in S.stations}
+    by_id = {c.connector_id: c.station_id for c in out.connectors}
+    assert all(by_id[cid] in stations for cid in OBSERVED)
+
+
+def test_observed_connectors_include_never_active_ones():
+    assert len(OBSERVED) == len(S.connectors) == 46
+    assert [k for k, active in OBSERVED.items() if not active] == ["SYN-ST-02-9"]
+
+
+def test_broken_reading_chains_are_counted_not_dropped():
+    lost = S.connectors[0].model_copy(update={"connector_id": "SYN-NO-READINGS"})
+    stray = S.connectors[1].model_copy(update={"connector_id": "SYN-NO-STATION",
+                                               "station_id": "SYN-ST-GONE"})
+    observed = OBSERVED | {"SYN-NOT-REGISTERED": True, "SYN-NO-STATION": True}
+    out = _run(connectors=[*CONNECTORS, lost, stray], observed=observed)
+    assert out.issues == {"reading_without_connector": 1, "connector_without_reading": 1,
+                          "connector_without_station": 1}
+    assert "SYN-NO-READINGS" in {c.connector_id for c in out.connectors}
 
 
 # Sites --------------------------------------------------------------------------------

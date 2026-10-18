@@ -1,6 +1,6 @@
 # 003 · conform
 
-**Owner:** Gurneet  ·  **Status:** built, not yet run on a database  ·  **Branch:** `gurneetkb/1.4-conform-sites`
+**Owner:** Gurneet  ·  **Status:** complete on the sample, ready for review  ·  **Branch:** `gurneetkb/1.4-conform-sites`
 **WBS:** 1.4 Conform: projection, entity resolution, defensive parsing
 
 ## Design section
@@ -71,7 +71,7 @@ Then ruff, mypy, full pytest.
    met. 14 rows on the sample. The sample's 11 `near` rows are a subset; the 3 extras are
    ST-05→S-07 (166 m, 200), ST-09→S-30 (178 m, 200), ST-11→S-26 (57 m, 100).
 2. **A station's connectors count at its nearest site only** (ties by id), so no plug is
-   counted twice. The design is silent here: **needs a one-line PR to SYSTEM_DESIGN.md §4.1.**
+   counted twice. Added to SYSTEM_DESIGN.md §4.1 in this PR (v1.6).
 3. **Built on what Sushant's collected week provides** (`sushant/7-collectors`), tested on the
    sample until that data is loaded. The week has `car_park_reading` (`hdb:<car_park_no>`,
    lots available, **total lots**) and `connector_reading` (`evCpId`, status), nothing else.
@@ -127,3 +127,19 @@ Also within the design's room:
 - **Neon holds only `car_park_reading` (662,310 rows) and `connector_reading` (3,832,874 rows).**
   `car_park`, `station` and `connector` are empty, so `optev-db conform` on the real data builds
   no sites yet: the readings carry ids, not coordinates.
+
+## Checkpoint · 19 Oct 2026 (5) · 1.4 complete on the sample
+- **Connector readings matched** (WBS 1.4 done-when: every collected row has a stable id and a
+  coordinate, unmatched rows reported). `observed_connectors` maps each connector in the
+  readings to whether it was ever active; `match_readings` counts `reading_without_connector`,
+  `connector_without_reading` and `connector_without_station`. On the sample every car park
+  and connector reading traces to a coordinate, with no issues. DB path: one `GROUP BY` over
+  `connector_reading` with `bool_or`.
+- **Design v1.6** (§4.1 step 3) records the decisions this spec took: nearest-site attribution,
+  registry/feed match with HDB lots from the feed, unmatched rows counted both ways.
+- Merged main (graph loader #50, retrieval #60). Suite: 89 passed, 8 skipped (live tests).
+- **`shrey/55-static-loads` builds on this branch** and imports only `svy21_to_wgs84`, which is
+  unchanged. Reading his `stg_*` tables in `conform()` belongs to that PR.
+- `conform.py` is ~420 lines, over the ~300 guideline; split the SQL out if review asks.
+- **Moving to real data later:** load `car_park` and `station`/`connector` (#55 and the
+  EVCBatch locations), then `uv run optev-db conform`.
