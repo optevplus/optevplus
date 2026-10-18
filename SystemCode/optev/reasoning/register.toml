@@ -3,7 +3,7 @@
 # Every rule reads only facts that the collected week provides (HDB car park availability and
 # LTA EVCBatch, see Miscellaneous/collector/README.md): total_lots, existing_connectors,
 # supply_state, utilisation. Rules that need data not yet collected wait for it; see
-# specs/004-rule-register/spec.md.
+# specs/008-rules/spec.md.
 #
 # Thresholds are never written here: a rule names the optev.assumptions value it uses.
 # source_ref is the id of what the rule cites: ds- dataset, doc- document, asm- assumption.

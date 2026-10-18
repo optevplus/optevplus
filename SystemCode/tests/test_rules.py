@@ -64,7 +64,7 @@ def test_r01_cites_the_feed_that_supplies_lot_counts():
 
 
 def test_every_source_class_but_policy_is_used():
-    # gov_policy waits for a rule whose fact is collected; see specs/004
+    # gov_policy waits for a rule whose fact is collected; see specs/008
     rules, _ = load_register()
     assert {r.source for r in rules} == {
         RuleSource.GOV_DATASET, RuleSource.MATH_CONSTRAINT, RuleSource.PROJECT_ASSUMPTION
