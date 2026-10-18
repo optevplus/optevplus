@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.4 · 18 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.5 · 18 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -489,9 +489,14 @@ def explain(question: str) -> Answer          # Answer: text, evidence, refused 
   Never loads raw readings or per-bin estimates. Until Postgres is live,
   `python -m optev.graph load --sample` loads the sample, labelled `:Sample`, and
   `clear --sample` removes it before real data goes in.
-- **Retrieval (#26).** Fixed, parameterised Cypher per question type: `why_site`,
-  `why_not_site`, `demand_basis`, `compare_sites`, `rule_sources`, `infeasible_request`. Never
-  generated Cypher. An empty result is returned as "no evidence", never filled in.
+- **Retrieval (#26).** Fixed, parameterised Cypher per question type, in
+  `retrieve.TEMPLATES`: `why_site`, `why_not_site`, `demand_basis`, `compare_sites`,
+  `rule_sources`, `infeasible_request`, `area_saturation` (planning areas ranked by how often
+  every charger was in use) and `assumptions_used` (every declared value behind a site's
+  estimate and decision). Never generated Cypher; values reach it only as parameters, and a
+  test rejects any template that writes or uses a name outside `schema.py`. Every row names
+  the nodes it came from, so answers can cite them. An empty result is returned as
+  "no evidence", never filled in. `python -m optev.graph ask <type> name=value` runs one.
 - **Explanation (#27).** LangGraph flow: classify the question → refuse if out of scope →
   retrieve → the LLM answers **only** from the retrieved evidence → every number in the answer
   must appear in the evidence → retry once, otherwise refuse.
@@ -599,3 +604,5 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.4 · 18 Oct 2026.** Loader split into `load` (a bundle of contracts) and `load_all`
   (Postgres), so the graph is built and tested on the sample before Postgres is live.
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
+- **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
+  planner questions in #26 the first six did not cover (§4.5).
