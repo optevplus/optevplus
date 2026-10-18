@@ -26,6 +26,6 @@ def ping() -> str:
 
 
 def heartbeat() -> None:
-    """A write, so Aura Free does not auto-pause. Called weekly by CI."""
+    """A write, so Aura Free does not auto-pause. Called daily by CI."""
     with driver() as d, d.session() as s:
         s.run("MERGE (h:Heartbeat {id: 1}) SET h.last_seen = datetime()")
