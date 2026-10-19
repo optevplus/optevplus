@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 import httpx
 import psycopg
 
-from optev.contracts import CarPark, Coordinate, PlanningArea, SiteKind
+from optev.contracts import CarPark, Connector, Coordinate, PlanningArea, SiteKind, Station
 from optev.ingest.conform import svy21_to_wgs84
 
 log = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ DATASETS = {
     "petrol": "d_f5db74053e49ce79039f1b13549d1efb",         # Customs petroleum premises
     "residents": "d_7f243956483d5901f237e6f87b096636",      # Census 2020, area x dwelling
 }
+EVC_BATCH = "https://datamall2.mytransport.sg/ltaodataservice/EVCBatch"  # LTA_ACCOUNT_KEY
 RETRY_WAIT_S = (0, 2, 5, 10, 20, 40)  # poll-download answers without a link when called fast
 LAND_USE_TOLERANCE_DEG = 0.00001  # ~1.1 m, far below the 50 m match threshold (spec 004)
 LAND_USE_MAX_BYTES = 60 * 1024 * 1024  # above this, stop and ask (spec 004)
@@ -87,15 +88,29 @@ def download(client: httpx.Client, name: str, today: date | None = None) -> Path
             log.info("%s: no download link yet, retrying", name)
     if not link:
         raise RuntimeError(f"data.gov.sg gave no download link for {name}")
+    return _save(client, link, RAW / f"{name}_{stamp}{Path(urlparse(link).path).suffix or '.dat'}")
+
+
+def download_ev_batch(client: httpx.Client, key: str, today: date | None = None) -> Path:
+    """One LTA EVCBatch snapshot into RAW as `ev_batch_<date>.json`, reusing today's. The
+    file link expires in minutes, so it is followed at once."""
+    path = RAW / f"ev_batch_{(today or date.today()).isoformat()}.json"
+    if path.exists():
+        return path
+    meta = client.get(EVC_BATCH, headers={"AccountKey": key, "accept": "application/json"})
+    meta.raise_for_status()
+    return _save(client, meta.json()["value"][0]["Link"], path)
+
+
+def _save(client: httpx.Client, link: str, path: Path) -> Path:
     RAW.mkdir(parents=True, exist_ok=True)
-    path = RAW / f"{name}_{stamp}{Path(urlparse(link).path).suffix or '.dat'}"
     part = path.with_suffix(path.suffix + ".part")
     with client.stream("GET", link) as resp, part.open("wb") as fh:
         resp.raise_for_status()
         for chunk in resp.iter_bytes():
             fh.write(chunk)
     part.replace(path)
-    log.info("%s: downloaded %s (%d bytes)", name, path.name, path.stat().st_size)
+    log.info("downloaded %s (%d bytes)", path.name, path.stat().st_size)
     return path
 
 
@@ -187,6 +202,53 @@ def parse_ura_car_parks(geojson: Mapping[str, Any]) -> tuple[list[CarPark], int]
     return _parse("ura_car_park", geojson["features"], build, lambda c: c.car_park_id)
 
 
+def _kw(rating: Any) -> float | None:
+    """`powerRating` is a string such as '7.4'; anything that is not a positive number is
+    left unknown rather than failing the connector."""
+    try:
+        kw = float(rating)
+    except (TypeError, ValueError):
+        return None
+    return kw if kw > 0 else None
+
+
+def parse_ev_batch(payload: Mapping[str, Any]) -> tuple[list[Station], list[Connector], int]:
+    """EVCBatch locations as stations (id = `postalCode`, §3.3: the feed has no `locationId`)
+    and their plugs as connectors (`evCpId`). The operator is per charging point, so a
+    station's is the sorted, '; '-joined set. A bad location is skipped with its plugs."""
+    stations: dict[str, Station] = {}
+    connectors: dict[str, Connector] = {}
+    skipped = 0
+    for loc in payload.get("evLocationsData") or []:
+        try:
+            station_id = _text(loc["postalCode"])
+            if not station_id or station_id in stations:
+                raise ValueError("no postalCode" if not station_id else f"duplicate {station_id}")
+            points = loc["chargingPoints"]
+            operators = sorted({op for cp in points if (op := _text(cp.get("operator")))})
+            stations[station_id] = Station(
+                station_id=station_id,
+                coord=Coordinate(lat=loc["latitude"], lon=loc["longtitude"]),  # LTA's spelling
+                operator="; ".join(operators) or None, address=_text(loc.get("address")))
+        except _BAD as err:
+            skipped += 1
+            _skip("ev_location", loc, err)
+            continue
+        for plug in (p for cp in points for p in cp.get("plugTypes") or []):
+            for ev in plug.get("evIds") or []:
+                try:
+                    c = Connector(connector_id=ev["evCpId"], station_id=station_id,
+                                  plug_type=_text(plug.get("plugType")),
+                                  power_kw=_kw(plug.get("powerRating")))
+                    if c.connector_id in connectors:
+                        raise ValueError(f"duplicate id {c.connector_id}")
+                    connectors[c.connector_id] = c
+                except _BAD as err:
+                    skipped += 1
+                    _skip("ev_connector", ev, err)
+    return list(stations.values()), list(connectors.values()), skipped
+
+
 def parse_hawkers(geojson: Mapping[str, Any]) -> tuple[list[Amenity], int]:
     """NEA hawker centres, every STATUS kept (including under construction), as published."""
     def build(f: Mapping[str, Any]) -> Amenity:
@@ -270,6 +332,22 @@ UPSERT_CAR_PARK = """INSERT INTO car_park AS t (car_park_id, name, car_park_type
     WHERE (t.name, t.car_park_type, t.total_lots, t.planning_area, t.geom)
     IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.car_park_type,
     COALESCE(EXCLUDED.total_lots, t.total_lots), EXCLUDED.planning_area, EXCLUDED.geom)"""
+UPSERT_STATION = """INSERT INTO station AS t (station_id, operator, address, planning_area, geom)
+    SELECT v.id, v.operator, v.address, (SELECT code FROM planning_area pa
+        WHERE ST_Contains(pa.geom, v.geom) ORDER BY code LIMIT 1), v.geom
+    FROM (SELECT %s AS id, %s AS operator, %s AS address,
+        ST_SetSRID(ST_MakePoint(%s, %s), 4326) AS geom) v
+    ON CONFLICT (station_id) DO UPDATE SET operator = EXCLUDED.operator,
+    address = EXCLUDED.address, planning_area = EXCLUDED.planning_area, geom = EXCLUDED.geom
+    WHERE (t.operator, t.address, t.planning_area, t.geom) IS DISTINCT FROM
+    (EXCLUDED.operator, EXCLUDED.address, EXCLUDED.planning_area, EXCLUDED.geom)"""
+# ever_active is conform's, set from the readings (invariant 3), so it is never written here
+UPSERT_CONNECTOR = """INSERT INTO connector AS t (connector_id, station_id, plug_type, power_kw)
+    VALUES (%s, %s, %s, %s)
+    ON CONFLICT (connector_id) DO UPDATE SET station_id = EXCLUDED.station_id,
+    plug_type = EXCLUDED.plug_type, power_kw = EXCLUDED.power_kw
+    WHERE (t.station_id, t.plug_type, t.power_kw) IS DISTINCT FROM
+    (EXCLUDED.station_id, EXCLUDED.plug_type, EXCLUDED.power_kw)"""
 UPSERT_AMENITY = """INSERT INTO stg_amenity AS t (amenity_id, kind, name, address, status, geom)
     VALUES (%s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
     ON CONFLICT (amenity_id) DO UPDATE SET kind = EXCLUDED.kind, name = EXCLUDED.name,
@@ -301,6 +379,20 @@ def write_car_parks(cur: Any, rows: Sequence[CarPark]) -> int:
     cur.executemany(UPSERT_CAR_PARK, [
         (c.car_park_id, c.name, c.car_park_type, c.total_lots, c.coord.lon, c.coord.lat)
         for c in rows
+    ])
+    return int(cur.rowcount)
+
+
+def write_stations(cur: Any, rows: Sequence[Station]) -> int:
+    cur.executemany(UPSERT_STATION, [
+        (s.station_id, s.operator, s.address, s.coord.lon, s.coord.lat) for s in rows
+    ])
+    return int(cur.rowcount)
+
+
+def write_connectors(cur: Any, rows: Sequence[Connector]) -> int:
+    cur.executemany(UPSERT_CONNECTOR, [
+        (c.connector_id, c.station_id, c.plug_type, c.power_kw) for c in rows
     ])
     return int(cur.rowcount)
 
@@ -354,10 +446,12 @@ def _json(path: Path) -> Any:
 
 
 def load_static() -> dict[str, int]:
-    """Rows loaded per static source. Needs DATABASE_URL and migrations 001-004."""
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL is not set. Copy .env.example to .env and fill it in.")
+    """Rows loaded per static source. Needs DATABASE_URL, LTA_ACCOUNT_KEY and migrations
+    001-004."""
+    url, key = os.environ.get("DATABASE_URL"), os.environ.get("LTA_ACCOUNT_KEY")
+    if not url or not key:
+        missing = "DATABASE_URL" if not url else "LTA_ACCOUNT_KEY"
+        raise RuntimeError(f"{missing} is not set. Copy .env.example to .env and fill it in.")
     loaded: dict[str, int] = {}
     headers = {"User-Agent": "optev-static/0.1"}
     with httpx.Client(timeout=300, follow_redirects=True, headers=headers) as client, \
@@ -369,6 +463,12 @@ def load_static() -> dict[str, int]:
         loaded["hdb_car_park"] = _write(conn, "hdb_car_park", write_car_parks, hdb, bad)
         ura, bad = parse_ura_car_parks(_json(download(client, "ura_car_park")))
         loaded["ura_car_park"] = _write(conn, "ura_car_park", write_car_parks, ura, bad)
+        stations, connectors, bad = parse_ev_batch(_json(download_ev_batch(client, key)))
+        with conn.transaction(), conn.cursor() as cur:  # connectors need their stations
+            changed = write_stations(cur, stations) + write_connectors(cur, connectors)
+        log.info("ev: %d stations, %d connectors, %d inserted or changed, %d skipped",
+                 len(stations), len(connectors), changed, bad)
+        loaded["station"], loaded["connector"] = len(stations), len(connectors)
         amenity_parsers = (("hawker", parse_hawkers), ("community_club", parse_community_clubs),
                            ("petrol", parse_petrol))
         for name, parse in amenity_parsers:

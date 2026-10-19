@@ -1,6 +1,6 @@
 # 004 · static loads
 
-**Owner:** Shrey  ·  **Status:** approved 17 Oct 2026; built except EVCBatch (see checkpoint)  ·  **Branch:** `shrey/55-static-loads` (from `gurneetkb/1.4-conform-sites`, merges after #53)
+**Owner:** Shrey  ·  **Status:** approved 17 Oct 2026; built, not yet run on Neon  ·  **Branch:** `shrey/55-static-loads` (from `gurneetkb/1.4-conform-sites`, merges after #53)
 **Design PR:** #58 (`shrey/55-design-stg-tables`: §3.2 rows + migration 004)
 **Issue:** #55 (WBS 1.4a)  ·  **Unblocks:** conform (#9, PR #53)
 
@@ -21,7 +21,7 @@ and from step 3 (conform, which reads what this loads): *"Convert SVY21 to WGS84
 (EPSG:3414 → 4326) … Fill `site_context` by point-in-polygon on MP2025 land use and planning
 areas."* §3.2: *"Ingest-internal staging tables are allowed if prefixed `stg_`."* §3.3 ids:
 `hdb:<car_park_no>`, `ura:<PP_CODE>`, `hawker:<id>` / `cc:<id>` / `petrol:<id>` from the source
-dataset, station = LTA `locationId`, connector = LTA `evCpId`, planning area = URA `PLN_AREA_C`.
+dataset, station = LTA `locationId` (*now `postalCode`, design 1.7; decision 8*), connector = LTA `evCpId`, planning area = URA `PLN_AREA_C`.
 §2.3 rules 3 and 6 (installed only once seen active; upserts keyed on the primary key).
 
 ## Problem
@@ -40,7 +40,7 @@ dates are filled in when the load runs (checked 17 Oct 2026 in a scratch downloa
 |---|---|---|---|---|---|---|
 | 1 | MP2025 Planning Area Boundary (No Sea) | `d_2cc750190544007400b2cfd5d7f53209` | GeoJSON, WGS84 | 27 Feb 2026 | 2.2 MB | 55 (48 Polygon, 7 MultiPolygon) |
 | 2 | HDB Carpark Information | `d_23f946fa557947f93a8043bbef41dd09` | CSV, SVY21 x/y | 8 Oct 2026 | 0.3 MB | 2,273, all ids distinct, all with x/y |
-| 3 | LTA DataMall `EVCBatch` (one snapshot) | — (`LTA_ACCOUNT_KEY`) | JSON link to file | live | — | ~11,698 connectors (collector README) |
+| 3 | LTA DataMall `EVCBatch` (one snapshot) | — (`LTA_ACCOUNT_KEY`) | JSON link to file, WGS84 | live; snapshot 19 Oct 2026 | 3.3 MB | 2,799 locations, 9,208 charging points, 11,698 connectors |
 | 4 | MP2025 Land Use Layer | `d_a8c3546b26712e35021f3a681d0353ae` | GeoJSON, WGS84 | 27 Mar 2026 | **190 MB** | 113,394 plots (113,001 Polygon, 393 MultiPolygon), 2.73 M vertices, 33 `LU_DESC` values |
 | 5 | Hawker Centres (GeoJSON), NEA | `d_4a086da0a5553be1d89383cd90d07ecd` | GeoJSON, WGS84 | 17 Oct 2026 | 0.14 MB | 129 |
 | 6 | Community Club / PAssion WaVe Outlet, PA | `d_9de02d3fb33d96da1855f4fbef549a0f` | GeoJSON, WGS84 | 2 Oct 2026 | 0.09 MB | 128 (122 `CC`, 6 `PAssionWave`) |
@@ -65,7 +65,7 @@ Existing tables (`001_init.sql`), written as the design defines them:
 |---|---|---|---|
 | `planning_area` | `code` = `PLN_AREA_C`, `name` = `PLN_AREA_N`, `region` = `REGION_N`, `geom` = `ST_Multi(...)` 4326 | 1 | — |
 | `car_park` | HDB: `car_park_id` = `'hdb:'‖car_park_no`, `name` = `address` (the registry has no name), `car_park_type`, `planning_area` (point-in-polygon), `geom`. URA: `car_park_id` = `'ura:'‖PP_CODE`, `name` = `PARKING_PL`, `total_lots` = `NO_CAR` (only `NO_CAR > 0`), `planning_area`, `geom` | 2, 9 | HDB `total_lots` (NULL on insert; an update keeps conform's value), `has_live_feed` |
-| `station` | `station_id` = `locationId`, `operator`, `address`, `planning_area` (point-in-polygon), `geom`; `provenance` default `observed` | 3 | — |
+| `station` | `station_id` = `postalCode` (see decision 8), `operator`, `address`, `planning_area` (point-in-polygon), `geom`; `provenance` default `observed` | 3 | — |
 | `connector` | `connector_id` = `evCpId`, `station_id`, `plug_type`, `power_kw` | 3 | `ever_active` |
 
 New staging tables, `migrations/004_static.sql`, each also listed in SYSTEM_DESIGN.md §3.2
@@ -172,8 +172,15 @@ have no contract and stay inside ingest as `stg_` rows. **No contract changes.**
    the publisher's row id and may be renumbered when a layer is republished. A re-load would then
    add rows under new ids and leave the old ones, so the amenity count would grow. Compare counts
    after any re-download before trusting a re-run.
-8. **EVCBatch operator fields:** to be confirmed against one live payload before the parser is
-   written. Blocked: see checkpoint.
+8. **EVCBatch, confirmed on the 19 Oct snapshot.** Locations carry `address`, `name`,
+   `postalCode`, `latitude`, `longtitude` (LTA's spelling) and `chargingPoints`. **There is no
+   `locationId`**, which §3.3 named, so `station_id = postalCode`: present on all 2,799 locations
+   and unique, while coordinates are not (46 pairs shared). Agreed with Shrey on 19 Oct; §3.3 is
+   fixed in design PR #58. `operator` is per charging point and 42 locations have more than one,
+   so `station.operator` is the sorted set joined with `'; '`. Connector `plug_type` =
+   `plugType`, `power_kw` = `powerRating` (a string; non-numeric or ≤ 0 left NULL, none today).
+   The snapshot's 11,698 `evCpId`s are exactly the 11,698 in `connector_reading` (checked
+   read-only), so every reading traces to a station.
 9. **Conform is not edited.** Reading `stg_amenity`, `stg_land_use` and `stg_residents` is a
    follow-up for Gurneet, listed in the PR.
 10. **Credentials:** `SystemCode/.env` has both `DATABASE_URL` and `LTA_ACCOUNT_KEY` (checked
@@ -233,3 +240,16 @@ have no contract and stay inside ingest as `stg_` rows. **No contract changes.**
 - **Size:** `static.py` is ~386 lines, over the ~300 guideline (SQL constants are ~60 of them).
 - **Next:** EVCBatch parser; then, when told, `migrate`, `load-static` twice (second: 0 changed),
   report sizes, `conform`.
+
+## Checkpoint · 19 Oct 2026
+- **EVCBatch done.** New key works. `download_ev_batch`, `parse_ev_batch`, `write_stations`,
+  `write_connectors`; stations and connectors in one transaction. Today's snapshot parses to
+  2,799 stations and 11,698 connectors, 0 skipped, and matches the week's connector ids exactly.
+- **Design:** station id is `postalCode` (no `locationId` in the feed). Main took 1.4 and 1.5
+  and #53 takes 1.6, so #58 is now **1.7**; #58 merged main and is mergeable again. This branch
+  merged the latest #53 (conform traces each reading to a coordinate) and #58.
+- **Verify:** ruff, mypy, pytest 110 passed, 9 skipped (with `NEO4J_URI=`); 21 static tests.
+- `static.py` is ~486 lines, well over the ~300 guideline; splitting needs a design change
+  (§4.1 names only `static.py`).
+- **Next, with Shrey's go-ahead:** `optev-db migrate`, `load-static` twice (second: 0 changed),
+  record land-use and database size and download dates, `optev-db conform`, mark #59 ready.

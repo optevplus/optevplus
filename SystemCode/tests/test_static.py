@@ -79,6 +79,27 @@ def test_raw_files_land_in_a_gitignored_folder():
     assert "data/raw/" in rules  # anchored at the repo root because it contains a slash
 
 
+def test_ev_batch_download_sends_the_key_follows_the_link_and_reuses_the_file(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(T, "RAW", tmp_path)
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.host == "datamall2.mytransport.sg":
+            return httpx.Response(200, json={"value": [{"Link": "https://lta.example/ev.json"}]})
+        return httpx.Response(200, content=b'{"evLocationsData": []}')
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        path = T.download_ev_batch(client, "test-key", date(2026, 10, 19))
+        assert T.download_ev_batch(client, "test-key", date(2026, 10, 19)) == path
+    assert path == tmp_path / "ev_batch_2026-10-19.json"
+    assert [r.url.host for r in seen] == ["datamall2.mytransport.sg", "lta.example"]
+    assert seen[0].headers["AccountKey"] == "test-key"
+    assert "test-key" not in str(seen[1].url)
+
+
 def test_download_gives_up_without_a_link(monkeypatch, tmp_path):
     monkeypatch.setattr(T, "RAW", tmp_path)
     monkeypatch.setattr(T.time, "sleep", lambda s: None)
@@ -126,6 +147,46 @@ def test_ura_car_parks_keep_only_places_with_car_lots():
     assert [(r.car_park_id, r.name, r.total_lots) for r in rows] == [
         ("ura:AB01", "Tampines Lane", 42)]
     assert skipped == 2  # the duplicate and the one without geometry; NO_CAR=0 is filtered
+
+
+def _location(station, connectors, postal: object = "SYN-PC", **extra) -> dict:
+    points = [{"operator": f"OP {i % 2}", "status": "1", "position": "L1",
+               "plugTypes": [{"plugType": "Type 2", "powerRating": "7.4", "current": "AC",
+                              "evIds": [{"evCpId": c.connector_id, "status": "1"}]}]}
+              for i, c in enumerate(connectors)]
+    return {"address": station.address or "1 Sample Road", "name": "X", "postalCode": postal,
+            "latitude": station.coord.lat, "longtitude": station.coord.lon,
+            "chargingPoints": points} | extra
+
+
+def test_ev_batch_stations_by_postal_code_with_their_connectors():
+    st0, st1 = S.stations[:2]
+    plugs0 = [c for c in S.connectors if c.station_id == st0.station_id]
+    plugs1 = [c for c in S.connectors if c.station_id == st1.station_id]
+    payload = {"LastUpdatedTime": "2026-10-19 10:00:00", "evLocationsData": [
+        _location(st0, plugs0, postal="529510"),
+        _location(st1, plugs1, postal=""),           # no postal code: skipped with its plugs
+        _location(st1, plugs1[:1], postal="529510"),  # a second location, same postal code
+    ]}
+    payload["evLocationsData"][0]["chargingPoints"][0]["plugTypes"][0]["powerRating"] = ""
+    stations, connectors, skipped = T.parse_ev_batch(payload)
+    assert [(s.station_id, s.coord) for s in stations] == [("529510", st0.coord)]
+    assert stations[0].operator == ("OP 0; OP 1" if len(plugs0) > 1 else "OP 0")
+    assert [c.connector_id for c in connectors] == [c.connector_id for c in plugs0]
+    assert {c.station_id for c in connectors} == {"529510"}
+    assert connectors[0].power_kw is None and connectors[-1].power_kw == 7.4
+    assert not any(c.ever_active for c in connectors)  # conform sets it from the readings
+    assert skipped == 2
+
+
+def test_ev_batch_skips_a_duplicate_plug_and_a_location_outside_singapore():
+    st = S.stations[0]
+    plugs = [c for c in S.connectors if c.station_id == st.station_id][:1]
+    payload = {"evLocationsData": [_location(st, plugs + plugs, postal="1"),
+                                   _location(st, plugs, postal="2", latitude=0.0)]}
+    stations, connectors, skipped = T.parse_ev_batch(payload)
+    assert [s.station_id for s in stations] == ["1"] and len(connectors) == 1
+    assert skipped == 2
 
 
 def test_hawkers_keep_every_status_with_section_3_3_ids():
@@ -253,6 +314,21 @@ def test_car_park_upsert_keeps_conform_columns_and_skips_unchanged_rows():
     assert params[0][0] == "hdb:T0" and params[0][3] is None
 
 
+def test_station_and_connector_upserts_leave_ever_active_to_conform():
+    st = S.stations[0].model_copy(update={"station_id": "529510", "operator": "OP 0; OP 1"})
+    con = S.connectors[0].model_copy(update={"station_id": "529510", "power_kw": 7.4})
+    cur = FakeCursor()
+    assert T.write_stations(cur, [st]) == 1 and T.write_connectors(cur, [con]) == 1
+    (station_sql, station_params), (connector_sql, connector_params) = cur.calls
+    for sql, params in cur.calls:
+        _values_are_parameters(sql, params)
+        assert "ON CONFLICT" in sql and "IS DISTINCT FROM" in sql
+        assert "ever_active" not in sql and "provenance" not in sql
+    assert "ST_Contains(pa.geom, v.geom)" in station_sql
+    assert station_params == [("529510", "OP 0; OP 1", st.address, st.coord.lon, st.coord.lat)]
+    assert connector_params == [(con.connector_id, "529510", con.plug_type, 7.4)]
+
+
 def test_area_amenity_and_residents_upserts_use_parameters():
     areas, _ = T.parse_planning_areas(AREAS)
     amenity = T.Amenity("hawker:7", SiteKind.HAWKER_CENTRE, "Market", None, "Existing", TM)
@@ -286,9 +362,14 @@ def test_land_use_above_the_limit_stops_the_load():
 # Entry points -------------------------------------------------------------------------
 
 
-def test_load_static_needs_a_database_url(monkeypatch):
+def test_load_static_needs_a_database_url_and_an_lta_key(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("LTA_ACCOUNT_KEY", "test-key")
     with pytest.raises(RuntimeError, match="DATABASE_URL"):
+        T.load_static()
+    monkeypatch.setenv("DATABASE_URL", "postgresql://example/x")
+    monkeypatch.delenv("LTA_ACCOUNT_KEY")
+    with pytest.raises(RuntimeError, match="LTA_ACCOUNT_KEY"):
         T.load_static()
 
 
@@ -322,8 +403,17 @@ def test_live_writes_twice_change_nothing_and_roll_back():
                                                "total_lots": None}) for cp in CAR_PARKS]
             assert T.write_planning_areas(cur, areas) == 2
             assert T.write_car_parks(cur, car_parks) == 3
+            stations = [s.model_copy(update={"station_id": f"SYN-PC-{i}"})
+                        for i, s in enumerate(S.stations[:2])]
+            ids = {s.station_id: f"SYN-PC-{i}" for i, s in enumerate(S.stations[:2])}
+            connectors = [c.model_copy(update={"station_id": ids[c.station_id]})
+                          for c in S.connectors if c.station_id in ids]
+            assert T.write_stations(cur, stations) == 2
+            assert T.write_connectors(cur, connectors) == len(connectors)
             assert T.write_planning_areas(cur, areas) == 0
             assert T.write_car_parks(cur, car_parks) == 0
+            assert T.write_stations(cur, stations) == 0
+            assert T.write_connectors(cur, connectors) == 0
             cur.execute("SELECT planning_area FROM car_park WHERE car_park_id = %s",
                         (car_parks[0].car_park_id,))
             assert cur.fetchone() == ("SYN-TM",)
