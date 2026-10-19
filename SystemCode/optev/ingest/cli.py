@@ -7,7 +7,8 @@ import sys
 from datetime import date
 
 MIGRATIONS = pathlib.Path(__file__).resolve().parents[2] / "migrations"
-USAGE = "usage: optev-db migrate | optev-db load-collected <path> [--day YYYY-MM-DD]"
+USAGE = ("usage: optev-db migrate | optev-db load-collected <path> [--day YYYY-MM-DD]"
+         " | optev-db coverage")
 
 
 def _database_url() -> str | None:
@@ -60,11 +61,34 @@ def load_collected(args: list[str]) -> int:
     return 0
 
 
+def coverage() -> int:
+    """Measure the collected week and write one coverage_report run."""
+    import psycopg
+
+    from optev.ingest.coverage import collected_window, measure, write
+
+    url = _database_url()
+    if not url:
+        return 1
+    with psycopg.connect(url) as conn:
+        start, end = collected_window(conn)
+        metrics, skipped = measure(conn, start, end)
+        run_at = write(conn, metrics)
+    print(f"coverage_report run {run_at:%Y-%m-%d %H:%M:%S} for {start} to {end}")
+    for name, (value, detail) in metrics.items():
+        print(f"  {name:30s} {value:10.4f}  {detail}")
+    if skipped:
+        print("  not measured yet (inputs not loaded): " + ", ".join(skipped))
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) >= 2 and sys.argv[1] == "migrate":
         return migrate()
     if len(sys.argv) >= 2 and sys.argv[1] == "load-collected":
         return load_collected(sys.argv[2:])
+    if len(sys.argv) >= 2 and sys.argv[1] == "coverage":
+        return coverage()
     print(USAGE)
     return 2
 
