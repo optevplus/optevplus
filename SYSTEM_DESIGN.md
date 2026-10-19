@@ -5,8 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.4 · 17 Oct 2026 · **Owner** Ghanashyam (team lead)
-**Version** 1.4 · 18 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.6 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -193,7 +192,7 @@ Stable, deterministic ids, so every join and every graph MERGE lines up:
 | URA car park site | `ura:<PP_CODE>` |
 | Mall car park site | `mall:<CarParkID>` |
 | Hawker centre / community club / petrol station | `hawker:<id>` / `cc:<id>` / `petrol:<id>` from the source dataset |
-| Station | LTA `locationId` |
+| Station | LTA `postalCode` of the location (the feed has no `locationId`) |
 | Connector | LTA `evCpId` |
 | Planning area | URA `PLN_AREA_C` |
 | Allocation | `<scenario>:<area or all>:points=<n or ->:budget=<SGD to 2 dp, or ->`, e.g. `base:TM:points=12:budget=-`, `base:all:points=-:budget=150000.00` |
@@ -493,9 +492,14 @@ def explain(question: str) -> Answer          # Answer: text, evidence, refused 
   Never loads raw readings or per-bin estimates. Until Postgres is live,
   `python -m optev.graph load --sample` loads the sample, labelled `:Sample`, and
   `clear --sample` removes it before real data goes in.
-- **Retrieval (#26).** Fixed, parameterised Cypher per question type: `why_site`,
-  `why_not_site`, `demand_basis`, `compare_sites`, `rule_sources`, `infeasible_request`. Never
-  generated Cypher. An empty result is returned as "no evidence", never filled in.
+- **Retrieval (#26).** Fixed, parameterised Cypher per question type, in
+  `retrieve.TEMPLATES`: `why_site`, `why_not_site`, `demand_basis`, `compare_sites`,
+  `rule_sources`, `infeasible_request`, `area_saturation` (planning areas ranked by how often
+  every charger was in use) and `assumptions_used` (every declared value behind a site's
+  estimate and decision). Never generated Cypher; values reach it only as parameters, and a
+  test rejects any template that writes or uses a name outside `schema.py`. Every row names
+  the nodes it came from, so answers can cite them. An empty result is returned as
+  "no evidence", never filled in. `python -m optev.graph ask <type> name=value` runs one.
 - **Explanation (#27).** LangGraph flow: classify the question → refuse if out of scope →
   retrieve → the LLM answers **only** from the retrieved evidence → every number in the answer
   must appear in the evidence → retry once, otherwise refuse.
@@ -600,10 +604,13 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   `collect_car_parks` replaced by `load_collected`. New ingest table `stg_collect_slot`
   (§3.2). HDB car parks only. Stage 1 completeness measured against the week's 330 slots
   (§6). Agreed by Ghanashyam (spec 002).
-- **1.4 · 17 Oct 2026.** New ingest staging tables `stg_amenity`, `stg_land_use` and
-  `stg_residents` (§3.2, migration `004_static.sql`), written by `load_static` and read by
-  conform. Petrol stations are dropped: the Customs licence list holds only terminals,
-  refineries and power stations (spec 004).
 - **1.4 · 18 Oct 2026.** Loader split into `load` (a bundle of contracts) and `load_all`
   (Postgres), so the graph is built and tested on the sample before Postgres is live.
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
+- **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
+  planner questions in #26 the first six did not cover (§4.5).
+- **1.6 · 19 Oct 2026.** New ingest staging tables `stg_amenity`, `stg_land_use` and
+  `stg_residents` (§3.2, migration `004_static.sql`), written by `load_static` and read by
+  conform. Petrol stations are dropped: the Customs licence list holds only terminals,
+  refineries and power stations. Station id is LTA `postalCode` (§3.3): the `EVCBatch` feed
+  has no `locationId`, and `postalCode` is present and unique on every location (spec 004).
