@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.5 · 18 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.6 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -474,6 +474,8 @@ def clear_sample(session: Session) -> int                     # remove what --sa
 def retrieve(question_type: str, **params: str) -> list[dict[str, object]]
 # optev/graph/explain.py
 def explain(question: str) -> Answer          # Answer: text, evidence, refused (bool)
+# optev/graph/llm.py
+def from_env() -> LLM                          # LLM = (system, user) -> text
 ```
 
 - **Schema** as in `specs/005-knowledge-graph`: 16 node types keyed on contract ids; every rule
@@ -500,6 +502,17 @@ def explain(question: str) -> Answer          # Answer: text, evidence, refused 
 - **Explanation (#27).** LangGraph flow: classify the question → refuse if out of scope →
   retrieve → the LLM answers **only** from the retrieved evidence → every number in the answer
   must appear in the evidence → retry once, otherwise refuse.
+  - **Classification is fixed patterns, not the model** (site, rule and area ids plus key
+    words → one of the §4.5 question types), so the model never chooses what evidence it sees.
+    No match → refuse. No evidence → refuse without calling the model.
+  - **The check:** every number must match an evidence value as written (a share may be shown
+    as a percent; rounding to the digits written is allowed); every `[citation]` must be an id
+    in the evidence; at least one citation. A refused answer still returns the evidence.
+  - **The model** is any `(system, user) -> text` function from `llm.from_env()`, set by
+    `LLM_PROVIDER` (`deepseek`, `gemini`, `anthropic`, `openai_compatible`), `LLM_API_KEY` and
+    `LLM_MODEL` in `.env`; temperature 0. Changing provider is a settings change.
+  - `python -m optev.graph explain "<question>"` answers one; without a model it prints the
+    evidence.
 
 **Checked by.** ≥ 90% of 20 questions answered correctly (answers written in advance from the
 source tables), 100% citing evidence, 0 unsupported claims, Precision@k on retrieval.
@@ -546,7 +559,7 @@ be re-run on its own. Target: one planning area end to end in under 10 minutes.
 | 3 | Top-10 stability; back-cast MAPE | Recent months hidden | — | ≥ 7 of 10 stay |
 | 4 rules | Agreement, reason codes | 30 test sites, two raters, κ ≥ 0.7 | — | 100%; 100% |
 | 4 allocation | Violations; uplift in drivers rescued | Same request (area, points) and rules | See below | 0; beat all |
-| 5 | Accuracy, citation rate, unsupported claims, Precision@k | 20 questions answered from source tables | — | ≥ 90%; 100%; 0 |
+| 5 | Classification, evidence recall; with the model: accuracy, citation rate, unsupported claims, Precision@k on citations | 20 questions answered from source tables (`evaluation/explain_questions.toml`) | — | 100%; 100%; ≥ 90%; 100%; 0 |
 
 **Baselines**, each producing an `Allocation` for the same request (area, points) and rules, scored by the
 same objective: busiest first (#36), spatial spread (#37), extend sites that already have
@@ -580,7 +593,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 
 | # | Decision | Owner | By |
 |---|---|---|---|
-| 1 | LLM provider and key for #27 | Ghanashyam | 12 Oct |
+| 1 | ~~LLM provider for #27~~ Settled in 1.6: any provider via `.env`; key to be added | Ghanashyam | 22 Oct |
 | 2 | Confirm the demo-area criterion (§1) | Team | Before results |
 | 3 | Minimum points per chosen site? The HDB tender asked for 3 to 6 per car park ([LTA, 29 Mar 2022](https://www.lta.gov.sg/content/ltagov/en/newsroom/2022/3/news-releases/ramping_up_charging_infrastructure.html)) | Shrey, Gurneet | 14 Oct |
 | 4 | Growth multipliers fitted from registrations | Sushant (#28) | 14 Oct |
@@ -606,3 +619,5 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
 - **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
   planner questions in #26 the first six did not cover (§4.5).
+- **1.6 · 19 Oct 2026.** Explanation (#27): classification by fixed patterns, the citation and
+  number check, provider-neutral model settings (§4.5); Stage 5 metrics and answer key (§6).
