@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.6 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.7 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -331,6 +331,8 @@ def erlang_b(c: int, a: float) -> float
 def invert_occupancy(c: int, occupancy: float) -> float          # arrivals per hour
 def infer_demand(indicators: list[SiteIndicators],
                  occupancy: dict[str, dict[str, float]]) -> list[DemandEstimate]
+def write_estimates(conn: psycopg.Connection, estimates: list[DemandEstimate]) -> int
+    # upserts demand_estimate with method = 'queueing'; called by the pipeline
 
 # optev/analysis/patterns.py
 def find_patterns(occupancy: dict[str, dict[str, float]]) -> dict[str, int]   # site -> cluster
@@ -357,8 +359,10 @@ def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate]
    offered load `a` is the value giving the observed occupancy on `c` active connectors
    (bisection; occupancy rises monotonically in `a`); arrivals per hour =
    `a ÷ MEAN_SESSION_HOURS`. If occupancy ≥ `RELIABLE_UP_TO`, report the arrivals that give
-   exactly `RELIABLE_UP_TO`, with `kind = lower_bound`. Write per-bin rows plus `all`;
-   `all` is a lower bound if any bin is. `method = queueing`. **Estimate per bin, never once
+   exactly `RELIABLE_UP_TO`, with `kind = lower_bound`. Write per-bin rows plus `all`, the
+   §3.4 average of the per-bin arrivals (never an inversion of whole-window occupancy). `all`
+   is a lower bound when the site's window `utilisation` ≥ `RELIABLE_UP_TO`; per-bin rows keep
+   their own kind. `method = queueing`. **Estimate per bin, never once
    per whole window**: the sample shows a whole-window inversion underestimates busy sites by
    30–40% because demand peaks in the evening.
 3. **Patterns (#15).** k-means (scikit-learn) on each site's 48-value occupancy profile
@@ -622,5 +626,9 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   `compute_occupancy_by_bin` take contracts so they are tested on the sample; stations count
   at sites within 100 m; new assumption `MIN_COVERAGE` (0.5) for `unobserved`;
   `dwell_opportunity` stays `None` (spec 011).
+- **1.7 · 19 Oct 2026.** Demand (§4.2 step 2): `all` is the §3.4 average of per-bin arrivals
+  and a lower bound only when window utilisation ≥ `RELIABLE_UP_TO`, not whenever one bin is
+  (on the sample that rule flagged 9 of 11 served sites, three above their true demand);
+  new `write_estimates` writes `demand_estimate` (spec 012).
 - **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
   planner questions in #26 the first six did not cover (§4.5).
