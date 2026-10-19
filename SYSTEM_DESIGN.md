@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.5 · 18 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.6 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -222,7 +222,7 @@ The database rejects any other value.
 `GROWTH_LOW/BASE/HIGH` (placeholders until #28), `HORIZON_MONTHS` (51),
 `MAX_SHARE_OF_LOTS` (0.15), `COST_PER_POINT_SGD` (9,250; tested at `COST_LOW_SGD` 5,500 and
 `COST_HIGH_SGD` 10,500), `MIN_POINTS_PER_AREA` (2), `MATCH_THRESHOLDS_M` (50, 100, 200),
-`AMENITY_LINK_M` (150), `SNAPSHOT_MINUTES` (30). Placeholders must be replaced with cited
+`AMENITY_LINK_M` (150), `SNAPSHOT_MINUTES` (30), `MIN_COVERAGE` (0.5). Placeholders must be replaced with cited
 values before the report.
 
 **Cited values and planning facts**
@@ -316,6 +316,15 @@ discover usage patterns, and estimate demand where no charger exists.
 def site_indicators(window_start: datetime, window_end: datetime) -> list[SiteIndicators]
 def occupancy_by_bin(window_start: datetime, window_end: datetime) -> dict[str, dict[str, float]]
     # site_id -> time_bin -> mean occupancy
+# The two above read Postgres (site_indicators also upserts its table) and call these,
+# which take contracts and the station-site rows, so they are tested on optev.sample:
+def compute_indicators(sites: list[CandidateSite], near: list[dict[str, Any]],
+                       connectors: list[Connector], readings: list[ConnectorReading],
+                       window_start: datetime, window_end: datetime) -> list[SiteIndicators]
+def compute_occupancy_by_bin(sites: list[CandidateSite], near: list[dict[str, Any]],
+                             connectors: list[Connector], readings: list[ConnectorReading],
+                             window_start: datetime, window_end: datetime
+                             ) -> dict[str, dict[str, float]]
 
 # optev/analysis/demand.py
 def erlang_b(c: int, a: float) -> float
@@ -334,11 +343,16 @@ def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate]
 **Method**
 
 1. **Indicators (#13).** Per snapshot, occupancy = occupied ÷ (occupied + available) over the
-   site's matched connectors; unavailable connectors are excluded. `utilisation` = mean over
+   site's matched connectors; unavailable connectors are excluded. A site's matched connectors
+   are the `ever_active` connectors of every station matched to it within 100 m in
+   `station_site` (a station near two sites counts at both). Expected snapshots are the
+   `SNAPSHOT_MINUTES` slots in `[window_start, window_end)`; the collected week is
+   `[7 Oct 2026 14:00, 14 Oct 2026 11:00)` SGT, 330 slots. `utilisation` = mean over
    snapshots; `saturated_fraction` = share of snapshots with none available and at least one
    occupied; `observation_coverage` = snapshots seen ÷ expected. `supply_state`: `no_supply`
    with no active connectors, `supply_idle` below `IDLE_BELOW`, else `supply_active`;
-   `unobserved` when coverage is too low to say.
+   `unobserved` when coverage is below `MIN_COVERAGE`. `dwell_opportunity` is left `None` in
+   version 1.
 2. **Demand (#14).** Erlang loss model (Erlang B). For each site and **each time bin**:
    offered load `a` is the value giving the observed occupancy on `c` active connectors
    (bisection; occupancy rises monotonically in `a`); arrivals per hour =
@@ -604,5 +618,9 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.4 · 18 Oct 2026.** Loader split into `load` (a bundle of contracts) and `load_all`
   (Postgres), so the graph is built and tested on the sample before Postgres is live.
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
+- **1.6 · 19 Oct 2026.** Indicators (§4.2): `compute_indicators` and
+  `compute_occupancy_by_bin` take contracts so they are tested on the sample; stations count
+  at sites within 100 m; new assumption `MIN_COVERAGE` (0.5) for `unobserved`;
+  `dwell_opportunity` stays `None` (spec 011).
 - **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
   planner questions in #26 the first six did not cover (§4.5).
