@@ -33,8 +33,9 @@ coordinates. Land use, amenities and residents have no table at all, so conform 
 ## Sources
 Every data.gov.sg file comes from
 `https://api-open.data.gov.sg/v1/public/api/datasets/<id>/poll-download` (keyless; returns a
-signed S3 link valid 1 h). Ids found in the data.gov.sg catalogue on 17 Oct 2026. Download
-dates are filled in when the load runs (checked 17 Oct 2026 in a scratch download, not loaded).
+signed S3 link valid 1 h). Ids found in the data.gov.sg catalogue on 17 Oct 2026. **Every
+source was downloaded for the Neon load on 19 Oct 2026** (`data/raw/<name>_2026-10-19.*`,
+including the EVCBatch snapshot); the ids were first checked on 17 Oct 2026.
 
 | # | Source | Dataset id | Format, CRS | Updated | Size | Rows seen 17 Oct |
 |---|---|---|---|---|---|---|
@@ -253,3 +254,21 @@ have no contract and stay inside ingest as `stg_` rows. **No contract changes.**
   (§4.1 names only `static.py`).
 - **Next, with Shrey's go-ahead:** `optev-db migrate`, `load-static` twice (second: 0 changed),
   record land-use and database size and download dates, `optev-db conform`, mark #59 ready.
+
+## Checkpoint · 19 Oct 2026 (2) · loaded into Neon
+- **Run with Shrey's go-ahead:** `migrate` (004 applied), `load-static` ×3, `conform`.
+- **Run 1:** planning_area 55, hdb_car_park 2,273, ura_car_park 659, station 2,799,
+  connector 11,698, hawker 129, community_club 122, petrol 0, land_use 113,394, residents 55;
+  0 records skipped anywhere. **`stg_land_use` 32.8 MB** (limit 60 MB).
+- **Run 2:** 0 changed everywhere except 1 land-use plot (`676044`, a road), rewritten with a
+  value identical to a fresh recompute; cause not found (the earlier value was overwritten).
+  **Run 3:** 0 changed in every source, so the load is idempotent.
+- **Conform:** 2,932 sites (2,273 HDB + 659 URA; amenities wait for conform to read
+  `stg_amenity`), 11,462 connectors `ever_active`, 6,840 `station_site` rows (50 m 1,963 /
+  100 m 743 / 200 m 4,134), 2,049 sites with chargers holding 9,441 connectors. Counted:
+  1,997 car parks with a live feed, 935 without (659 URA + 276 HDB), 10 feed ids with no
+  registry row (e.g. `hdb:ACE`), 504 stations with no site within 200 m.
+- **Planning areas:** every car park and site has one; 1 station (`018988`, Marina Coastal
+  Drive) lies 3 m outside the "No Sea" Straits View polygon and stays NULL.
+- **Database:** 692 MB → **735.5 MB** of 1 GB.
+- **Next:** reviews on #53, #58, #59; Gurneet's follow-up to read the `stg_` tables in conform.
