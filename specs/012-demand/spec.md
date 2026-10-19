@@ -114,7 +114,8 @@ on this sample.
    Design 1.7.
 3. **Lag (finding 2) is accepted for version 1.** The per-bin steady-state inversion stays; the
    bias is recorded here and goes in the report. A lag-aware inversion (occupancy at hour h
-   reflects arrivals over the previous `MEAN_SESSION_HOURS`) is a follow-up.
+   reflects arrivals over the previous `MEAN_SESSION_HOURS`) was tested in spec 013 and not
+   adopted; the lag is reported in the write-up.
 4. **`RELIABLE_UP_TO` stays 0.93.** Two weekdays and 11 sites are too few to measure it; it is
    measured on the real week by the evaluation harness (§6).
 
