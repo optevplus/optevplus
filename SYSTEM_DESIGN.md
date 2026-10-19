@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.6 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.7 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -609,7 +609,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
 - **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
   planner questions in #26 the first six did not cover (§4.5).
-- **1.6 · 19 Oct 2026.** New ingest staging tables `stg_amenity`, `stg_land_use` and
+- **1.7 · 19 Oct 2026.** New ingest staging tables `stg_amenity`, `stg_land_use` and
   `stg_residents` (§3.2, migration `004_static.sql`), written by `load_static` and read by
   conform. Petrol stations are dropped: the Customs licence list holds only terminals,
   refineries and power stations. Station id is LTA `postalCode` (§3.3): the `EVCBatch` feed
