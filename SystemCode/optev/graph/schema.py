@@ -114,9 +114,10 @@ RELATIONSHIPS: tuple[RelSpec, ...] = (
     RelSpec("ASSUMES", "DemandEstimate", "Assumption"),
     # Why a rule exists: the provenance model
     RelSpec("FROM_SOURCE", "Rule", "SourceClass"),
-    RelSpec("CITES", "Rule", "Document", meaning="For gov_policy rules."),
-    RelSpec("READS", "Rule", "Dataset", meaning="For gov_dataset rules."),
-    RelSpec("ASSUMES", "Rule", "Assumption", meaning="For project_assumption rules."),
+    RelSpec("CITES", "Rule", "Document", meaning="The document the rule's source_ref names."),
+    RelSpec("READS", "Rule", "Dataset", meaning="The dataset the rule's source_ref names."),
+    RelSpec("ASSUMES", "Rule", "Assumption",
+            meaning="The declared value the rule's source_ref names."),
     # What was decided
     RelSpec("ABOUT", "Decision", "CandidateSite"),
     RelSpec("EVALUATED", "Decision", "Rule", ("verdict", "detail"),
@@ -130,6 +131,18 @@ RELATIONSHIPS: tuple[RelSpec, ...] = (
     RelSpec("FOR", "Infeasibility", "Scenario"),
     RelSpec("AFFECTS", "Infeasibility", "PlanningArea"),
 )
+
+# Reference ids (design §3.3). A rule's source_ref names one of these, and its prefix says
+# which kind of node it is.
+DATASET_PREFIX, DOCUMENT_PREFIX, ASSUMPTION_PREFIX = "ds-", "doc-", "asm-"
+EV_FEED = "ds-lta-evcbatch"
+"""LTA EV Charging Points Batch: every indicator is derived from it."""
+SESSION_ASSUMPTION = "asm-session-hours"
+"""Every demand estimate assumes the mean charging session length."""
+RELIABILITY_ASSUMPTION = "asm-reliable-up-to"
+"""A lower bound exists because occupancy above this limit cannot be inverted reliably."""
+SAMPLE_LABEL = "Sample"
+"""Extra label on everything loaded from optev.sample, so it can be removed in one query."""
 
 SOURCE_CLASSES: dict[RuleSource, str] = {
     RuleSource.GOV_DATASET: "Reads a field from a published government dataset.",

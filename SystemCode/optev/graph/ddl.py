@@ -1,13 +1,13 @@
 """Turn the declared schema into Cypher and apply it. Every statement is idempotent, so
 applying twice is the same as applying once."""
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from .schema import NODES, SOURCE_CLASSES
 
 
-class _Session(Protocol):
-    def run(self, query: str, parameters: dict[str, object] | None = None) -> object: ...
+class Session(Protocol):
+    def run(self, query: str, parameters: dict[str, object] | None = None) -> Any: ...
 
 
 INDEXES: tuple[str, ...] = (
@@ -38,7 +38,7 @@ def seed_rows() -> list[dict[str, str]]:
     return [{"code": src.value, "meaning": text} for src, text in SOURCE_CLASSES.items()]
 
 
-def apply_schema(session: _Session) -> int:
+def apply_schema(session: Session) -> int:
     """Create constraints and indexes, then seed the fixed SourceClass nodes."""
     for stmt in statements():
         session.run(stmt)
