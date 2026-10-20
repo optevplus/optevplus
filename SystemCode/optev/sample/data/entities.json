@@ -2866,9 +2866,15 @@
    },
    {
     "site_id": "SYN-S-04",
-    "connectors": 6,
-    "cost": 55500.0,
-    "marginal_relief": 1.8935
+    "connectors": 7,
+    "cost": 64750.0,
+    "marginal_relief": 2.2035
+   },
+   {
+    "site_id": "SYN-S-10",
+    "connectors": 1,
+    "cost": 9250.0,
+    "marginal_relief": 0.3106
    },
    {
     "site_id": "SYN-S-12",
@@ -2881,18 +2887,6 @@
     "connectors": 2,
     "cost": 18500.0,
     "marginal_relief": 0.6241
-   },
-   {
-    "site_id": "SYN-S-20",
-    "connectors": 1,
-    "cost": 9250.0,
-    "marginal_relief": 0.3067
-   },
-   {
-    "site_id": "SYN-S-24",
-    "connectors": 1,
-    "cost": 9250.0,
-    "marginal_relief": 0.3073
    }
   ],
   "checked": true,

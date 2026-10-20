@@ -44,7 +44,7 @@ readings = connector_readings() # 46 connectors x 96 snapshots, every 30 min ove
 - **No-charger estimates are a stand-in** for the regression (#16), not a model.
 - **Rules and decisions are illustrative.** The real register comes from #17. `rule_on_fail` is
   sample-only: the contract leaves that choice to the rules engine.
-- **The allocation is a greedy reference,** with at least 2 points per planning area and at most 15% of a site's lots. It is not the
+- **The allocation is a greedy reference,** placing each point where it rescues the most drivers, with at most 15% of a site's lots. It is not the
   CP-SAT optimiser, but its plan respects every constraint, so it's a fair check.
 - **`truth.json` is an answer key.** Use it to score models, never as a model input.
 

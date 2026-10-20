@@ -1,4 +1,5 @@
-"""Small CLI: `optev-db migrate`, and `optev-db load-collected <path> [--day YYYY-MM-DD]`."""
+"""Small CLI: `optev-db migrate`, `optev-db load-collected <path> [--day YYYY-MM-DD]`,
+`optev-db conform` and `optev-db coverage`."""
 
 import logging
 import os
@@ -8,7 +9,7 @@ from datetime import date
 
 MIGRATIONS = pathlib.Path(__file__).resolve().parents[2] / "migrations"
 USAGE = ("usage: optev-db migrate | optev-db load-collected <path> [--day YYYY-MM-DD]"
-         " | optev-db coverage")
+         " | optev-db conform | optev-db coverage")
 
 
 def _database_url() -> str | None:
@@ -61,6 +62,17 @@ def load_collected(args: list[str]) -> int:
     return 0
 
 
+def conform() -> int:
+    from optev.ingest.conform import conform as run
+
+    if not _database_url():
+        return 1
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    for table, n in run().items():
+        print(f"{table}: {n}")
+    return 0
+
+
 def coverage() -> int:
     """Measure the collected week and write one coverage_report run."""
     import psycopg
@@ -87,6 +99,8 @@ def main() -> int:
         return migrate()
     if len(sys.argv) >= 2 and sys.argv[1] == "load-collected":
         return load_collected(sys.argv[2:])
+    if len(sys.argv) == 2 and sys.argv[1] == "conform":
+        return conform()
     if len(sys.argv) >= 2 and sys.argv[1] == "coverage":
         return coverage()
     print(USAGE)
