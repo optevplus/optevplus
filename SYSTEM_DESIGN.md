@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.7 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.8 · 20 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -336,6 +336,15 @@ def write_estimates(conn: psycopg.Connection, estimates: list[DemandEstimate]) -
 
 # optev/analysis/patterns.py
 def find_patterns(occupancy: dict[str, dict[str, float]]) -> dict[str, int]   # site -> cluster
+def label_patterns(occupancy: dict[str, dict[str, float]],
+                   patterns: dict[str, int]) -> dict[int, str]               # cluster -> label
+def pattern_silhouette(occupancy: dict[str, dict[str, float]],
+                       patterns: dict[str, int]) -> float
+def holdout_agreement(train: dict[str, dict[str, float]],
+                      held: dict[str, dict[str, float]]) -> float   # share keeping their cluster
+def write_patterns(conn: psycopg.Connection, patterns: dict[str, int],
+                   labels: dict[int, str]) -> int
+    # upserts site_pattern; called by the pipeline
 
 # optev/analysis/unserved.py
 def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate],
@@ -367,8 +376,18 @@ def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate]
    30–40% because demand peaks in the evening.
 3. **Patterns (#15).** k-means (scikit-learn) on each site's 48-value occupancy profile
    (`wd-00…wd-23`, `we-00…we-23`), min-max normalised per site; k from 3 to 6, chosen by
-   silhouette score; fixed `random_state`. Write `site_pattern` with a human label per cluster
-   (e.g. "evening residential").
+   silhouette score (ties to the smaller k); fixed `random_state`; fewer than 4 sites is an
+   error. A missing bin takes the site's mean over the same half (`wd`/`we`), or over all its
+   bins when a half is missing; a site with fewer than `MIN_COVERAGE` × 48 bins gets no
+   cluster. A flat profile normalises to zeros. Clusters are numbered in order of first
+   appearance over sorted site ids. Labels come from each cluster's mean normalised profile:
+   `flat` when it is zero everywhere, else the band of its weekday peak (`overnight` 00–05,
+   `morning` 06–11, `daytime` 12–17, `evening` 18–23) + " peak", with ", busier on weekdays"
+   or ", busier on weekends" when the halves' means differ; a repeated label gets
+   " (cluster n)". `write_patterns` upserts `site_pattern` without committing. Centroids are
+   not stored. **Held-back days:** `holdout_agreement` fits on `[7 Oct 14:00, 11 Oct 00:00)`,
+   assigns the profiles of `[11 Oct 00:00, 14 Oct 11:00)` (SGT) to the fitted centroids, and
+   returns the share of sites that keep their cluster.
 4. **Sites with no chargers (#16).** Supervised regression. Training rows: sites with
    `supply_active` and an `all` estimate of `kind = point` (lower-bound labels are excluded in
    version 1; a censored regression is the stated improvement). Features: mean car park
@@ -558,7 +577,7 @@ be re-run on its own. Target: one planning area end to end in under 10 minutes.
 | Stage | Metric | Answer key | Baseline | Target |
 |---|---|---|---|---|
 | 1 | Completeness, freshness, join coverage | The 330 half-hour slots of the collected week | — | ≥ 95% complete; 100% of sites in an area |
-| 2 patterns | Silhouette | — | — | ≥ 0.5 |
+| 2 patterns | Silhouette; held-back agreement | Held-back days (§4.2 step 3) | — | ≥ 0.5; ≥ 0.8 |
 | 2 queueing | MAPE by occupancy band | Simulation with known demand (`truth()`) | Occupancy alone | ≤ 10% below `RELIABLE_UP_TO` |
 | 2 regression | MAE, Spearman ρ | Hidden sites, hidden areas | Planning-area average | Beat baseline; ρ ≥ 0.5 |
 | 3 | Top-10 stability; back-cast MAPE | Recent months hidden | — | ≥ 7 of 10 stay |
@@ -630,5 +649,9 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   and a lower bound only when window utilisation ≥ `RELIABLE_UP_TO`, not whenever one bin is
   (on the sample that rule flagged 9 of 11 served sites, three above their true demand);
   new `write_estimates` writes `demand_estimate` (spec 012).
+- **1.8 · 20 Oct 2026.** Patterns (§4.2 step 3, §6): missing bins, flat profiles and labels
+  defined; new `label_patterns`, `pattern_silhouette`, `holdout_agreement` and
+  `write_patterns`; held-back-days agreement ≥ 0.8 joins silhouette in §6 (issue #15,
+  spec 014).
 - **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
   planner questions in #26 the first six did not cover (§4.5).
