@@ -24,7 +24,6 @@ SNAP_EVERY = 30  # minutes
 MEAN_SESSION_H = 3.0  # the declared assumption the estimates use
 COST_PER_POINT = 9_250.0
 MAX_SHARE = 0.15  # of car lots, per site
-MIN_PER_AREA = 2
 POINTS = 12  # the reference request: 12 new points, island-wide, no budget
 # The impossible request: 40 points in Pasir Ris, but a budget that pays for fewer.
 OVER_AREA, OVER_POINTS, OVER_BUDGET = "PR", 40, 300_000.0
@@ -751,11 +750,6 @@ def allocate(out: dict, facts: dict[str, dict], est: dict[str, float]) -> tuple[
         options = [s for s in pool if added[s] < space(s)]
         return max(sorted(options), key=lambda s: gain(s, added[s])) if options else None
 
-    for code in sorted({facts[s]["planning_area"] for s in allowed}):
-        for _ in range(MIN_PER_AREA):
-            s = best({x for x in allowed if facts[x]["planning_area"] == code})
-            if s is not None and sum(added.values()) < POINTS:
-                added[s] += 1
     while sum(added.values()) < POINTS and (s := best(allowed)) is not None:
         added[s] += 1
     items = []

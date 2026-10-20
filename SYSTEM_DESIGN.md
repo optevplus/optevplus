@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.5 · 18 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.6 · 20 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -54,7 +54,7 @@ OptEV+ returns the proposal's three outputs:
 
 1. a **ranked set of candidate sites**,
 2. a **constrained allocation**: how many new points go to each site, within the requested
-   number (and the budget, if given), site capacity and coverage limits,
+   number (and the budget, if given) and site capacity limits,
 3. a **traceable reason** for every site accepted, rejected, deferred or made conditional.
 
 **Scope.** Data is collected island-wide. Analysis is aggregated over the 55 planning areas.
@@ -221,7 +221,7 @@ The database rejects any other value.
 `MEAN_SESSION_HOURS` (3.0 h), `RELIABLE_UP_TO` (0.93, to be measured), `IDLE_BELOW` (0.05),
 `GROWTH_LOW/BASE/HIGH` (placeholders until #28), `HORIZON_MONTHS` (51),
 `MAX_SHARE_OF_LOTS` (0.15), `COST_PER_POINT_SGD` (9,250; tested at `COST_LOW_SGD` 5,500 and
-`COST_HIGH_SGD` 10,500), `MIN_POINTS_PER_AREA` (2), `MATCH_THRESHOLDS_M` (50, 100, 200),
+`COST_HIGH_SGD` 10,500), `MATCH_THRESHOLDS_M` (50, 100, 200),
 `AMENITY_LINK_M` (150), `SNAPSHOT_MINUTES` (30). Placeholders must be replaced with cited
 values before the report.
 
@@ -442,8 +442,9 @@ def allocate(decisions: list[Decision], sites: list[CandidateSite],
 - **CP-SAT formulation:** binary `y[site, k]` for the k-th new point, `x = Σ_k y`, ordered
   `y[k] ≥ y[k+1]`; objective coefficients are the marginal gains, scaled ×1000 to integers.
   Constraints: `Σ x = requested_connectors` if given; `Σ COST_PER_POINT_SGD × x ≤ budget` if
-  given (with only a budget, place as many points as it pays for); `x ≤ room`; every planning
-  area in scope with an eligible site gets at least `MIN_POINTS_PER_AREA`. Each item's `cost` is
+  given (with only a budget, place as many points as it pays for); `x ≤ room`. No minimum per
+  planning area: an area gets points only where they rescue the most drivers, so 0 is a valid
+  answer. Each item's `cost` is
   `COST_PER_POINT_SGD × connectors`, shown as an estimate even without a budget. Time limit
   30 s; record solver status and optimality gap.
 
@@ -454,9 +455,9 @@ independently, fills `violations`, and sets `checked = True`. Only checked alloc
 written or shown.
 
 **Unmet requirement (#23).** When infeasible: `max_feasible` = the most connectors any feasible
-plan allows; `binding_constraints` = each constraint group (requested, budget, room, coverage)
-whose removal alone makes the request feasible; `affected_areas` = areas whose coverage cannot
-be met. With only a budget, `requested_connectors` = `floor(budget / COST_PER_POINT_SGD)`.
+plan allows; `binding_constraints` = each constraint group (requested, budget, room)
+whose removal alone makes the request feasible; `affected_areas` stays empty (kept on the
+contract; no per-area constraint exists). With only a budget, `requested_connectors` = `floor(budget / COST_PER_POINT_SGD)`.
 
 **Checked by.** Rules: 100% agreement with 30 test sites labelled in advance by two people who
 did not write the rules (agreement measured with Cohen's κ), and 100% reason codes. Allocation:
@@ -606,3 +607,6 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
 - **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
   planner questions in #26 the first six did not cover (§4.5).
+- **1.6 · 20 Oct 2026.** No minimum points per planning area: `MIN_POINTS_PER_AREA` removed
+  (§3.5, §4.4). It was our own uncited number, and island-wide it made any request under
+  about 100 points impossible. Points go only where they rescue the most drivers.
