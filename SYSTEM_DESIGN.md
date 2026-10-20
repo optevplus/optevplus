@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.6 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.7 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -410,6 +410,12 @@ def site_facts(site: CandidateSite, car_park: CarPark | None,
                indicators: SiteIndicators, context: dict[str, object]) -> dict[str, object]
 def evaluate(site_id: str, facts: dict[str, object], rules: list[Rule],
              on_fail: dict[str, Outcome], scenario_id: str | None = None) -> Decision
+def screen(sites: list[CandidateSite], car_parks: list[CarPark],
+           indicators: list[SiteIndicators], context: dict[str, dict[str, object]],
+           rules: list[Rule], on_fail: dict[str, Outcome],
+           scenario_id: str | None = None) -> tuple[list[Decision], dict[Outcome, int]]
+def write_decisions(cur: Cursor, rules: list[Rule], on_fail: dict[str, Outcome],
+                    decisions: list[Decision]) -> dict[str, int]
 ```
 
 - **Register.** `reasoning/register.toml`, one entry per rule with every `Rule` field plus
@@ -424,6 +430,17 @@ def evaluate(site_id: str, facts: dict[str, object], rules: list[Rule],
 - **Outcome policy**, in this order: any failing rule with `on_fail = reject` → **reject**;
   else any unevaluated rule → **defer**; else any failing `conditional` rule →
   **conditional**; else **accept**. A missing fact alone never rejects.
+- **Checks.** Each rule's test is a function in `rules.CHECKS`, keyed by `rule_id`; a register
+  rule with no check is an error, never a silent defer. Before the checks run, derived facts
+  are added by forward chaining while their inputs are present: `room` =
+  `floor(MAX_SHARE_OF_LOTS × total_lots) − existing_connectors`, floored at 0. A result's
+  `detail` names the missing facts when unevaluated, and the computed value (e.g. `room 89`)
+  when there is one.
+- **Screening (#19).** `screen` evaluates every candidate site (each with its latest
+  indicators window) and returns the decisions with the count per outcome, all four always
+  present, so the funnel is visible. `write_decisions` upserts `rule` from the register, then
+  `decision` and `rule_result` per (site, scenario), replacing earlier results;
+  `scenario_id` None is stored as `'observed'`. The allocator reads the screened set.
 
 **Allocation (#20–#21, Shrey)**
 
@@ -614,3 +631,5 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.6 · 19 Oct 2026.** Conform (§4.1 step 3) states what was left open: a station's
   connectors count at its nearest site only; registry car parks are matched to the readings,
   with HDB lot counts from the feed; unmatched rows are counted both ways (spec 003, #53).
+- **1.7 · 19 Oct 2026.** Rules (§4.4) name the screening functions `screen` and
+  `write_decisions`, and state how checks and derived facts work (spec 008, #18, #19).
