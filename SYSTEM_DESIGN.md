@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.8 · 20 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.10 · 20 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -416,12 +416,17 @@ def screen(sites: list[CandidateSite], car_parks: list[CarPark],
            scenario_id: str | None = None) -> tuple[list[Decision], dict[Outcome, int]]
 def write_decisions(cur: Cursor, rules: list[Rule], on_fail: dict[str, Outcome],
                     decisions: list[Decision]) -> dict[str, int]
+def screen_all(database_url: str, scenario_id: str | None = None,
+               write: bool = True) -> dict[Outcome, int]   # Postgres in, funnel out
+# python -m optev.reasoning screen [--scenario ID] [--dry-run]
 ```
 
 - **Register.** `reasoning/register.toml`, one entry per rule with every `Rule` field plus
   `on_fail` (`reject` or `conditional`). Each rule cites its source class and `source_ref`:
   a document, dataset or assumption id. Rules come from the policy documents and datasets in
   the proposal's references; any rule based on our own judgement is `project_assumption`.
+  A rule is in the register because its source supports it, never because its facts happen
+  to be loaded: a rule whose fact is missing simply defers.
 - **Facts.** Keys available to rules: `kind`, `planning_area`, `total_lots`,
   `existing_connectors`, `car_park_type`, `supply_state`, `utilisation`, `land_use`,
   `amenities_nearby`, `nearest_point_m`. A missing value is absent from the dict, never 0.
@@ -441,6 +446,8 @@ def write_decisions(cur: Cursor, rules: list[Rule], on_fail: dict[str, Outcome],
   present, so the funnel is visible. `write_decisions` upserts `rule` from the register, then
   `decision` and `rule_result` per (site, scenario), replacing earlier results;
   `scenario_id` None is stored as `'observed'`. The allocator reads the screened set.
+  `screen_all` reads `candidate_site`, `car_park`, `site_indicators` and `site_context`,
+  screens, writes (unless `write` is False) and returns the funnel.
 
 **Allocation (#20–#21, Shrey)**
 
@@ -637,3 +644,6 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.8 · 20 Oct 2026.** No minimum points per planning area: `MIN_POINTS_PER_AREA` removed
   (§3.5, §4.4). It was our own uncited number, and island-wide it made any request under
   about 100 points impossible. Points go only where they rescue the most drivers.
+- **1.10 · 20 Oct 2026.** Rules (§4.4): a rule is registered for its source, not for data
+  availability; `screen_all` and `python -m optev.reasoning screen` screen Postgres
+  (spec 008). Numbered 1.10 because #58 claims 1.9.

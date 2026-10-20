@@ -69,7 +69,8 @@ def test_rule_results_match_the_sample_for_every_shared_rule():
     for site_id, want in SAMPLE.items():
         got = R.evaluate(site_id, _facts(site_id), RULES, ON_FAIL)
         expected = [r for r in want.results if r.rule_id in R.CHECKS]
-        assert got.results == expected, site_id
+        shared = [r for r in got.results if r.rule_id in {e.rule_id for e in expected}]
+        assert shared == expected, site_id
 
 
 def test_every_rule_is_evaluated_in_register_order():
@@ -80,9 +81,23 @@ def test_every_rule_is_evaluated_in_register_order():
 
 def test_a_missing_fact_defers_and_never_rejects():
     d = R.evaluate("SYN-S-27", _facts("SYN-S-27"), RULES, ON_FAIL)
-    assert d.outcome is Outcome.DEFER
-    assert d.unevaluated_rules == ["R01", "R03"] and d.failing_rules == []
+    assert d.outcome is Outcome.DEFER  # a gap outranks the conditional R06 failure
+    assert d.unevaluated_rules == ["R01", "R03"] and d.failing_rules == ["R06"]
     assert d.results[0].detail == "total_lots missing"
+
+
+def test_r05_defers_a_site_outside_every_planning_area():
+    facts = {k: v for k, v in _facts("SYN-S-01").items() if k != "planning_area"}
+    d = R.evaluate("SYN-S-01", facts, RULES, ON_FAIL)
+    r05 = next(r for r in d.results if r.rule_id == "R05")
+    assert (r05.passed, r05.detail, d.outcome) == (None, "planning_area missing", Outcome.DEFER)
+
+
+def test_r06_is_conditional_where_no_charger_runs_yet():
+    d = R.evaluate("SYN-S-06", _facts("SYN-S-06"), RULES, ON_FAIL)  # room, no chargers
+    assert d.outcome is Outcome.CONDITIONAL and d.failing_rules == ["R06"]
+    assert d.results[-1].detail == "electrical capacity to be confirmed"
+    assert R.evaluate("SYN-S-01", _facts("SYN-S-01"), RULES, ON_FAIL).outcome is Outcome.ACCEPT
 
 
 @pytest.mark.parametrize(("results", "want"), [
@@ -130,20 +145,23 @@ def test_reasons_survive_a_round_trip_through_the_contract():
 def test_screening_reports_the_funnel_over_every_site():
     decisions, funnel = _screen()
     assert len(decisions) == len(S.sites)
-    assert funnel == {Outcome.ACCEPT: 25, Outcome.REJECT: 2, Outcome.DEFER: 3,
-                      Outcome.CONDITIONAL: 0}
+    assert funnel == {Outcome.ACCEPT: 9, Outcome.REJECT: 2, Outcome.DEFER: 3,
+                      Outcome.CONDITIONAL: 16}
+    assert all(funnel.values())  # all four outcomes appear
 
 
-def test_screening_agrees_with_the_sample_wherever_dropped_rules_passed():
-    # the sample also ran R02 and R05; where both passed, outcomes must match exactly
+def test_screening_agrees_with_the_sample_wherever_the_rule_sets_agree():
+    # the sample ran R02 (not registered) and not R06; where both passed, outcomes must match
     decisions, _ = _screen()
+    compared = 0
     for d in decisions:
-        dropped = [r for r in SAMPLE[d.site_id].results if r.rule_id not in R.CHECKS]
-        if all(r.passed for r in dropped):
+        r02 = next(r for r in SAMPLE[d.site_id].results if r.rule_id == "R02")
+        r06 = next(r for r in d.results if r.rule_id == "R06")
+        if r02.passed and r06.passed:
             assert d.outcome == SAMPLE[d.site_id].outcome, d.site_id
+            compared += 1
+    assert compared == 10  # the 9 accepted sites plus S-13 and S-14, less S-11 (R02)
     by_site = {d.site_id: d.outcome for d in decisions}
-    # S-06 and S-11 were conditional only through R02 (basement), which is not registered
-    assert by_site["SYN-S-06"] is by_site["SYN-S-11"] is Outcome.ACCEPT
     assert {s for s, o in by_site.items() if o is Outcome.REJECT} == {"SYN-S-13", "SYN-S-14"}
 
 
@@ -192,7 +210,7 @@ def test_write_decisions_replaces_results_per_site_and_scenario():
     decisions, _ = _screen()
     cur = FakeCursor()
     written = R.write_decisions(cur, RULES, ON_FAIL, decisions)  # type: ignore[arg-type]
-    assert written == {"rule": 3, "decision": 30, "rule_result": 90}
+    assert written == {"rule": 5, "decision": 30, "rule_result": 150}
     assert [sql for sql, _ in cur.calls] == [
         R.UPSERT_RULE, R.UPSERT_DECISION, R.CLEAR_RESULTS, R.INSERT_RESULT]
     rules_rows, decision_rows, cleared, results = (rows for _, rows in cur.calls)
@@ -208,3 +226,82 @@ def test_write_decisions_keeps_the_scenario():
     cur = FakeCursor()
     R.write_decisions(cur, RULES, ON_FAIL, decisions[:1])  # type: ignore[arg-type]
     assert cur.calls[1][1] == [(decisions[0].site_id, "base", "accept")]
+
+
+# Screening the database (fake connection fed from the sample) ----------------------------
+
+def _table_rows() -> dict[str, list[dict[str, object]]]:
+    def flat(model, **extra):  # a table row: coordinates split, windows as timestamps
+        row = model.model_dump(mode="json")
+        if "coord" in row:
+            row |= row.pop("coord")
+        return row | extra
+    return {
+        R.READ_SITES: [flat(s) for s in S.sites],
+        R.READ_CAR_PARKS: [flat(c) for c in S.car_parks],
+        R.READ_INDICATORS: [flat(i, window_start=datetime.fromisoformat(i.window_start),
+                                 window_end=datetime.fromisoformat(i.window_end))
+                            for i in S.indicators],
+        R.READ_CONTEXT: [{"site_id": s.site_id, "land_use": None, "amenities_nearby": 0,
+                          "nearest_point_m": None} for s in S.sites],
+    }
+
+
+class FakeConnection:
+    def __init__(self) -> None:
+        self.rows, self.written, self.committed = _table_rows(), [], False
+
+    def __enter__(self): return self
+    def __exit__(self, *exc): return False
+    def cursor(self): return self
+    def execute(self, sql, params=None): return iter(self.rows[sql])
+    def executemany(self, sql, rows): self.written.append((sql, rows))
+    def commit(self): self.committed = True
+
+
+def test_screen_all_reads_the_tables_and_writes_decisions(monkeypatch):
+    import psycopg
+
+    conn = FakeConnection()
+    monkeypatch.setattr(psycopg, "connect", lambda url, row_factory=None: conn)
+    funnel = R.screen_all("postgresql://fake", write=True)
+    assert funnel == _screen()[1] and all(funnel.values())
+    assert conn.committed and [sql for sql, _ in conn.written][0] == R.UPSERT_RULE
+
+
+def test_screen_all_dry_run_writes_nothing(monkeypatch):
+    import psycopg
+
+    conn = FakeConnection()
+    monkeypatch.setattr(psycopg, "connect", lambda url, row_factory=None: conn)
+    R.screen_all("postgresql://fake", "base", write=False)
+    assert conn.written == [] and not conn.committed
+
+
+def test_rows_skip_bad_rows_and_convert_timestamps():
+    ind = S.indicators[0].model_dump(mode="json")
+    good = ind | {"window_end": datetime.fromisoformat(ind["window_end"])}
+    bad = ind | {"site_id": "SYN-BAD", "supply_state": "busy"}
+    rows = R._rows(R.SiteIndicators, [good, bad])
+    assert [r.site_id for r in rows] == [ind["site_id"]]
+    assert rows[0].window_end == datetime.fromisoformat(ind["window_end"]).isoformat()
+
+
+def test_cli_needs_a_database_and_passes_dry_run(monkeypatch, tmp_path, capsys):
+    from optev.reasoning import __main__ as cli
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(cli, "ENV_FILE", tmp_path / ".env")  # no .env there
+    assert cli.main(["screen"]) == 1
+    seen = {}
+
+    def fake(url, scenario, write):
+        seen.update(url=url, scenario=scenario, write=write)
+        return _screen()[1]
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://fake")
+    monkeypatch.setattr(cli, "screen_all", fake)
+    assert cli.main(["screen", "--scenario", "base", "--dry-run"]) == 0
+    assert seen == {"url": "postgresql://fake", "scenario": "base", "write": False}
+    out = capsys.readouterr().out
+    assert "screened 30 sites (base)" in out and "conditional" in out
