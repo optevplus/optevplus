@@ -4,9 +4,6 @@ import os
 from dataclasses import replace
 
 import pytest
-from dotenv import load_dotenv
-
-load_dotenv()
 
 pytestmark = pytest.mark.skipif(not os.getenv("NEO4J_URI"), reason="no Neo4j credentials")
 
