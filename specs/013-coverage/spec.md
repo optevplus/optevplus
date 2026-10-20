@@ -1,4 +1,4 @@
-# 011 · Coverage and freshness reporting (#12)
+# 013 · Coverage and freshness reporting (#12)
 
 **Owner:** Ghanashyam  ·  **Status:** built, in review  ·  **Branch:** `ghanashyam/12-coverage`
 
