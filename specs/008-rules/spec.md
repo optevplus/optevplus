@@ -41,6 +41,7 @@ Tests run on `optev.sample`. `screen_all` runs the same code on Postgres.
 | id | condition | source · ref | facts | on_fail |
 |---|---|---|---|---|
 | R01 | Car capacity is published for the site | gov_dataset · `ds-hdb-availability` | total_lots | reject |
+| R02 | A basement car park needs its fire-safety provisions for EV charging confirmed first | gov_policy · `doc-mha-ev-carparks-2026` | kind (+ car_park_type for car parks) | conditional |
 | R03 | Existing points plus one new point stay within `MAX_SHARE_OF_LOTS` of the car lots | math_constraint · `doc-lta-ev-factsheet-2021` | total_lots, existing_connectors | reject |
 | R04 | Sites whose chargers are idle (`IDLE_BELOW`) get no more points | project_assumption · `asm-idle-threshold` | supply_state | reject |
 | R05 | The site lies inside a Master Plan 2025 planning area | gov_dataset · `ds-mp2025-areas` | planning_area | reject |
@@ -67,10 +68,23 @@ Tests run on `optev.sample`. `screen_all` runs the same code on Postgres.
   shown only where chargers already run (`existing_connectors ≥ 1`); everywhere else it fails
   with `electrical capacity to be confirmed` → **conditional**. That reading of the policy is a
   judgement for review.
-- **R02** (basement → conditional) stays out: car park type is now loaded (#59), but there is
-  still no source. The proposal's LTA safety page, SCDF Fire Code 2023 cl. 10.4 and the
-  LTA/BCA/SCDF reply of 5 Sep 2024 set no basement-specific condition (checked 17 Oct 2026).
-- `doc-mot-ev-reply-2025` is added to the sample's references, so the graph can link R06.
+- **R02 is back** (20 Oct 2026). Source: MHA written parliamentary reply of 8 Sep 2026
+  (Minister K Shanmugam), "Adequacy of fire safety standards for electric vehicles in enclosed
+  and multi-storey car parks": "sprinklers are required for enclosed basement carparks", and
+  SCDF has mandated "at least one emergency main isolation shut-off switch ... within 15 metres
+  of an electric vehicle (EV) charging station" (checked 20 Oct 2026; the MHA reply of
+  10 Sep 2024 and the LTA/BCA/SCDF reply of 3 Sep 2024 say the same). No source says a basement
+  needs a *review*; what they state is a basement-specific requirement that no dataset can
+  confirm, so a basement car park is **conditional** on confirming it.
+  - Not a car park (hawker, community club, petrol): passes, `not a car park`.
+  - Car park whose type contains BASEMENT: fails → conditional,
+    `basement: confirm sprinklers and EV isolation switch`.
+  - Car park of unknown type: `passed = None` → **defer**, never assumed safe. On real data that
+    is every URA car park (#59 loads type for HDB only, ~659 sites), which needs a team call.
+  - Required fact is `kind`, not `car_park_type`, so non-car-park sites are not deferred; the
+    check reads the type for car parks only (design 1.10 lets a check return None for that).
+- `doc-mha-ev-carparks-2026` and `doc-mot-ev-reply-2025` are added to the sample's references,
+  so the graph can link R02 and R06.
 
 ## Engine (#18)
 - **Checks** are functions in `rules.CHECKS`, keyed by `rule_id`. A register rule with no check
@@ -93,9 +107,9 @@ Tests run on `optev.sample`. `screen_all` runs the same code on Postgres.
 - `write_decisions` upserts `rule` from the register, then `decision`, and replaces that
   (site, scenario)'s `rule_result` rows, so a rerun gives the same tables.
 
-**Sample funnel (R01, R03–R06):** accept 9 (chargers already running, room, not idle) ·
-conditional 16 (no charger yet: electrical capacity to be confirmed) · reject 2 (S-13 no room,
-S-14 idle) · defer 3 (S-27, S-28, S-30: no lot count). All four outcomes appear.
+**Sample funnel (R01–R06):** accept 8 (chargers already running, room, not idle, not a
+basement) · conditional 17 (16 with no charger yet; S-11 is a basement) · reject 2 (S-13 no
+room, S-14 idle) · defer 3 (S-27, S-28, S-30: no lot count). All four outcomes appear.
 
 ## Verification
 - `tests/test_rules.py` (register, 20 tests) and `tests/test_screen.py` (engine and screening,
@@ -134,3 +148,10 @@ S-14 idle) · defer 3 (S-27, S-28, S-30: no lot count). All four outcomes appear
   sites without chargers conditional; R04 rejects idle ones; R01 defers sites with no lots.
 - `rules.py` is ~380 lines, over the ~300 guideline; the Postgres runner could move out.
 - Suite: 146 passed, 11 skipped (live DB and graph tests).
+
+## Checkpoint · 20 Oct 2026 (2) · R02 back
+- R02 (basement, gov_policy, conditional) cites the MHA reply of 8 Sep 2026. Checks may now
+  return `passed = None` (design 1.10). Sample funnel: accept 8 · conditional 17 · reject 2 ·
+  defer 3. Suite: 154 passed, 11 skipped.
+- **Team call:** URA car parks have no type, so R02 defers all ~659 of them. Options: load a
+  type for URA, or treat URA surface/multi-storey as known (needs a source).

@@ -29,6 +29,7 @@ from optev.contracts import (
     RuleResult,
     RuleSource,
     SiteIndicators,
+    SiteKind,
     SupplyState,
 )
 
@@ -175,6 +176,25 @@ def _r01(f: Mapping[str, object]) -> tuple[bool, str | None]:
     return True, None
 
 
+CAR_PARK_KINDS = frozenset({SiteKind.HDB_CAR_PARK, SiteKind.PUBLIC_CAR_PARK})
+
+
+def _r02(f: Mapping[str, object]) -> tuple[bool | None, str | None]:
+    # MHA written reply, 8 Sep 2026: "sprinklers are required for enclosed basement carparks",
+    # and SCDF requires an isolation switch within 15 m of every EV charging station. No
+    # dataset says whether a basement has them, so a basement car park is conditional on
+    # confirming them. Only car parks have a type: other sites pass; a car park of unknown
+    # type cannot be judged, so it is unevaluated (defer), never assumed safe.
+    if f["kind"] not in CAR_PARK_KINDS:
+        return True, "not a car park"
+    car_park_type = f.get("car_park_type")
+    if car_park_type is None:
+        return None, "car_park_type missing"
+    if "BASEMENT" in str(car_park_type).upper():
+        return False, "basement: confirm sprinklers and EV isolation switch"
+    return True, None
+
+
 def _r03(f: Mapping[str, object]) -> tuple[bool, str | None]:
     # existing plus one new point stays within MAX_SHARE_OF_LOTS of the car lots
     return _int(f, "room") >= 1, f"room {f['room']}"
@@ -200,8 +220,12 @@ def _r06(f: Mapping[str, object]) -> tuple[bool, str | None]:
     return False, "electrical capacity to be confirmed"
 
 
-Check = Callable[[Mapping[str, object]], tuple[bool, str | None]]
-CHECKS: dict[str, Check] = {"R01": _r01, "R03": _r03, "R04": _r04, "R05": _r05, "R06": _r06}
+# A check returns (passed, detail). passed is None when a fact the rule needs only for some
+# kinds of site is missing; that is unevaluated, exactly like a missing required fact.
+Check = Callable[[Mapping[str, object]], tuple[bool | None, str | None]]
+CHECKS: dict[str, Check] = {
+    "R01": _r01, "R02": _r02, "R03": _r03, "R04": _r04, "R05": _r05, "R06": _r06,
+}
 
 
 def derive(facts: Mapping[str, object]) -> Facts:

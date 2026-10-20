@@ -18,6 +18,15 @@ explanation_template = "Capacity is known: {total_lots} car lots."
 on_fail = "reject"
 
 [[rule]]
+rule_id = "R02"
+condition = "A basement car park needs its fire-safety provisions for EV charging confirmed first"
+source = "gov_policy"
+source_ref = "doc-mha-ev-carparks-2026"
+required_facts = ["kind"]
+explanation_template = "Site kind: {kind}."
+on_fail = "conditional"
+
+[[rule]]
 rule_id = "R03"
 condition = "Existing points plus one new point stay within MAX_SHARE_OF_LOTS of the car lots"
 source = "math_constraint"

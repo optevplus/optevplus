@@ -436,7 +436,10 @@ def screen_all(database_url: str, scenario_id: str | None = None,
   else any unevaluated rule → **defer**; else any failing `conditional` rule →
   **conditional**; else **accept**. A missing fact alone never rejects.
 - **Checks.** Each rule's test is a function in `rules.CHECKS`, keyed by `rule_id`; a register
-  rule with no check is an error, never a silent defer. Before the checks run, derived facts
+  rule with no check is an error, never a silent defer. A check may itself return
+  `passed = None` when a fact the rule reads only for some kinds of site is missing (e.g.
+  `car_park_type` for a car park); that is unevaluated, like a missing required fact. Before
+  the checks run, derived facts
   are added by forward chaining while their inputs are present: `room` =
   `floor(MAX_SHARE_OF_LOTS × total_lots) − existing_connectors`, floored at 0. A result's
   `detail` names the missing facts when unevaluated, and the computed value (e.g. `room 89`)
@@ -645,5 +648,6 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   (§3.5, §4.4). It was our own uncited number, and island-wide it made any request under
   about 100 points impossible. Points go only where they rescue the most drivers.
 - **1.10 · 20 Oct 2026.** Rules (§4.4): a rule is registered for its source, not for data
-  availability; `screen_all` and `python -m optev.reasoning screen` screen Postgres
-  (spec 008). Numbered 1.10 because #58 claims 1.9.
+  availability; a check may return `passed = None` for a fact it needs only for some sites;
+  `screen_all` and `python -m optev.reasoning screen` screen Postgres (spec 008). Numbered
+  1.10 because #58 claims 1.9.

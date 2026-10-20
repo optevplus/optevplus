@@ -66,10 +66,14 @@ def test_room_is_derived_by_forward_chaining():
 
 
 def test_rule_results_match_the_sample_for_every_shared_rule():
+    # the sample has no reason text for a basement; R02 records one, so compare its verdict only
+    def key(r):
+        return (r.rule_id, r.passed, None if r.rule_id == "R02" and r.passed is False else r.detail)
+
     for site_id, want in SAMPLE.items():
         got = R.evaluate(site_id, _facts(site_id), RULES, ON_FAIL)
-        expected = [r for r in want.results if r.rule_id in R.CHECKS]
-        shared = [r for r in got.results if r.rule_id in {e.rule_id for e in expected}]
+        expected = [key(r) for r in want.results if r.rule_id in R.CHECKS]
+        shared = [key(r) for r in got.results if r.rule_id in {e[0] for e in expected}]
         assert shared == expected, site_id
 
 
@@ -93,8 +97,41 @@ def test_r05_defers_a_site_outside_every_planning_area():
     assert (r05.passed, r05.detail, d.outcome) == (None, "planning_area missing", Outcome.DEFER)
 
 
+def _result(d, rule_id):
+    return next(r for r in d.results if r.rule_id == rule_id)
+
+
+def test_r02_makes_a_basement_car_park_conditional():
+    d = R.evaluate("SYN-S-11", _facts("SYN-S-11"), RULES, ON_FAIL)  # basement, chargers, room
+    assert d.outcome is Outcome.CONDITIONAL and d.failing_rules == ["R02"]
+    assert _result(d, "R02").detail == BASEMENT
+
+
+BASEMENT = "basement: confirm sprinklers and EV isolation switch"
+
+
+@pytest.mark.parametrize(("site_id", "car_park_type", "want"), [
+    ("SYN-S-01", "MULTI-STOREY CAR PARK", (True, None)),
+    ("SYN-S-01", "BASEMENT CAR PARK", (False, BASEMENT)),
+    ("SYN-S-01", "Basement car park", (False, BASEMENT)),
+    ("SYN-S-01", None, (None, "car_park_type missing")),     # e.g. URA: type unknown -> defer
+    ("SYN-S-27", None, (True, "not a car park")),             # hawker centre
+])
+def test_r02_by_site_kind_and_type(site_id, car_park_type, want):
+    facts = {k: v for k, v in _facts(site_id).items() if k != "car_park_type"}
+    if car_park_type is not None:
+        facts["car_park_type"] = car_park_type
+    r02 = _result(R.evaluate(site_id, facts, RULES, ON_FAIL), "R02")
+    assert (r02.passed, r02.detail) == want
+
+
+def test_a_car_park_of_unknown_type_defers_rather_than_passing():
+    facts = {k: v for k, v in _facts("SYN-S-01").items() if k != "car_park_type"}
+    assert R.evaluate("SYN-S-01", facts, RULES, ON_FAIL).outcome is Outcome.DEFER
+
+
 def test_r06_is_conditional_where_no_charger_runs_yet():
-    d = R.evaluate("SYN-S-06", _facts("SYN-S-06"), RULES, ON_FAIL)  # room, no chargers
+    d = R.evaluate("SYN-S-07", _facts("SYN-S-07"), RULES, ON_FAIL)  # room, no chargers
     assert d.outcome is Outcome.CONDITIONAL and d.failing_rules == ["R06"]
     assert d.results[-1].detail == "electrical capacity to be confirmed"
     assert R.evaluate("SYN-S-01", _facts("SYN-S-01"), RULES, ON_FAIL).outcome is Outcome.ACCEPT
@@ -137,7 +174,7 @@ def test_a_failing_rule_needs_an_on_fail():
 def test_reasons_survive_a_round_trip_through_the_contract():
     d = R.evaluate("SYN-S-13", _facts("SYN-S-13"), RULES, ON_FAIL, "base")
     assert Decision.model_validate_json(d.model_dump_json()) == d
-    assert d.scenario_id == "base" and d.results[1].detail == "room 0"
+    assert d.scenario_id == "base" and _result(d, "R03").detail == "room 0"
 
 
 # Screening ----------------------------------------------------------------------------
@@ -145,22 +182,20 @@ def test_reasons_survive_a_round_trip_through_the_contract():
 def test_screening_reports_the_funnel_over_every_site():
     decisions, funnel = _screen()
     assert len(decisions) == len(S.sites)
-    assert funnel == {Outcome.ACCEPT: 9, Outcome.REJECT: 2, Outcome.DEFER: 3,
-                      Outcome.CONDITIONAL: 16}
+    assert funnel == {Outcome.ACCEPT: 8, Outcome.REJECT: 2, Outcome.DEFER: 3,
+                      Outcome.CONDITIONAL: 17}
     assert all(funnel.values())  # all four outcomes appear
 
 
 def test_screening_agrees_with_the_sample_wherever_the_rule_sets_agree():
-    # the sample ran R02 (not registered) and not R06; where both passed, outcomes must match
+    # the sample ran R01-R05 but not R06; wherever R06 passed, outcomes must match exactly
     decisions, _ = _screen()
     compared = 0
     for d in decisions:
-        r02 = next(r for r in SAMPLE[d.site_id].results if r.rule_id == "R02")
-        r06 = next(r for r in d.results if r.rule_id == "R06")
-        if r02.passed and r06.passed:
+        if _result(d, "R06").passed:
             assert d.outcome == SAMPLE[d.site_id].outcome, d.site_id
             compared += 1
-    assert compared == 10  # the 9 accepted sites plus S-13 and S-14, less S-11 (R02)
+    assert compared == 11  # every site with chargers running
     by_site = {d.site_id: d.outcome for d in decisions}
     assert {s for s, o in by_site.items() if o is Outcome.REJECT} == {"SYN-S-13", "SYN-S-14"}
 
@@ -178,7 +213,7 @@ def test_screening_uses_the_latest_indicators_window():
 def test_a_site_without_indicators_defers():
     decisions, funnel = _screen(indicators=[i for i in S.indicators if i.site_id != "SYN-S-01"])
     d = next(d for d in decisions if d.site_id == "SYN-S-01")
-    assert d.outcome is Outcome.DEFER and d.results[2].detail == "supply_state missing"
+    assert d.outcome is Outcome.DEFER and _result(d, "R04").detail == "supply_state missing"
     assert funnel[Outcome.DEFER] == 4
 
 
@@ -210,7 +245,7 @@ def test_write_decisions_replaces_results_per_site_and_scenario():
     decisions, _ = _screen()
     cur = FakeCursor()
     written = R.write_decisions(cur, RULES, ON_FAIL, decisions)  # type: ignore[arg-type]
-    assert written == {"rule": 5, "decision": 30, "rule_result": 150}
+    assert written == {"rule": 6, "decision": 30, "rule_result": 180}
     assert [sql for sql, _ in cur.calls] == [
         R.UPSERT_RULE, R.UPSERT_DECISION, R.CLEAR_RESULTS, R.INSERT_RESULT]
     rules_rows, decision_rows, cleared, results = (rows for _, rows in cur.calls)
