@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 import pytest
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 from optev.evaluation.explain_eval import questions, score
 from optev.graph import llm as L
@@ -123,7 +123,11 @@ def test_the_model_comes_from_settings_and_says_what_is_missing(monkeypatch):
 
 # Live ---------------------------------------------------------------------------------
 
-load_dotenv()
+# Only NEO4J_* from .env: loading the whole file would also set DATABASE_URL and switch on
+# the Neon live tests, which run only when asked (`uv run --env-file .env pytest`).
+for _key, _value in dotenv_values().items():
+    if _key.startswith("NEO4J_") and _value:
+        os.environ.setdefault(_key, _value)
 live = pytest.mark.skipif(not os.getenv("NEO4J_URI"), reason="no Neo4j credentials")
 
 
