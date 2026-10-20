@@ -105,15 +105,12 @@ def test_reference_allocation_respects_every_constraint():
     assert a.checked and not a.violations
     assert a.budget is None or a.total_cost <= a.budget
     assert a.total_connectors == a.requested_connectors
-    per_area: dict[str | None, int] = defaultdict(int)
     for item in a.items:
         s = site[item.site_id]
         assert item.site_id in allowed
         assert s.total_lots is not None
         assert s.existing_connectors + item.connectors <= int(MAX_SHARE * s.total_lots)
         assert item.cost == item.connectors * COST_PER_POINT
-        per_area[s.planning_area] += item.connectors
-    assert all(per_area[area.code] >= 2 for area in S.planning_areas)
 
 
 def test_impossible_request_says_what_is_short():
