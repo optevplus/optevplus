@@ -1,11 +1,10 @@
 """Allocator (SYSTEM_DESIGN.md §4.4, #20 and #21, spec 015), on optev.sample. No database."""
 
 import math
-from collections import Counter
 
 import pytest
 
-from optev.assumptions import COST_PER_POINT_SGD, MIN_POINTS_PER_AREA
+from optev.assumptions import COST_PER_POINT_SGD
 from optev.contracts import (
     Allocation,
     Decision,
@@ -129,10 +128,6 @@ def test_twelve_points_island_wide_meet_every_constraint_and_beat_the_greedy_ref
         assert item.site_id in eligible
         assert item.connectors <= A.room(SITE[item.site_id].total_lots, c[item.site_id])
         assert item.cost == COST * item.connectors
-    per_area = Counter()
-    for s, n in plan.items():
-        per_area[SITE[s].planning_area] += n
-    assert all(per_area[a] >= MIN_POINTS_PER_AREA.value for a in ("TM", "PR"))
     reference = {i.site_id: i.connectors for i in S.allocation.items}
     assert _relief(plan) >= _relief(reference) - 1e-9
     assert sum(i.marginal_relief or 0 for i in result.items) == pytest.approx(_relief(plan),
@@ -166,18 +161,26 @@ def test_an_area_request_stays_in_the_area():
     assert sum(plan.values()) == 5 and all(SITE[s].planning_area == "TM" for s in plan)
 
 
-def test_a_site_without_demand_gets_points_only_when_coverage_forces_it():
+def test_no_minimum_per_area_so_an_area_without_demand_gets_nothing():
     no_pr = [e for e in DEMAND if SITE[e.site_id].planning_area != "PR"]
     plan = _plan(A.allocate(S.decisions, S.sites, no_pr, BASE, requested_connectors=12))
-    in_pr = sum(n for s, n in plan.items() if SITE[s].planning_area == "PR")
-    assert in_pr == MIN_POINTS_PER_AREA.value
+    assert sum(plan.values()) == 12
+    assert not any(SITE[s].planning_area == "PR" for s in plan)  # 0 is a valid answer (1.8)
 
 
-def test_an_area_that_cannot_reach_its_minimum_makes_the_request_infeasible():
+def test_an_area_with_no_room_does_not_block_the_others():
     full = [s.model_copy(update={"total_lots": 6}) if s.planning_area == "PR" else s
             for s in S.sites]  # floor(0.15 x 6) = 0: no PR site has room
-    result = A.allocate(S.decisions, full, DEMAND, BASE, requested_connectors=12)
-    assert isinstance(result, InfeasibilityReport) and result.max_feasible == 0
+    plan = _plan(A.allocate(S.decisions, full, DEMAND, BASE, requested_connectors=12))
+    assert sum(plan.values()) == 12 and all(SITE[s].planning_area == "TM" for s in plan)
+
+
+def test_more_points_than_all_the_room_is_infeasible():
+    pool = A.eligible_sites(S.decisions, S.sites, "base", "PR")
+    c = A.effective_connectors(pool, BASE)
+    total = sum(A.room(s.total_lots, c[s.site_id]) for s in pool)
+    result = _base(planning_area="PR", requested_connectors=total + 1)
+    assert isinstance(result, InfeasibilityReport) and result.max_feasible == total
 
 
 def test_neither_points_nor_budget_is_an_error():

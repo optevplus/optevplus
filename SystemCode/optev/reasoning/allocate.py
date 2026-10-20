@@ -15,12 +15,7 @@ from collections.abc import Iterable, Mapping, Sequence
 import numpy as np
 from ortools.sat.python import cp_model
 
-from optev.assumptions import (
-    COST_PER_POINT_SGD,
-    MAX_SHARE_OF_LOTS,
-    MEAN_SESSION_HOURS,
-    MIN_POINTS_PER_AREA,
-)
+from optev.assumptions import COST_PER_POINT_SGD, MAX_SHARE_OF_LOTS, MEAN_SESSION_HOURS
 from optev.contracts import (
     Allocation,
     AllocationItem,
@@ -153,24 +148,12 @@ def _solver() -> cp_model.CpSolver:
     return solver
 
 
-def _coverage(model: cp_model.CpModel, x: Mapping[str, cp_model.LinearExprT],
-              areas: Mapping[str, str | None]) -> None:
-    """Every planning area in scope with an eligible site gets at least MIN_POINTS_PER_AREA."""
-    by_area: dict[str, list[str]] = defaultdict(list)
-    for site_id, area in areas.items():
-        if area is not None:
-            by_area[area].append(site_id)
-    for site_ids in by_area.values():
-        model.add(sum(x[s] for s in site_ids) >= int(MIN_POINTS_PER_AREA.value))
-
-
 def solve(
-    gains: Mapping[str, Sequence[float]], areas: Mapping[str, str | None], points: int,
-    cap: int | None,
+    gains: Mapping[str, Sequence[float]], points: int, cap: int | None,
 ) -> dict[str, int] | None:
     """The plan maximising drivers rescued: `y[site, k]` for the k-th new point, ordered
     `y[k] ≥ y[k+1]`, `Σx = points`, `Σx ≤ cap` (budget), `x ≤ room` (the length of each
-    site's gain list), area coverage. None when no plan meets every constraint."""
+    site's gain list). No minimum per area (design 1.8). None when no plan meets them."""
     model = cp_model.CpModel()
     y = {s: [model.new_bool_var(f"y_{s}_{k}") for k in range(len(g))] for s, g in gains.items()}
     for ys in y.values():
@@ -180,7 +163,6 @@ def solve(
     model.add(sum(x.values()) == points)
     if cap is not None:
         model.add(sum(x.values()) <= cap)
-    _coverage(model, x, areas)
     model.maximize(sum(round(SCALE * g) * v for s, gs in gains.items()
                        for g, v in zip(gs, y[s], strict=True)))
     solver = _solver()
@@ -197,15 +179,12 @@ def solve(
     return {s: n for s, ys in y.items() if (n := sum(solver.value(v) for v in ys))}
 
 
-def most_points(rooms: Mapping[str, int], areas: Mapping[str, str | None],
-                cap: int | None) -> int:
-    """The most connectors any plan allows under room, budget and coverage: 0 if coverage
-    alone cannot be met."""
+def most_points(rooms: Mapping[str, int], cap: int | None) -> int:
+    """The most connectors any plan allows under room and budget."""
     model = cp_model.CpModel()
     x = {s: model.new_int_var(0, r, f"x_{s}") for s, r in rooms.items()}
     if cap is not None:
         model.add(sum(x.values()) <= cap)
-    _coverage(model, x, areas)
     model.maximize(sum(x.values()))
     solver = _solver()
     status = solver.solve(model)
@@ -225,12 +204,11 @@ def allocate(decisions: list[Decision], sites: list[CandidateSite],
     profile = demand_profile(demand)
     gains = {s.site_id: marginal_gains(c[s.site_id], profile.get(s.site_id, []),
                                        min(rooms[s.site_id], points)) for s in pool}
-    areas = {s.site_id: s.planning_area for s in pool}
-    plan = solve(gains, areas, points, budget_cap(budget))
+    plan = solve(gains, points, budget_cap(budget))
     if plan is None:
         return InfeasibilityReport(
             scenario_id=scenario.scenario_id, planning_area=planning_area,
-            requested_connectors=points, max_feasible=most_points(rooms, areas, budget_cap(budget)))
+            requested_connectors=points, max_feasible=most_points(rooms, budget_cap(budget)))
     cost = COST_PER_POINT_SGD.value
     return Allocation(
         scenario_id=scenario.scenario_id, planning_area=planning_area,

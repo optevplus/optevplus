@@ -5,7 +5,7 @@
 **Unblocks:** #22 checker, #23 unmet-requirement reporting, #36 baseline, #35 integration
 
 ## Design section
-SYSTEM_DESIGN.md §4.4 (version 1.5 on `main`), "Allocation (#20–#21, Shrey)":
+SYSTEM_DESIGN.md §4.4 (version 1.8 on `main`, after #70), "Allocation (#20–#21, Shrey)":
 
 > ```python
 > # optev/reasoning/allocate.py
@@ -27,8 +27,9 @@ SYSTEM_DESIGN.md §4.4 (version 1.5 on `main`), "Allocation (#20–#21, Shrey)":
 > - **CP-SAT formulation:** binary `y[site, k]` for the k-th new point, `x = Σ_k y`, ordered
 >   `y[k] ≥ y[k+1]`; objective coefficients are the marginal gains, scaled ×1000 to integers.
 >   Constraints: `Σ x = requested_connectors` if given; `Σ COST_PER_POINT_SGD × x ≤ budget` if
->   given (with only a budget, place as many points as it pays for); `x ≤ room`; every planning
->   area in scope with an eligible site gets at least `MIN_POINTS_PER_AREA`. Each item's `cost` is
+>   given (with only a budget, place as many points as it pays for); `x ≤ room`. No minimum per
+>   planning area: an area gets points only where they rescue the most drivers, so 0 is a valid
+>   answer. Each item's `cost` is
 >   `COST_PER_POINT_SGD × connectors`, shown as an estimate even without a budget. Time limit
 >   30 s; record solver status and optimality gap.
 
@@ -36,7 +37,7 @@ Also used: §4.2 step 2 (`B` is Erlang B; arrivals per hour = `a ÷ MEAN_SESSION
 `a_bin = λ_bin × MEAN_SESSION_HOURS`), §4.3 (`effective_connectors` = existing + planned for
 that scenario only), §4.4 "Unmet requirement (#23)" (with only a budget,
 `requested_connectors = floor(budget / COST_PER_POINT_SGD)`), §3.4 time bins, §3.5 values
-`MAX_SHARE_OF_LOTS`, `COST_PER_POINT_SGD`, `MIN_POINTS_PER_AREA`, `MEAN_SESSION_HOURS`,
+`MAX_SHARE_OF_LOTS`, `COST_PER_POINT_SGD`, `MEAN_SESSION_HOURS`,
 §2.3 rules 4 and 5 (packages talk through contracts; every declared number from
 `optev.assumptions`).
 
@@ -70,8 +71,8 @@ Reads `Decision`, `CandidateSite`, `DemandEstimate`, `Scenario` (with its `plann
    k = 1…room. Erlang B is concave in servers, so gains shrink with k and the ordered
    `y[k] ≥ y[k+1]` model is exact. `B` is computed here with the standard recurrence.
 7. **CP-SAT (#21).** `y[s, k]` binary; maximise `Σ round(1000 × g) × y`. Constraints as quoted:
-   `Σ x = points`, `COST × Σ x ≤ budget` (when given), `x ≤ room`, and `Σ x ≥ MIN_POINTS_PER_AREA`
-   for each area in scope that has an eligible site. 30 s limit, fixed seed, one worker so
+   `Σ x = points`, `COST × Σ x ≤ budget` (when given), and `x ≤ room`; no per-area minimum
+   (design 1.8). 30 s limit, fixed seed, one worker so
    results are reproducible. Status and gap are logged (see Q4).
 8. **Output.** Feasible → `Allocation` with the request copied on, one item per site with
    `x ≥ 1`: `connectors = x`, `cost = COST_PER_POINT_SGD × x`, `marginal_relief = Σ g[s, 1..x]`
@@ -83,7 +84,7 @@ Reads `Decision`, `CandidateSite`, `DemandEstimate`, `Scenario` (with its `plann
 ## Verification
 `tests/test_allocate.py`, on `optev.sample`, no database:
 - **Reference plan:** the base scenario, 12 points island-wide. Every constraint holds
-  (12 points, `x ≤ room`, ≥ 2 per area, costs). The objective is **≥ the sample's greedy plan**,
+  (12 points, `x ≤ room`, costs). The objective is **≥ the sample's greedy plan**,
   scored by the same objective on the same effective connectors.
 - **Planned capacity counts:** base has 2 planned points at `SYN-S-04`, which reduce its room and
   raise its `c`. The sample's greedy reference ignored them (it gives S-04 6 points); the test
@@ -109,11 +110,10 @@ confirm rather than deciding it in code.
    `no_supply` sites get per-bin rows from #16. Proposed: if a site has no `wd-`/`we-` rows, use
    its `all` rate with weight 1, which gives the same result for a flat profile. Otherwise the
    sample can't be used for tests.
-3. **Coverage when an area can't reach the minimum.** The design says every area in scope
-   *with an eligible site* gets ≥ 2 points. An area whose eligible sites have less than 2 room in
-   total makes the whole request infeasible. Island-wide on real data (about 50 areas) that also
-   means any request under ~100 points is infeasible. Proposed: follow the design literally
-   now and let #23 report which areas bind; raise it with the team if it bites in the demo.
+3. **~~Coverage when an area can't reach the minimum.~~ Answered by design 1.8 (#70,
+   Ghanashyam, 20 Oct 2026):** the minimum per planning area is removed. Constraints are now
+   requested points, budget if given, and room per site. #23's `binding_constraints` uses only
+   requested, budget and room; `affected_areas` stays empty.
 4. **Solver status and gap.** "Record solver status and optimality gap", but neither the
    `Allocation` contract nor the `allocation` table has a field for them. Proposed: log both
    now; adding fields is a contract change (all four owners), so it goes to the team.
@@ -143,3 +143,10 @@ confirm rather than deciding it in code.
 - **Not measured:** solve time on the real island-wide data (2,932 sites). It needs real demand
   estimates (#14, PR #66) and decisions (#17, PR #54).
 - **Next:** team answers to Q1–Q6 on the PR; then #22 checker (with the write) and #23.
+
+## Checkpoint · 20 Oct 2026 (2) · design 1.8
+- Merged main (#53, #54, #70). Following #70, `MIN_POINTS_PER_AREA` and the per-area
+  constraint are gone from `solve` and `most_points`; only points, budget and room remain.
+- Tests: the area-minimum tests are replaced. An area without demand now gets 0 points, an area
+  with no room no longer blocks the others, and asking for more than all the room is
+  infeasible with `max_feasible` equal to the total room. 17 tests.
