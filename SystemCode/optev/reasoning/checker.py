@@ -7,10 +7,10 @@ on purpose.
 """
 
 import math
-from collections import Counter, defaultdict
+from collections import Counter
 from collections.abc import Iterable, Sequence
 
-from optev.assumptions import COST_PER_POINT_SGD, MAX_SHARE_OF_LOTS, MIN_POINTS_PER_AREA
+from optev.assumptions import COST_PER_POINT_SGD, MAX_SHARE_OF_LOTS
 from optev.contracts import Allocation, CandidateSite, Decision, Outcome
 
 APPROVED = frozenset({Outcome.ACCEPT, Outcome.CONDITIONAL})
@@ -80,18 +80,6 @@ def violations(allocation: Allocation, decisions: Sequence[Decision],
     if allocation.budget is not None and unit * total > allocation.budget + 1e-6:
         found.append(f"budget: {unit * total:.2f} over {allocation.budget:.2f}")
 
-    placed: dict[str, int] = defaultdict(int)
-    for item in allocation.items:
-        if item.site_id in by_id and by_id[item.site_id].planning_area is not None:
-            placed[by_id[item.site_id].planning_area or ""] += item.connectors
-    in_scope = {
-        s.planning_area for s in sites
-        if s.planning_area is not None and area in (None, s.planning_area)
-        and (d := decision.get(s.site_id)) is not None and d.outcome in APPROVED
-    }
-    minimum = int(MIN_POINTS_PER_AREA.value)
-    found += [f"coverage: {a} has {placed[a]}, minimum {minimum}"
-              for a in sorted(in_scope) if placed[a] < minimum]
     return found
 
 

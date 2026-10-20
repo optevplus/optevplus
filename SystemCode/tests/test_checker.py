@@ -64,10 +64,16 @@ def test_an_unknown_and_a_duplicated_site_are_caught():
     assert "duplicate_site" in _codes(_with([*GOOD.items, GOOD.items[0]]))
 
 
+def _eligible_with_room(area: str) -> str:
+    ok = {d.site_id for d in S.decisions if d.outcome in K.APPROVED}
+    return next(s.site_id for s in S.sites
+                if s.site_id in ok and s.planning_area == area and K._space(s) > 0)
+
+
 def test_a_site_outside_the_requested_area_is_caught():
     tm = [i for i in GOOD.items if SITE[i.site_id].planning_area == "TM"]
-    pr = next(i for i in GOOD.items if SITE[i.site_id].planning_area == "PR")
-    n = sum(i.connectors for i in tm) + pr.connectors
+    pr = _item(_eligible_with_room("PR"), 1)
+    n = sum(i.connectors for i in tm) + 1
     assert _codes(_with([*tm, pr], planning_area="TM", requested_connectors=n)) == [
         "outside_area"]
 
@@ -94,12 +100,9 @@ def test_more_points_than_room_is_caught():
     assert _codes(over) == ["room"]
 
 
-def test_an_area_below_its_minimum_is_caught():
-    pr = [i for i in GOOD.items if SITE[i.site_id].planning_area == "PR"]
-    others = [i for i in GOOD.items if i not in pr]
-    one = [_item(pr[0].site_id, 1)]
-    plan = _with([*others, *one], requested_connectors=sum(i.connectors for i in others) + 1)
-    assert _codes(plan) == ["coverage"]
+def test_an_area_with_no_points_is_not_a_violation():
+    assert {SITE[i.site_id].planning_area for i in GOOD.items} == {"TM"}  # PR gets 0
+    assert _codes(GOOD) == []  # no minimum per planning area (design 1.8)
 
 
 def test_a_wrong_cost_is_caught():

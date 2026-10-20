@@ -5,7 +5,7 @@
 end-to-end use; this branch does not need it  ·  **Unblocks:** #23, #32, #35
 
 ## Design section
-SYSTEM_DESIGN.md §4.4 (version 1.5 on `main`):
+SYSTEM_DESIGN.md §4.4 (version 1.8 on `main`, after #70):
 
 > **Checker (#22, Shrey).** `optev/reasoning/checker.py`, `check(allocation, decisions, sites)
 > -> Allocation`; the request (area, points, budget) is read from the allocation. It **must not
@@ -15,9 +15,9 @@ SYSTEM_DESIGN.md §4.4 (version 1.5 on `main`):
 "Every constraint above" is the allocation list in §4.4: eligible sites (accept or
 conditional, inside `planning_area`), room `floor(MAX_SHARE_OF_LOTS × total_lots) −
 effective_connectors` floored at 0, `Σx = requested_connectors` if given, `COST_PER_POINT_SGD ×
-Σx ≤ budget` if given (budget only: as many points as it pays for), `x ≤ room`, at least
-`MIN_POINTS_PER_AREA` in every area in scope with an eligible site, and each item's `cost =
-COST_PER_POINT_SGD × connectors`. "Checked by": 0 violations on a good plan, and "the checker
+Σx ≤ budget` if given (budget only: as many points as it pays for), `x ≤ room`, and each
+item's `cost = COST_PER_POINT_SGD × connectors`. Design 1.8 (#70) removed the minimum per
+planning area, so there is no coverage check. "Checked by": 0 violations on a good plan, and "the checker
 catches every planted fault". Issue #22: "Done when a deliberately broken plan is caught."
 `reasoning/CLAUDE.md`: "whatever proposes a plan must not be what approves it."
 
@@ -49,7 +49,6 @@ the site or area, e.g. `room: SYN-S-04 has 6, room 4`. The codes:
 | `points` | `Σx = requested_connectors`; with only a budget, `Σx = floor(budget / COST_PER_POINT_SGD)` |
 | `budget` | `COST_PER_POINT_SGD × Σx ≤ budget` |
 | `room` | `x ≤ floor(MAX_SHARE_OF_LOTS × total_lots) − existing_connectors`, floored at 0 (see Q1) |
-| `coverage` | every area in scope with an eligible site has `≥ MIN_POINTS_PER_AREA` |
 | `cost` | each item's `cost = COST_PER_POINT_SGD × connectors` (to the cent) |
 
 The checker deliberately repeats arithmetic that `allocate.py` also does (room, the budget
@@ -61,7 +60,7 @@ floor, which decision applies) instead of sharing it. Two independent copies is 
   violations and `checked = True`; the input object is unchanged.
 - **Every planted fault is caught,** one test per code. Each takes the good plan and breaks one
   thing: a rejected site, an unknown site, a duplicated item, a site outside the area, 11
-  points instead of 12, over budget, more than room, an area left with 1 point, a wrong cost.
+  points instead of 12, over budget, more than room, a wrong cost.
   Each gives exactly that code.
 - **Budget-only plans:** 32 points on 300 000 SGD pass; 31 fail `points`.
 - **Independence:** `checker.py` imports neither `allocate` nor anything outside
@@ -82,7 +81,7 @@ floor, which decision applies) instead of sharing it. Two independent copies is 
    function (raised on #68 as Q5). Proposed: still no write in this PR; it needs a design line
    naming the function.
 4. **Violation format.** The design gives no format for `violations`. Proposed: the codes
-   above, which #23's constraint groups (requested, budget, room, coverage) map onto.
+   above, which #23's constraint groups (requested, budget, room) map onto.
 
 ## Checkpoint · 20 Oct 2026
 - **Works:** `optev/reasoning/checker.py` (103 lines): `check` and `violations`, with its own
@@ -98,3 +97,8 @@ floor, which decision applies) instead of sharing it. Two independent copies is 
 - **Raised on the PR:** Q1 (planned capacity invisible), Q2 (`checked` with violations),
   Q3 (no write function), Q4 (violation format).
 - **Next:** #23 unmet-requirement reporting (`binding_constraints`, `affected_areas`).
+
+## Checkpoint · 20 Oct 2026 (2) · design 1.8
+- Merged main (#53, #54, #70). Following #70, the `coverage` check and `MIN_POINTS_PER_AREA`
+  are gone. A test now confirms that an area with 0 points is not a violation: the
+  regenerated sample plan puts nothing in PR. 15 tests.
