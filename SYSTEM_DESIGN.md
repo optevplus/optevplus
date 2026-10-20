@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.5 · 18 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.6 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -297,7 +297,12 @@ def coverage_report(window_start: datetime, window_end: datetime) -> dict[str, f
    `AMENITY_LINK_M`; an amenity near a car park becomes `site_context.amenities_nearby` for
    that car park, never a second site. Build `station_site` at the thresholds in
    `MATCH_THRESHOLDS_M`, keeping one row per station-site pair with the smallest threshold
-   met. Fill `site_context` by point-in-polygon on MP2025 land use and planning areas.
+   met. A station's connectors count toward `candidate_site.existing_connectors` at its
+   nearest site only (ties by `site_id`), so no connector is counted twice. Match registry
+   car parks to the readings by id and set `car_park.has_live_feed`; an HDB car park's
+   `total_lots` comes from its latest reading, since the registry has none. Count every
+   reading that cannot be traced to a coordinate, and every registry row without readings.
+   Fill `site_context` by point-in-polygon on MP2025 land use and planning areas.
 4. **Coverage (#12).** Write to `coverage_report`: snapshot completeness per feed, median
    freshness (`collected_ts − provider_ts`), share of stations matched at each threshold,
    share of sites with a planning area, amenities linked to a car park.
@@ -606,3 +611,6 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
 - **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
   planner questions in #26 the first six did not cover (§4.5).
+- **1.6 · 19 Oct 2026.** Conform (§4.1 step 3) states what was left open: a station's
+  connectors count at its nearest site only; registry car parks are matched to the readings,
+  with HDB lot counts from the feed; unmatched rows are counted both ways (spec 003, #53).
