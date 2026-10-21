@@ -1,6 +1,6 @@
 # 020 · Planning area, land use and amenity sites in conform
 
-**Owner:** Shrey  ·  **Status:** approved 21 Oct 2026; built, not yet run on Neon  ·  **Branch:** `shrey/11-planning-area` (from `shrey/55-static-loads`, which has the `stg_` tables)
+**Owner:** Shrey  ·  **Status:** approved 21 Oct 2026; built; live test passed, conform not yet re-run on Neon  ·  **Branch:** `shrey/11-planning-area` (from `shrey/55-static-loads`, which has the `stg_` tables)
 **Issue:** #11 (1.6 · Planning area assignment)  ·  **Builds on:** #58, #59 (migration 004, `load_static`)
 
 ## Design section
@@ -64,7 +64,7 @@ In `optev/ingest/conform.py` (Gurneet's module; ingest is shared):
 - **Tests:** amenity rows parse and flow through the core (bad kind counted); `fill_context`
   order and counts on a fake cursor; a live test (SYN- rows, rolled back) for land use,
   residents and an out-of-polygon site. ruff, mypy, pytest: 231 passed, 25 skipped. The live
-  test has **not** run yet (needs `DATABASE_URL` in the shell).
+  test passed on Neon (Shrey ran it, 21 Oct; rows rolled back).
 - `conform.py` is now ~490 lines, over the ~300 guideline.
-- **Next, with Shrey's OK only:** run the live test, then `optev-db conform` on Neon and record
+- **Next, with Shrey's OK only:** `optev-db conform` on Neon and record
   amenity sites added and the two counts.
