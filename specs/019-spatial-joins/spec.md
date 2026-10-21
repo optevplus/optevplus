@@ -1,6 +1,6 @@
 # 019 · Spatial joins: close out #10
 
-**Owner:** Shrey  ·  **Status:** draft, awaiting Shrey's OK  ·  **Branch:** `shrey/10-spatial-joins` (from `main`)
+**Owner:** Shrey  ·  **Status:** approved 21 Oct 2026; built  ·  **Branch:** `shrey/10-spatial-joins` (from `main`)
 **Issue:** #10 (1.5 · Spatial joins at 100 / 150 / 300 m)
 
 ## Design section
@@ -44,3 +44,11 @@ included. No database run.
    (§3.5), not code. I'd leave the design as is.
 2. Should the reconciliation also be reported on the real data, e.g. a coverage key? That is
    #12 (Ghanashyam's `coverage.py`); I'd raise it there rather than add it here.
+
+## Checkpoint · 21 Oct 2026
+- **Works:** `test_connector_totals_reconcile_with_the_source`: one sample station moved out to
+  sea; Σ `existing_connectors` + connectors at stations beyond 200 m == active connectors.
+  ruff, mypy, pytest pass. No production code changed; no database run.
+- **Decisions:** design thresholds stay (50 / 100 / 200 m); the issue's 100 / 150 / 300 m and
+  three tables are superseded by design 1.6 and #53.
+- **Next:** reviewer closes #10 with this PR.
