@@ -111,10 +111,14 @@ station-site association (`near` in the sample, `station_site` in Postgres). No 
 Approved as proposed by Sushant, 19 Oct 2026:
 
 1. *Decided:* `compute_indicators` and `compute_occupancy_by_bin` are public and added to §4.2
-   by a small design PR (`SYSTEM_DESIGN.md` 1.6).
+   by a small design PR (`SYSTEM_DESIGN.md` 1.6, renumbered 1.10 on merging main).
 2. *Decided:* `MIN_COVERAGE` = 0.5 of expected snapshots, declared in `optev/assumptions.py`
    and §3.5.
-3. *Decided:* a station counts at every site it matches within 100 m.
+3. *Decided:* a station counts at every site it matches within 100 m. **Superseded 21 Oct
+   2026** (review of PR #63): a station counts at its nearest site only (smallest `distance_m`,
+   ties by `site_id`, as design 1.6 already binds for conform), and only if that site is within
+   100 m. Its chargers are one queue with one stream of arrivals; counting it at two sites
+   doubles both demand and existing chargers for Erlang B.
 4. *Decided:* `dwell_opportunity` stays `None` in this issue.
 5. *Decided:* follow the design over the issue text; update #13 to match.
 6. *Decided:* real window `[7 Oct 2026 14:00, 14 Oct 2026 11:00)` SGT.
@@ -136,3 +140,13 @@ Approved as proposed by Sushant, 19 Oct 2026:
   all empty in Neon until #9 (PR #53) lands.
 - **Next:** design PR reviewed; then the implementation PR; then
   `site_indicators([7 Oct 14:00, 14 Oct 11:00) SGT)` once #53 merges; then #14.
+
+## Checkpoint · 21 Oct 2026
+
+- **Works:** main merged into #63 and #64; design renumbered 1.10 (main reached 1.9).
+  `nearest_site` keeps each station's nearest `station_site` row; the two SQL queries use the
+  same rule (`DISTINCT ON (station_id) ... ORDER BY station_id, distance_m, site_id`). Two new
+  tests (shared station, tie); the live test adds a farther row for a sample station and still
+  reproduces the sample. ruff, mypy and pytest pass except the graph tests (Neo4j host in
+  `.env` does not resolve, as before).
+- **Next:** #66 and #67 merged down the chain; real run once #63/#64 merge.

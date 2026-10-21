@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.7 · 19 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.11 · 21 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -54,7 +54,7 @@ OptEV+ returns the proposal's three outputs:
 
 1. a **ranked set of candidate sites**,
 2. a **constrained allocation**: how many new points go to each site, within the requested
-   number (and the budget, if given), site capacity and coverage limits,
+   number (and the budget, if given) and site capacity limits,
 3. a **traceable reason** for every site accepted, rejected, deferred or made conditional.
 
 **Scope.** Data is collected island-wide. Analysis is aggregated over the 55 planning areas.
@@ -221,7 +221,7 @@ The database rejects any other value.
 `MEAN_SESSION_HOURS` (3.0 h), `RELIABLE_UP_TO` (0.93, to be measured), `IDLE_BELOW` (0.05),
 `GROWTH_LOW/BASE/HIGH` (placeholders until #28), `HORIZON_MONTHS` (51),
 `MAX_SHARE_OF_LOTS` (0.15), `COST_PER_POINT_SGD` (9,250; tested at `COST_LOW_SGD` 5,500 and
-`COST_HIGH_SGD` 10,500), `MIN_POINTS_PER_AREA` (2), `MATCH_THRESHOLDS_M` (50, 100, 200),
+`COST_HIGH_SGD` 10,500), `MATCH_THRESHOLDS_M` (50, 100, 200),
 `AMENITY_LINK_M` (150), `SNAPSHOT_MINUTES` (30), `MIN_COVERAGE` (0.5). Placeholders must be replaced with cited
 values before the report.
 
@@ -297,7 +297,12 @@ def coverage_report(window_start: datetime, window_end: datetime) -> dict[str, f
    `AMENITY_LINK_M`; an amenity near a car park becomes `site_context.amenities_nearby` for
    that car park, never a second site. Build `station_site` at the thresholds in
    `MATCH_THRESHOLDS_M`, keeping one row per station-site pair with the smallest threshold
-   met. Fill `site_context` by point-in-polygon on MP2025 land use and planning areas.
+   met. A station's connectors count toward `candidate_site.existing_connectors` at its
+   nearest site only (ties by `site_id`), so no connector is counted twice. Match registry
+   car parks to the readings by id and set `car_park.has_live_feed`; an HDB car park's
+   `total_lots` comes from its latest reading, since the registry has none. Count every
+   reading that cannot be traced to a coordinate, and every registry row without readings.
+   Fill `site_context` by point-in-polygon on MP2025 land use and planning areas.
 4. **Coverage (#12).** Write to `coverage_report`: snapshot completeness per feed, median
    freshness (`collected_ts − provider_ts`), share of stations matched at each threshold,
    share of sites with a planning area, amenities linked to a car park.
@@ -346,8 +351,10 @@ def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate]
 
 1. **Indicators (#13).** Per snapshot, occupancy = occupied ÷ (occupied + available) over the
    site's matched connectors; unavailable connectors are excluded. A site's matched connectors
-   are the `ever_active` connectors of every station matched to it within 100 m in
-   `station_site` (a station near two sites counts at both). Expected snapshots are the
+   are the `ever_active` connectors of every station whose nearest site in `station_site`
+   it is (smallest `distance_m`, ties by `site_id`), within 100 m. A station counts at one
+   site only: its chargers are one queue with one stream of arrivals, so counting it at two
+   would double both the demand and the existing chargers. Expected snapshots are the
    `SNAPSHOT_MINUTES` slots in `[window_start, window_end)`; the collected week is
    `[7 Oct 2026 14:00, 14 Oct 2026 11:00)` SGT, 330 slots. `utilisation` = mean over
    snapshots; `saturated_fraction` = share of snapshots with none available and at least one
@@ -423,6 +430,12 @@ def site_facts(site: CandidateSite, car_park: CarPark | None,
                indicators: SiteIndicators, context: dict[str, object]) -> dict[str, object]
 def evaluate(site_id: str, facts: dict[str, object], rules: list[Rule],
              on_fail: dict[str, Outcome], scenario_id: str | None = None) -> Decision
+def screen(sites: list[CandidateSite], car_parks: list[CarPark],
+           indicators: list[SiteIndicators], context: dict[str, dict[str, object]],
+           rules: list[Rule], on_fail: dict[str, Outcome],
+           scenario_id: str | None = None) -> tuple[list[Decision], dict[Outcome, int]]
+def write_decisions(cur: Cursor, rules: list[Rule], on_fail: dict[str, Outcome],
+                    decisions: list[Decision]) -> dict[str, int]
 ```
 
 - **Register.** `reasoning/register.toml`, one entry per rule with every `Rule` field plus
@@ -437,6 +450,17 @@ def evaluate(site_id: str, facts: dict[str, object], rules: list[Rule],
 - **Outcome policy**, in this order: any failing rule with `on_fail = reject` → **reject**;
   else any unevaluated rule → **defer**; else any failing `conditional` rule →
   **conditional**; else **accept**. A missing fact alone never rejects.
+- **Checks.** Each rule's test is a function in `rules.CHECKS`, keyed by `rule_id`; a register
+  rule with no check is an error, never a silent defer. Before the checks run, derived facts
+  are added by forward chaining while their inputs are present: `room` =
+  `floor(MAX_SHARE_OF_LOTS × total_lots) − existing_connectors`, floored at 0. A result's
+  `detail` names the missing facts when unevaluated, and the computed value (e.g. `room 89`)
+  when there is one.
+- **Screening (#19).** `screen` evaluates every candidate site (each with its latest
+  indicators window) and returns the decisions with the count per outcome, all four always
+  present, so the funnel is visible. `write_decisions` upserts `rule` from the register, then
+  `decision` and `rule_result` per (site, scenario), replacing earlier results;
+  `scenario_id` None is stored as `'observed'`. The allocator reads the screened set.
 
 **Allocation (#20–#21, Shrey)**
 
@@ -460,8 +484,9 @@ def allocate(decisions: list[Decision], sites: list[CandidateSite],
 - **CP-SAT formulation:** binary `y[site, k]` for the k-th new point, `x = Σ_k y`, ordered
   `y[k] ≥ y[k+1]`; objective coefficients are the marginal gains, scaled ×1000 to integers.
   Constraints: `Σ x = requested_connectors` if given; `Σ COST_PER_POINT_SGD × x ≤ budget` if
-  given (with only a budget, place as many points as it pays for); `x ≤ room`; every planning
-  area in scope with an eligible site gets at least `MIN_POINTS_PER_AREA`. Each item's `cost` is
+  given (with only a budget, place as many points as it pays for); `x ≤ room`. No minimum per
+  planning area: an area gets points only where they rescue the most drivers, so 0 is a valid
+  answer. Each item's `cost` is
   `COST_PER_POINT_SGD × connectors`, shown as an estimate even without a budget. Time limit
   30 s; record solver status and optimality gap.
 
@@ -472,9 +497,9 @@ independently, fills `violations`, and sets `checked = True`. Only checked alloc
 written or shown.
 
 **Unmet requirement (#23).** When infeasible: `max_feasible` = the most connectors any feasible
-plan allows; `binding_constraints` = each constraint group (requested, budget, room, coverage)
-whose removal alone makes the request feasible; `affected_areas` = areas whose coverage cannot
-be met. With only a budget, `requested_connectors` = `floor(budget / COST_PER_POINT_SGD)`.
+plan allows; `binding_constraints` = each constraint group (requested, budget, room)
+whose removal alone makes the request feasible; `affected_areas` stays empty (kept on the
+contract; no per-area constraint exists). With only a budget, `requested_connectors` = `floor(budget / COST_PER_POINT_SGD)`.
 
 **Checked by.** Rules: 100% agreement with 30 test sites labelled in advance by two people who
 did not write the rules (agreement measured with Cohen's κ), and 100% reason codes. Allocation:
@@ -492,6 +517,8 @@ def clear_sample(session: Session) -> int                     # remove what --sa
 def retrieve(question_type: str, **params: str) -> list[dict[str, object]]
 # optev/graph/explain.py
 def explain(question: str) -> Answer          # Answer: text, evidence, refused (bool)
+# optev/graph/llm.py
+def from_env() -> LLM                          # LLM = (system, user) -> text
 ```
 
 - **Schema** as in `specs/005-knowledge-graph`: 16 node types keyed on contract ids; every rule
@@ -518,6 +545,17 @@ def explain(question: str) -> Answer          # Answer: text, evidence, refused 
 - **Explanation (#27).** LangGraph flow: classify the question → refuse if out of scope →
   retrieve → the LLM answers **only** from the retrieved evidence → every number in the answer
   must appear in the evidence → retry once, otherwise refuse.
+  - **Classification is fixed patterns, not the model** (site, rule and area ids plus key
+    words → one of the §4.5 question types), so the model never chooses what evidence it sees.
+    No match → refuse. No evidence → refuse without calling the model.
+  - **The check:** every number must match an evidence value as written (a share may be shown
+    as a percent; rounding to the digits written is allowed); every `[citation]` must be an id
+    in the evidence; at least one citation. A refused answer still returns the evidence.
+  - **The model** is any `(system, user) -> text` function from `llm.from_env()`, set by
+    `LLM_PROVIDER` (`deepseek`, `gemini`, `anthropic`, `openai_compatible`), `LLM_API_KEY` and
+    `LLM_MODEL` in `.env`; temperature 0. Changing provider is a settings change.
+  - `python -m optev.graph explain "<question>"` answers one; without a model it prints the
+    evidence.
 
 **Checked by.** ≥ 90% of 20 questions answered correctly (answers written in advance from the
 source tables), 100% citing evidence, 0 unsupported claims, Precision@k on retrieval.
@@ -564,7 +602,7 @@ be re-run on its own. Target: one planning area end to end in under 10 minutes.
 | 3 | Top-10 stability; back-cast MAPE | Recent months hidden | — | ≥ 7 of 10 stay |
 | 4 rules | Agreement, reason codes | 30 test sites, two raters, κ ≥ 0.7 | — | 100%; 100% |
 | 4 allocation | Violations; uplift in drivers rescued | Same request (area, points) and rules | See below | 0; beat all |
-| 5 | Accuracy, citation rate, unsupported claims, Precision@k | 20 questions answered from source tables | — | ≥ 90%; 100%; 0 |
+| 5 | Classification, evidence recall; with the model: accuracy, citation rate, unsupported claims, Precision@k on citations | 20 questions answered from source tables (`evaluation/explain_questions.toml`) | — | 100%; 100%; ≥ 90%; 100%; 0 |
 
 **Baselines**, each producing an `Allocation` for the same request (area, points) and rules, scored by the
 same objective: busiest first (#36), spatial spread (#37), extend sites that already have
@@ -598,7 +636,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 
 | # | Decision | Owner | By |
 |---|---|---|---|
-| 1 | LLM provider and key for #27 | Ghanashyam | 12 Oct |
+| 1 | ~~LLM provider for #27~~ Settled in 1.6: any provider via `.env`; key to be added | Ghanashyam | 22 Oct |
 | 2 | Confirm the demo-area criterion (§1) | Team | Before results |
 | 3 | Minimum points per chosen site? The HDB tender asked for 3 to 6 per car park ([LTA, 29 Mar 2022](https://www.lta.gov.sg/content/ltagov/en/newsroom/2022/3/news-releases/ramping_up_charging_infrastructure.html)) | Shrey, Gurneet | 14 Oct |
 | 4 | Growth multipliers fitted from registrations | Sushant (#28) | 14 Oct |
@@ -622,13 +660,24 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.4 · 18 Oct 2026.** Loader split into `load` (a bundle of contracts) and `load_all`
   (Postgres), so the graph is built and tested on the sample before Postgres is live.
   Reference ids (`ds-`, `doc-`, `asm-`) added to §3.3; load order puts references first.
-- **1.6 · 19 Oct 2026.** Indicators (§4.2): `compute_indicators` and
-  `compute_occupancy_by_bin` take contracts so they are tested on the sample; stations count
-  at sites within 100 m; new assumption `MIN_COVERAGE` (0.5) for `unobserved`;
-  `dwell_opportunity` stays `None` (spec 011).
-- **1.7 · 19 Oct 2026.** Demand (§4.2 step 2): `all` is the §3.4 average of per-bin arrivals
+- **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
+  planner questions in #26 the first six did not cover (§4.5).
+- **1.6 · 19 Oct 2026.** Conform (§4.1 step 3) states what was left open: a station's
+  connectors count at its nearest site only; registry car parks are matched to the readings,
+  with HDB lot counts from the feed; unmatched rows are counted both ways (spec 003, #53).
+- **1.7 · 19 Oct 2026.** Rules (§4.4) name the screening functions `screen` and
+  `write_decisions`, and state how checks and derived facts work (spec 008, #18, #19).
+- **1.8 · 20 Oct 2026.** No minimum points per planning area: `MIN_POINTS_PER_AREA` removed
+  (§3.5, §4.4). It was our own uncited number, and island-wide it made any request under
+  about 100 points impossible. Points go only where they rescue the most drivers.
+- **1.9 · 20 Oct 2026.** Explanation (#27): classification by fixed patterns, the citation and
+  number check, provider-neutral model settings (§4.5); Stage 5 metrics and answer key (§6).
+- **1.10 · 21 Oct 2026.** Indicators (§4.2): `compute_indicators` and
+  `compute_occupancy_by_bin` take contracts so they are tested on the sample; a station
+  counts at its nearest site only (ties by `site_id`, as in 1.6) and only if that site is
+  within 100 m, so its chargers are one queue at one site; new assumption `MIN_COVERAGE`
+  (0.5) for `unobserved`; `dwell_opportunity` stays `None` (spec 011).
+- **1.11 · 21 Oct 2026.** Demand (§4.2 step 2): `all` is the §3.4 average of per-bin arrivals
   and a lower bound only when window utilisation ≥ `RELIABLE_UP_TO`, not whenever one bin is
   (on the sample that rule flagged 9 of 11 served sites, three above their true demand);
   new `write_estimates` writes `demand_estimate` (spec 012).
-- **1.5 · 18 Oct 2026.** Retrieval adds `area_saturation` and `assumptions_used`, the two
-  planner questions in #26 the first six did not cover (§4.5).

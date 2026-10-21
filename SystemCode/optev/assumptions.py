@@ -48,8 +48,6 @@ COST_LOW_SGD = Assumption(
     5_500.0, "SGD per charging point", "LTA ECCG Guidelines and FAQs, example 1 (low end)")
 COST_HIGH_SGD = Assumption(
     10_500.0, "SGD per charging point", "LTA ECCG Guidelines and FAQs, example 2 (high end)")
-MIN_POINTS_PER_AREA = Assumption(
-    2, "charging points", "Project assumption: coverage floor per planning area")
 
 # Stage 1 · matching and collection (fixed by the proposal and Dataset Guide v2)
 MATCH_THRESHOLDS_M: tuple[int, ...] = (50, 100, 200)

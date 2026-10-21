@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from dotenv import load_dotenv
 
 from optev.graph import schema as S
 from optev.graph.retrieve import CONSTANTS, TEMPLATES, bind, run
@@ -86,7 +85,7 @@ def test_run_sends_the_fixed_query_with_parameters_only():
 
 # Live: the sample loaded by `python -m optev.graph load --sample` ------------------------
 
-load_dotenv()
+
 live = pytest.mark.skipif(not os.getenv("NEO4J_URI"), reason="no Neo4j credentials")
 
 
