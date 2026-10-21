@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 SGT = timezone(timedelta(hours=8))
 SLOT = timedelta(minutes=SNAPSHOT_MINUTES)
-MATCH_WITHIN_M = 100  # §4.2: a station counts at every site it matches within 100 m
+MATCH_WITHIN_M = 100  # §4.2: a station counts at its nearest site, if within 100 m
 MEASURED = {SupplyState.SUPPLY_ACTIVE, SupplyState.SUPPLY_IDLE}
 
 Counts = dict[str, dict[datetime, tuple[int, int]]]
@@ -50,6 +50,17 @@ def time_bin(slot: datetime) -> str:
     return f"{'we' if t.weekday() >= 5 else 'wd'}-{t.hour:02d}"
 
 
+def nearest_site(near: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each station's nearest station-site row (smallest `distance_m`, ties by `site_id`).
+    A station's chargers are one queue, so it counts at one site only (§4.2)."""
+    best: dict[str, dict[str, Any]] = {}
+    for n in near:
+        b = best.get(n["station_id"])
+        if b is None or (n["distance_m"], n["site_id"]) < (b["distance_m"], b["site_id"]):
+            best[n["station_id"]] = n
+    return list(best.values())
+
+
 def _matched(near: list[dict[str, Any]], connectors: list[Connector]) -> dict[str, set[str]]:
     """site_id -> its matched connectors that were ever active (invariant 3)."""
     by_station: dict[str, set[str]] = defaultdict(set)
@@ -57,7 +68,7 @@ def _matched(near: list[dict[str, Any]], connectors: list[Connector]) -> dict[st
         if c.ever_active:
             by_station[c.station_id].add(c.connector_id)
     out: dict[str, set[str]] = defaultdict(set)
-    for n in near:
+    for n in nearest_site(near):
         if n["threshold_m"] <= MATCH_WITHIN_M:
             out[n["site_id"]] |= by_station.get(n["station_id"], set())
     return {site: conns for site, conns in out.items() if conns}
@@ -164,22 +175,26 @@ def compute_occupancy_by_bin(sites: list[CandidateSite], near: list[dict[str, An
 
 # --- Postgres -------------------------------------------------------------------------------
 
-_ACTIVE_SQL = """
+# Each station's nearest site only, as nearest_site does.
+_NEAREST_SQL = """(SELECT DISTINCT ON (station_id) station_id, site_id, threshold_m
+     FROM station_site ORDER BY station_id, distance_m, site_id)"""
+
+_ACTIVE_SQL = f"""
 SELECT ss.site_id, count(*)
-FROM station_site ss JOIN connector c ON c.station_id = ss.station_id
+FROM {_NEAREST_SQL} ss JOIN connector c ON c.station_id = ss.station_id
 WHERE c.ever_active AND ss.threshold_m <= %(within)s
 GROUP BY ss.site_id
 """
 
 # Readings are put in the nearest slot, so the query window is shifted back half a slot.
-_COUNTS_SQL = """
+_COUNTS_SQL = f"""
 SELECT ss.site_id,
        to_timestamp(round(extract(epoch FROM r.collected_ts) / %(step)s) * %(step)s) AS slot,
        count(*) FILTER (WHERE r.status = 'occupied'),
        count(*) FILTER (WHERE r.status = 'available')
 FROM connector_reading r
 JOIN connector c ON c.connector_id = r.connector_id
-JOIN station_site ss ON ss.station_id = c.station_id
+JOIN {_NEAREST_SQL} ss ON ss.station_id = c.station_id
 WHERE c.ever_active AND ss.threshold_m <= %(within)s
   AND r.collected_ts >= %(start)s AND r.collected_ts < %(end)s
 GROUP BY 1, 2
