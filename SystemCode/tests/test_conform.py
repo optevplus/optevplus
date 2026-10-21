@@ -1,6 +1,7 @@
 """Stage 1 conform (SYSTEM_DESIGN.md §4.1 step 3), run on optev.sample."""
 
 import math
+import os
 
 import pytest
 
@@ -284,3 +285,82 @@ def test_cli_conform_needs_a_database(monkeypatch, tmp_path):
     assert cli.main() == 1
     monkeypatch.setattr("sys.argv", ["optev-db", "conform", "extra"])
     assert cli.main() == 2
+
+
+# Static loads in conform (#11, spec 020) ------------------------------------------------
+
+def _stg_amenity_rows() -> list[dict[str, object]]:
+    """The sample's amenities shaped as `READ_AMENITIES` returns `stg_amenity` rows."""
+    return [{"site_id": a.site_id, "kind": a.kind.value, "lat": a.coord.lat, "lon": a.coord.lon}
+            for a in AMENITIES]
+
+
+def test_staged_amenities_become_sites_or_link_to_a_car_park():
+    issues: dict[str, int] = {}
+    bad = {"site_id": "cc:9", "kind": "cc", "lat": 1.3, "lon": 103.8}  # not a SiteKind
+    amenities = C.amenity_sites([*_stg_amenity_rows(), bad], issues)
+    assert issues == {"bad_amenity": 1}
+    assert [a.site_id for a in amenities] == [a.site_id for a in AMENITIES]
+    def key(out):  # planning area comes later, from the polygons in the database
+        return [(x.site_id, x.kind, x.coord) for x in out.sites]
+    assert key(_run(amenities=amenities)) == key(_run())  # all > 150 m: standalone sites
+
+
+class CountingCursor(FakeCursor):
+    def __init__(self, counts: dict[str, int]) -> None:
+        super().__init__()
+        self.counts = counts
+
+    def execute(self, sql: str, params: object = None) -> "CountingCursor":
+        super().execute(sql, params)
+        return self
+
+    def fetchone(self) -> dict[str, int]:
+        return self.counts
+
+
+def test_fill_context_runs_the_polygon_fills_and_reports_unplaced_sites():
+    cur = CountingCursor({"site_without_planning_area": 2, "site_without_land_use": 0})
+    assert C.fill_context(cur) == {"site_without_planning_area": 2}
+    assert [sql for sql, _ in cur.calls] == [C.FILL_LAND_USE, C.FILL_RESIDENTS, C.COUNT_UNPLACED]
+    assert C.fill_context(CountingCursor({"site_without_planning_area": 0,
+                                          "site_without_land_use": 0})) == {}
+
+
+@pytest.mark.skipif(not os.environ.get("DATABASE_URL"), reason="DATABASE_URL not in environment")
+def test_live_fill_context_sets_land_use_and_residents_and_rolls_back():
+    import psycopg
+    from psycopg.rows import dict_row
+
+    square = ("SRID=4326;MULTIPOLYGON(((103.0 1.0, 103.1 1.0, 103.1 1.1, 103.0 1.1, "
+              "103.0 1.0)))")
+    url = os.environ["DATABASE_URL"]
+    with psycopg.connect(url, row_factory=dict_row) as conn, conn.cursor() as cur:
+        if not cur.execute(C.HAS_STAGING).fetchone()["staged"]:  # type: ignore[index]
+            pytest.skip("migration 004 is not applied")
+        try:
+            cur.execute("INSERT INTO planning_area (code, name, region, geom) VALUES "
+                        "('SYN-A', 'SYN AREA', 'SYN', ST_GeomFromEWKT(%s))", (square,))
+            cur.execute("INSERT INTO stg_land_use (land_use_id, lu_desc, geom) VALUES "
+                        "('SYN-2', 'COMMERCIAL', ST_GeomFromEWKT(%s)),"
+                        "('SYN-1', 'RESIDENTIAL', ST_GeomFromEWKT(%s))", (square, square))
+            cur.execute("INSERT INTO stg_residents (planning_area, residents, source_year) "
+                        "VALUES ('SYN-A', 1234, 2020)")
+            for site_id, lon in (("SYN-IN", 103.05), ("SYN-OUT", 103.5)):
+                cur.execute("INSERT INTO candidate_site (site_id, kind, provenance, geom) "
+                            "VALUES (%s, 'hawker_centre', 'observed', "
+                            "ST_SetSRID(ST_MakePoint(%s, 1.05), 4326))", (site_id, lon))
+                cur.execute("INSERT INTO site_context (site_id) VALUES (%s)", (site_id,))
+            cur.execute(C.FILL_PLANNING_AREA)
+            missing = C.fill_context(cur)
+            rows = {r["site_id"]: r for r in cur.execute(
+                "SELECT s.site_id, s.planning_area, sc.land_use, sc.residents_in_area "
+                "FROM candidate_site s JOIN site_context sc USING (site_id) "
+                "WHERE s.site_id LIKE 'SYN-%'")}
+            assert rows["SYN-IN"] == {"site_id": "SYN-IN", "planning_area": "SYN-A",
+                                      "land_use": "RESIDENTIAL", "residents_in_area": 1234}
+            assert rows["SYN-OUT"]["planning_area"] is None
+            assert rows["SYN-OUT"]["land_use"] is None
+            assert missing["site_without_planning_area"] >= 1
+        finally:
+            conn.rollback()

@@ -1,6 +1,6 @@
 # 020 · Planning area, land use and amenity sites in conform
 
-**Owner:** Shrey  ·  **Status:** draft, awaiting Shrey's OK  ·  **Branch:** `shrey/11-planning-area` (from `shrey/55-static-loads`, which has the `stg_` tables)
+**Owner:** Shrey  ·  **Status:** approved 21 Oct 2026; built, not yet run on Neon  ·  **Branch:** `shrey/11-planning-area` (from `shrey/55-static-loads`, which has the `stg_` tables)
 **Issue:** #11 (1.6 · Planning area assignment)  ·  **Builds on:** #58, #59 (migration 004, `load_static`)
 
 ## Design section
@@ -50,12 +50,21 @@ In `optev/ingest/conform.py` (Gurneet's module; ingest is shared):
 - ruff, mypy, `NEO4J_URI= uv run pytest` pass.
 - **Re-running `optev-db conform` on Neon only with your explicit OK**, afterwards.
 
-## Open questions
-1. **Points outside every polygon.** The design keeps them NULL; the issue wants "nearest
-   centroid + flag". A flag needs a column the design lacks (a table change). Options:
-   (a) keep NULL, report the count (this spec, no design change); (b) design PR: nearest
-   planning area by `ST_Distance` and a coverage count `sites_outside_planning_area`, no new
-   column. I'd do (a) now and raise (b) with Ghanashyam if the count is not ~0.
-2. **Overlapping land-use plots:** smallest `land_use_id` wins. Fine, or prefer largest overlap?
-3. `residents_in_area`: `residents` (all) or `residents_hdb`? I'd use `residents`, per the
-   `site_context` column name.
+## Decisions (were open questions)
+1. **Outside every polygon:** stays NULL (design §4.1) and is counted as
+   `site_without_planning_area` / `site_without_land_use` in conform's logged issues. No flag
+   column, no nearest-area fallback; raise a design PR only if the count on Neon is material.
+2. **Overlapping land-use plots:** the smallest `land_use_id` wins.
+3. **`residents_in_area`** = `stg_residents.residents` (all residents).
+
+## Checkpoint · 21 Oct 2026
+- **Works:** `conform()` reads `stg_amenity` when migration 004 is applied (`amenity_sites`),
+  and after `write` runs `fill_context`: `FILL_LAND_USE`, `FILL_RESIDENTS`, then counts sites
+  left without an area or land use. Without 004 it builds car park sites only, as before.
+- **Tests:** amenity rows parse and flow through the core (bad kind counted); `fill_context`
+  order and counts on a fake cursor; a live test (SYN- rows, rolled back) for land use,
+  residents and an out-of-polygon site. ruff, mypy, pytest: 231 passed, 25 skipped. The live
+  test has **not** run yet (needs `DATABASE_URL` in the shell).
+- `conform.py` is now ~490 lines, over the ~300 guideline.
+- **Next, with Shrey's OK only:** run the live test, then `optev-db conform` on Neon and record
+  amenity sites added and the two counts.
