@@ -1,11 +1,9 @@
 """Against a real Neo4j. Skipped unless NEO4J_URI is set, in the environment or .env."""
 
 import os
+from dataclasses import replace
 
 import pytest
-from dotenv import load_dotenv
-
-load_dotenv()
 
 pytestmark = pytest.mark.skipif(not os.getenv("NEO4J_URI"), reason="no Neo4j credentials")
 
@@ -47,3 +45,29 @@ def test_loading_the_sample_twice_is_the_same_as_once():
     assert (first["nodes"], first["rels"]) == (second["nodes"], second["rels"])
     nodes = sum(n for name, n in sent.items() if "->" not in name)
     assert first["nodes"] == nodes
+
+
+def test_a_reload_drops_links_the_new_data_no_longer_has():
+    from optev.graph import apply_schema, driver
+    from optev.graph.load import load
+    from optev.graph.schema import SAMPLE_LABEL
+    from optev.sample import load as sample
+
+    data = sample()
+    fewer = data.allocation.model_copy(update={"items": data.allocation.items[:2],
+                                               "requested_connectors": None})
+    count = ("MATCH (:Allocation)-[x:ALLOCATES]->(:CandidateSite {site_id: $site}) "
+             "RETURN count(x) AS n")
+    dropped = data.allocation.items[-1].site_id
+    with driver() as d, d.session() as s:
+        apply_schema(s)
+        try:
+            load(data, s, extra_label=SAMPLE_LABEL)
+            # Same allocation node (same request), fewer items: the dropped site's link goes.
+            trimmed = replace(data, allocation=fewer.model_copy(
+                update={"requested_connectors": data.allocation.requested_connectors}))
+            load(trimmed, s, extra_label=SAMPLE_LABEL)
+            after = s.run(count, site=dropped).single()
+        finally:
+            load(data, s, extra_label=SAMPLE_LABEL)  # leave the full sample in place
+    assert after is not None and after["n"] == 0

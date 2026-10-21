@@ -1,0 +1,148 @@
+# Stage 5 answer key (SYSTEM_DESIGN.md §6): 20 planner questions on optev.sample, each
+# answered from the source tables before any model was run.
+#
+#   type, params   what classify() must produce (absent type = out of scope, must refuse)
+#   must_cite      evidence ids a correct answer rests on: retrieval must return them all
+#   must_mention   facts the final answer must state (case-insensitive substrings)
+#   refuse         true when the right answer is a refusal
+#
+# Written from optev/sample/data/entities.json. Regenerate if the sample changes.
+
+[[q]]
+question = "Why was SYN-S-13 rejected?"
+type = "why_not_site"
+params = { site_id = "SYN-S-13" }
+must_cite = ["R03", "doc-lta-ev-factsheet-2021"]
+must_mention = ["R03", "reject"]
+
+[[q]]
+question = "Why wasn't SYN-S-14 chosen?"
+type = "why_not_site"
+params = { site_id = "SYN-S-14" }
+must_cite = ["R04", "asm-idle-threshold"]
+must_mention = ["R04", "idle"]
+
+[[q]]
+question = "Why is SYN-S-06 only conditional?"
+type = "why_not_site"
+params = { site_id = "SYN-S-06" }
+must_cite = ["R02", "doc-lta-ev-safety"]
+must_mention = ["R02", "basement"]
+
+[[q]]
+question = "Why was SYN-S-27 deferred?"
+type = "why_not_site"
+params = { site_id = "SYN-S-27" }
+must_cite = ["R01", "R03"]
+must_mention = ["defer"]
+
+[[q]]
+question = "Why was SYN-S-04 accepted?"
+type = "why_site"
+params = { site_id = "SYN-S-04" }
+must_cite = ["observed:SYN-S-04", "R01", "R03", "SYN-S-04@all"]
+must_mention = ["accept"]
+
+[[q]]
+question = "Why does SYN-S-15 get new charging points?"
+type = "why_site"
+params = { site_id = "SYN-S-15" }
+must_cite = ["observed:SYN-S-15", "base:all:points=12:budget=-"]
+must_mention = ["2"]
+
+[[q]]
+question = "Where does the demand estimate for SYN-S-04 come from?"
+type = "demand_basis"
+params = { site_id = "SYN-S-04" }
+must_cite = ["SYN-S-04@all", "asm-reliable-up-to", "ds-lta-evcbatch"]
+must_mention = ["lower bound", "4.7207"]
+
+[[q]]
+question = "How busy are the chargers at SYN-S-01?"
+type = "demand_basis"
+params = { site_id = "SYN-S-01" }
+must_cite = ["SYN-S-01@all", "asm-session-hours"]
+must_mention = ["0.7604"]
+
+[[q]]
+question = "Where does SYN-S-27's demand estimate come from, with no chargers there?"
+type = "demand_basis"
+params = { site_id = "SYN-S-27" }
+must_cite = ["SYN-S-27@all"]
+must_mention = ["supply"]
+
+[[q]]
+question = "Compare SYN-S-04 and SYN-S-13."
+type = "compare_sites"
+params = { site_a = "SYN-S-04", site_b = "SYN-S-13" }
+must_cite = ["SYN-S-04", "SYN-S-13", "R03"]
+must_mention = ["accept", "reject"]
+
+[[q]]
+question = "Why SYN-S-15 over SYN-S-14?"
+type = "compare_sites"
+params = { site_a = "SYN-S-15", site_b = "SYN-S-14" }
+must_cite = ["SYN-S-15", "SYN-S-14", "R04"]
+must_mention = ["idle"]
+
+[[q]]
+question = "Where does rule R03 come from?"
+type = "rule_sources"
+params = { rule_id = "R03" }
+must_cite = ["R03", "doc-lta-ev-factsheet-2021"]
+must_mention = ["15%"]
+
+[[q]]
+question = "What is rule R04 based on?"
+type = "rule_sources"
+params = { rule_id = "R04" }
+must_cite = ["R04", "asm-idle-threshold"]
+must_mention = ["project_assumption"]
+
+[[q]]
+question = "Why can't I have 40 points in PR?"
+type = "infeasible_request"
+params = { scenario_id = "base", planning_area = "PR" }
+must_cite = ["base:PR:requested=40"]
+must_mention = ["32", "budget"]
+
+[[q]]
+question = "Which areas are near saturation?"
+type = "area_saturation"
+params = {}
+must_cite = ["PR", "TM"]
+must_mention = ["PR"]
+
+[[q]]
+question = "What assumptions sit behind SYN-S-04?"
+type = "assumptions_used"
+params = { site_id = "SYN-S-04" }
+must_cite = ["asm-session-hours", "asm-reliable-up-to", "asm-idle-threshold"]
+must_mention = ["3"]
+
+[[q]]
+question = "Which assumptions does SYN-S-14 depend on?"
+type = "assumptions_used"
+params = { site_id = "SYN-S-14" }
+must_cite = ["asm-session-hours", "asm-idle-threshold"]
+must_mention = ["idle"]
+
+[[q]]
+question = "Why was SYN-S-99 rejected?"
+type = "why_not_site"
+params = { site_id = "SYN-S-99" }
+must_cite = []
+must_mention = []
+refuse = true
+
+[[q]]
+question = "What's the weather in Tampines tomorrow?"
+must_cite = []
+must_mention = []
+refuse = true
+
+[[q]]
+question = "Write me a poem about charging stations."
+must_cite = []
+must_mention = []
+refuse = true
