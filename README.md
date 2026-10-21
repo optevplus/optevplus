@@ -48,18 +48,97 @@ _Business case and system design videos — to be added._
 
 **Live system:** _deployment URL to be added._
 
-To run locally:
+You need **Python 3.12+**, **[uv](https://docs.astral.sh/uv/)** and **git**. Everything else
+is installed by uv. Pick one of the two paths below.
+
+### A. Run with the team's databases (Neon + Aura)
 
 ```bash
-git clone <repo-url> && cd optevplus/SystemCode
-cp .env.example .env          # fill in Neon, Aura and LTA credentials
+git clone https://github.com/optevplus/optevplus.git
+cd optevplus/SystemCode
+cp .env.example .env          # then fill in DATABASE_URL and NEO4J_* (ask the team)
 uv sync --extra dev
-uv run optev-db migrate
+uv run optev-db migrate       # creates or updates every table; safe to re-run
 uv run streamlit run optev/app/main.py
 ```
 
-Requires Python 3.12 and [uv](https://docs.astral.sh/uv/). No Docker needed — both
-databases are managed.
+Open http://localhost:8501 and choose **Evidence** in the sidebar.
+
+### B. Run offline, with no credentials (sample data)
+
+Uses the synthetic sample (`optev/sample`, every id starts with `SYN-`) and a local Neo4j.
+Needs [Docker](https://docs.docker.com/get-docker/).
+
+```bash
+git clone https://github.com/optevplus/optevplus.git
+cd optevplus/SystemCode
+uv sync --extra dev
+docker compose up -d          # local Neo4j on bolt://localhost:7687
+cp .env.example .env
+```
+
+In `.env`, leave `DATABASE_URL` empty and set:
+
+```
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=optevlocal
+```
+
+Then load the sample into the graph and start the app:
+
+```bash
+uv run python -m optev.graph load --sample
+uv run streamlit run optev/app/main.py
+```
+
+### Try it
+
+On the **Evidence** page, ask in plain words or pick a question:
+
+| Ask | What you should see |
+|---|---|
+| Why was SYN-S-13 rejected? | Rejected by rule R03 (no room within 15% of its lots), citing the LTA factsheet |
+| Where does the demand estimate for SYN-S-04 come from? | A lower bound ("at least"), with the reliability assumption behind it |
+| Compare SYN-S-04 and SYN-S-13. | Both sites side by side |
+| Why was SYN-S-99 rejected? | **No evidence**: the system refuses instead of guessing |
+
+Written answers need a language model. Add to `.env` (any one provider):
+
+```
+LLM_PROVIDER=deepseek        # or gemini | anthropic | openai_compatible (+ LLM_BASE_URL)
+LLM_API_KEY=...
+LLM_MODEL=deepseek-chat
+```
+
+Without it, the page shows the evidence and says no model is configured.
+
+### Command reference
+
+Run from `SystemCode/`.
+
+| Command | What it does | Needs |
+|---|---|---|
+| `uv run optev-db migrate` | Create or update every table | Postgres |
+| `uv run optev-db load-collected <folder>` | Load the collected week of readings | Postgres, raw files |
+| `uv run optev-db conform` | Build candidate sites from car parks, stations and readings | Postgres |
+| `uv run optev-db coverage` | Measure data completeness and freshness | Postgres |
+| `uv run python -m optev.graph load --sample` | Load the sample into the graph (`clear --sample` removes it) | Neo4j |
+| `uv run python -m optev.graph ask why_not_site site_id=SYN-S-13` | One fixed graph query, raw evidence | Neo4j |
+| `uv run python -m optev.graph explain "Why was SYN-S-13 rejected?"` | Written, cited answer, or a refusal | Neo4j (+ model) |
+| `uv run python -m optev.evaluation.harness` | Comparison table: optimiser vs baselines | nothing (sample) |
+| `uv run python -m optev.evaluation.explain_eval` | Stage 5 scores on the 20 questions (`--llm` for answers) | Neo4j (+ model) |
+| `uv run pytest` | Tests; database tests skip without credentials | nothing |
+
+### If something goes wrong
+
+| Symptom | Fix |
+|---|---|
+| `DATABASE_URL is not set` | Fill it in `SystemCode/.env` (path A), or use path B |
+| Neo4j: "Failed to DNS resolve" or "Unable to retrieve routing information" | Aura Free pauses after 3 days without a write: resume it at console.neo4j.io |
+| Neo4j: "certificate verify failed" on macOS | Handled already (certifi); update with `uv sync` |
+| Postgres connection times out | Some networks block port 5432; try another network |
+| Tests fail on Windows with line endings | `git config core.autocrlf false`, then re-clone (the repo forces LF) |
 
 ---
 

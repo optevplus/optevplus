@@ -1,0 +1,15 @@
+# Offline path (#45): a local Neo4j for markers without Aura credentials. Not needed when
+# NEO4J_URI points at Aura. The password is for this local container only, not a secret.
+#   docker compose up -d      then use the "Offline" .env values in the README user guide
+services:
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "7474:7474"   # browser: http://localhost:7474
+      - "7687:7687"   # bolt, used by optev.graph
+    environment:
+      NEO4J_AUTH: neo4j/optevlocal
+    volumes:
+      - neo4j-data:/data
+volumes:
+  neo4j-data:
