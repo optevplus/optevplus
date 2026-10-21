@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.10 · 20 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.14 · 21 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -222,7 +222,7 @@ The database rejects any other value.
 `GROWTH_LOW/BASE/HIGH` (placeholders until #28), `HORIZON_MONTHS` (51),
 `MAX_SHARE_OF_LOTS` (0.15), `COST_PER_POINT_SGD` (9,250; tested at `COST_LOW_SGD` 5,500 and
 `COST_HIGH_SGD` 10,500), `MATCH_THRESHOLDS_M` (50, 100, 200),
-`AMENITY_LINK_M` (150), `SNAPSHOT_MINUTES` (30). Placeholders must be replaced with cited
+`AMENITY_LINK_M` (150), `SNAPSHOT_MINUTES` (30), `MIN_COVERAGE` (0.5). Placeholders must be replaced with cited
 values before the report.
 
 **Cited values and planning facts**
@@ -321,41 +321,84 @@ discover usage patterns, and estimate demand where no charger exists.
 def site_indicators(window_start: datetime, window_end: datetime) -> list[SiteIndicators]
 def occupancy_by_bin(window_start: datetime, window_end: datetime) -> dict[str, dict[str, float]]
     # site_id -> time_bin -> mean occupancy
+# The two above read Postgres (site_indicators also upserts its table) and call these,
+# which take contracts and the station-site rows, so they are tested on optev.sample:
+def compute_indicators(sites: list[CandidateSite], near: list[dict[str, Any]],
+                       connectors: list[Connector], readings: list[ConnectorReading],
+                       window_start: datetime, window_end: datetime) -> list[SiteIndicators]
+def compute_occupancy_by_bin(sites: list[CandidateSite], near: list[dict[str, Any]],
+                             connectors: list[Connector], readings: list[ConnectorReading],
+                             window_start: datetime, window_end: datetime
+                             ) -> dict[str, dict[str, float]]
 
 # optev/analysis/demand.py
 def erlang_b(c: int, a: float) -> float
 def invert_occupancy(c: int, occupancy: float) -> float          # arrivals per hour
 def infer_demand(indicators: list[SiteIndicators],
                  occupancy: dict[str, dict[str, float]]) -> list[DemandEstimate]
+def write_estimates(conn: psycopg.Connection, estimates: list[DemandEstimate]) -> int
+    # upserts demand_estimate with method = 'queueing'; called by the pipeline
 
 # optev/analysis/patterns.py
 def find_patterns(occupancy: dict[str, dict[str, float]]) -> dict[str, int]   # site -> cluster
+def label_patterns(occupancy: dict[str, dict[str, float]],
+                   patterns: dict[str, int]) -> dict[int, str]               # cluster -> label
+def pattern_silhouette(occupancy: dict[str, dict[str, float]],
+                       patterns: dict[str, int]) -> float
+def holdout_agreement(train: dict[str, dict[str, float]],
+                      held: dict[str, dict[str, float]]) -> float   # share keeping their cluster
+def write_patterns(conn: psycopg.Connection, patterns: dict[str, int],
+                   labels: dict[int, str]) -> int
+    # upserts site_pattern; called by the pipeline
 
 # optev/analysis/unserved.py
 def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate],
                       context: dict[str, dict[str, float]]) -> list[DemandEstimate]
+def unserved_context(window_start: datetime, window_end: datetime
+                     ) -> dict[str, dict[str, float]]   # site_id -> feature -> value
+def write_unserved(conn: psycopg.Connection, estimates: list[DemandEstimate]) -> int
+    # upserts demand_estimate with method = 'regression'; called by the pipeline
 ```
 
 **Method**
 
 1. **Indicators (#13).** Per snapshot, occupancy = occupied ÷ (occupied + available) over the
-   site's matched connectors; unavailable connectors are excluded. `utilisation` = mean over
+   site's matched connectors; unavailable connectors are excluded. A site's matched connectors
+   are the `ever_active` connectors of every station whose nearest site in `station_site`
+   it is (smallest `distance_m`, ties by `site_id`), within 100 m. A station counts at one
+   site only: its chargers are one queue with one stream of arrivals, so counting it at two
+   would double both the demand and the existing chargers. Expected snapshots are the
+   `SNAPSHOT_MINUTES` slots in `[window_start, window_end)`; the collected week is
+   `[7 Oct 2026 14:00, 14 Oct 2026 11:00)` SGT, 330 slots. `utilisation` = mean over
    snapshots; `saturated_fraction` = share of snapshots with none available and at least one
    occupied; `observation_coverage` = snapshots seen ÷ expected. `supply_state`: `no_supply`
    with no active connectors, `supply_idle` below `IDLE_BELOW`, else `supply_active`;
-   `unobserved` when coverage is too low to say.
+   `unobserved` when coverage is below `MIN_COVERAGE`. `dwell_opportunity` is left `None` in
+   version 1.
 2. **Demand (#14).** Erlang loss model (Erlang B). For each site and **each time bin**:
    offered load `a` is the value giving the observed occupancy on `c` active connectors
    (bisection; occupancy rises monotonically in `a`); arrivals per hour =
    `a ÷ MEAN_SESSION_HOURS`. If occupancy ≥ `RELIABLE_UP_TO`, report the arrivals that give
-   exactly `RELIABLE_UP_TO`, with `kind = lower_bound`. Write per-bin rows plus `all`;
-   `all` is a lower bound if any bin is. `method = queueing`. **Estimate per bin, never once
+   exactly `RELIABLE_UP_TO`, with `kind = lower_bound`. Write per-bin rows plus `all`, the
+   §3.4 average of the per-bin arrivals (never an inversion of whole-window occupancy). `all`
+   is a lower bound when the site's window `utilisation` ≥ `RELIABLE_UP_TO`; per-bin rows keep
+   their own kind. `method = queueing`. **Estimate per bin, never once
    per whole window**: the sample shows a whole-window inversion underestimates busy sites by
    30–40% because demand peaks in the evening.
 3. **Patterns (#15).** k-means (scikit-learn) on each site's 48-value occupancy profile
    (`wd-00…wd-23`, `we-00…we-23`), min-max normalised per site; k from 3 to 6, chosen by
-   silhouette score; fixed `random_state`. Write `site_pattern` with a human label per cluster
-   (e.g. "evening residential").
+   silhouette score (ties to the smaller k); fixed `random_state`; fewer than 4 sites is an
+   error. A missing bin takes the site's mean over the same half (`wd`/`we`), or over all its
+   bins when a half is missing; a site with fewer than `MIN_COVERAGE` × 48 bins gets no
+   cluster. A flat profile normalises to zeros. Clusters are numbered in order of first
+   appearance over sorted site ids. Labels come from each cluster's mean normalised profile:
+   `flat` when it is zero everywhere, else the band of its weekday peak (`overnight` 00–05,
+   `morning` 06–11, `daytime` 12–17, `evening` 18–23) + " peak", with ", busier on weekdays"
+   or ", busier on weekends" when the halves' means differ; a repeated label gets
+   " (cluster n)". `write_patterns` upserts `site_pattern` without committing. Centroids are
+   not stored. **Held-back days:** `holdout_agreement` fits on `[7 Oct 14:00, 11 Oct 00:00)`,
+   assigns the profiles of `[11 Oct 00:00, 14 Oct 11:00)` (SGT) to the fitted centroids, and
+   returns the share of sites that keep their cluster.
 4. **Sites with no chargers (#16).** Supervised regression. Training rows: sites with
    `supply_active` and an `all` estimate of `kind = point` (lower-bound labels are excluded in
    version 1; a censored regression is the stated improvement). Features: mean car park
@@ -363,8 +406,16 @@ def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate]
    amenities nearby, residents in area, distance to the nearest charging point. Models: linear
    regression as the baseline, then scikit-learn `HistGradientBoostingRegressor`; keep the
    better under leave-area-out validation. Predict `all` for `no_supply` sites, then spread it
-   across bins with the mean normalised profile of training sites of the same kind.
-   `method = regression`.
+   across bins with the mean normalised profile of training sites of the same kind (all
+   training sites when none share it), rescaled so the bins average back to `all` by §3.4.
+   `method = regression`, `kind = point`; `note` names the model kept, the training sites and
+   its leave-area-out MAE. The caller passes the `supply_active` and `no_supply` sites and only
+   the `supply_active` estimates; `supply_idle` sites do not train, and `unobserved` sites get
+   no estimate (the rules defer them). Training sites in fewer than two planning areas is an
+   error. `context` keys: `cp_occupancy_night`, `cp_occupancy_day` (weekday car park
+   occupancy over the window), `residents_in_area`, `amenities_nearby`, `nearest_point_m`, and
+   `land_use:<VALUE>` = 1; a missing value is left out (NaN for the boosted model, the
+   training median for the linear one).
 
 **Checked by.** Silhouette (patterns); MAPE against simulated known demand, which also
 measures `RELIABLE_UP_TO` (queueing); MAE and Spearman ρ on hidden sites and hidden areas
@@ -507,6 +558,8 @@ def clear_sample(session: Session) -> int                     # remove what --sa
 def retrieve(question_type: str, **params: str) -> list[dict[str, object]]
 # optev/graph/explain.py
 def explain(question: str) -> Answer          # Answer: text, evidence, refused (bool)
+# optev/graph/llm.py
+def from_env() -> LLM                          # LLM = (system, user) -> text
 ```
 
 - **Schema** as in `specs/005-knowledge-graph`: 16 node types keyed on contract ids; every rule
@@ -533,6 +586,17 @@ def explain(question: str) -> Answer          # Answer: text, evidence, refused 
 - **Explanation (#27).** LangGraph flow: classify the question → refuse if out of scope →
   retrieve → the LLM answers **only** from the retrieved evidence → every number in the answer
   must appear in the evidence → retry once, otherwise refuse.
+  - **Classification is fixed patterns, not the model** (site, rule and area ids plus key
+    words → one of the §4.5 question types), so the model never chooses what evidence it sees.
+    No match → refuse. No evidence → refuse without calling the model.
+  - **The check:** every number must match an evidence value as written (a share may be shown
+    as a percent; rounding to the digits written is allowed); every `[citation]` must be an id
+    in the evidence; at least one citation. A refused answer still returns the evidence.
+  - **The model** is any `(system, user) -> text` function from `llm.from_env()`, set by
+    `LLM_PROVIDER` (`deepseek`, `gemini`, `anthropic`, `openai_compatible`), `LLM_API_KEY` and
+    `LLM_MODEL` in `.env`; temperature 0. Changing provider is a settings change.
+  - `python -m optev.graph explain "<question>"` answers one; without a model it prints the
+    evidence.
 
 **Checked by.** ≥ 90% of 20 questions answered correctly (answers written in advance from the
 source tables), 100% citing evidence, 0 unsupported claims, Precision@k on retrieval.
@@ -573,13 +637,13 @@ be re-run on its own. Target: one planning area end to end in under 10 minutes.
 | Stage | Metric | Answer key | Baseline | Target |
 |---|---|---|---|---|
 | 1 | Completeness, freshness, join coverage | The 330 half-hour slots of the collected week | — | ≥ 95% complete; 100% of sites in an area |
-| 2 patterns | Silhouette | — | — | ≥ 0.5 |
+| 2 patterns | Silhouette; held-back agreement | Held-back days (§4.2 step 3) | — | ≥ 0.5; ≥ 0.8 |
 | 2 queueing | MAPE by occupancy band | Simulation with known demand (`truth()`) | Occupancy alone | ≤ 10% below `RELIABLE_UP_TO` |
 | 2 regression | MAE, Spearman ρ | Hidden sites, hidden areas | Planning-area average | Beat baseline; ρ ≥ 0.5 |
 | 3 | Top-10 stability; back-cast MAPE | Recent months hidden | — | ≥ 7 of 10 stay |
 | 4 rules | Agreement, reason codes | 30 test sites, two raters, κ ≥ 0.7 | — | 100%; 100% |
 | 4 allocation | Violations; uplift in drivers rescued | Same request (area, points) and rules | See below | 0; beat all |
-| 5 | Accuracy, citation rate, unsupported claims, Precision@k | 20 questions answered from source tables | — | ≥ 90%; 100%; 0 |
+| 5 | Classification, evidence recall; with the model: accuracy, citation rate, unsupported claims, Precision@k on citations | 20 questions answered from source tables (`evaluation/explain_questions.toml`) | — | 100%; 100%; ≥ 90%; 100%; 0 |
 
 **Baselines**, each producing an `Allocation` for the same request (area, points) and rules, scored by the
 same objective: busiest first (#36), spatial spread (#37), extend sites that already have
@@ -613,7 +677,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 
 | # | Decision | Owner | By |
 |---|---|---|---|
-| 1 | LLM provider and key for #27 | Ghanashyam | 12 Oct |
+| 1 | ~~LLM provider for #27~~ Settled in 1.6: any provider via `.env`; key to be added | Ghanashyam | 22 Oct |
 | 2 | Confirm the demo-area criterion (§1) | Team | Before results |
 | 3 | Minimum points per chosen site? The HDB tender asked for 3 to 6 per car park ([LTA, 29 Mar 2022](https://www.lta.gov.sg/content/ltagov/en/newsroom/2022/3/news-releases/ramping_up_charging_infrastructure.html)) | Shrey, Gurneet | 14 Oct |
 | 4 | Growth multipliers fitted from registrations | Sushant (#28) | 14 Oct |
@@ -647,7 +711,25 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.8 · 20 Oct 2026.** No minimum points per planning area: `MIN_POINTS_PER_AREA` removed
   (§3.5, §4.4). It was our own uncited number, and island-wide it made any request under
   about 100 points impossible. Points go only where they rescue the most drivers.
-- **1.10 · 20 Oct 2026.** Rules (§4.4): a rule is registered for its source, not for data
+- **1.9 · 20 Oct 2026.** Explanation (#27): classification by fixed patterns, the citation and
+  number check, provider-neutral model settings (§4.5); Stage 5 metrics and answer key (§6).
+- **1.10 · 21 Oct 2026.** Indicators (§4.2): `compute_indicators` and
+  `compute_occupancy_by_bin` take contracts so they are tested on the sample; a station
+  counts at its nearest site only (ties by `site_id`, as in 1.6) and only if that site is
+  within 100 m, so its chargers are one queue at one site; new assumption `MIN_COVERAGE`
+  (0.5) for `unobserved`; `dwell_opportunity` stays `None` (spec 011).
+- **1.11 · 21 Oct 2026.** Demand (§4.2 step 2): `all` is the §3.4 average of per-bin arrivals
+  and a lower bound only when window utilisation ≥ `RELIABLE_UP_TO`, not whenever one bin is
+  (on the sample that rule flagged 9 of 11 served sites, three above their true demand);
+  new `write_estimates` writes `demand_estimate` (spec 012).
+- **1.12 · 21 Oct 2026.** Patterns (§4.2 step 3, §6): missing bins, flat profiles and labels
+  defined; new `label_patterns`, `pattern_silhouette`, `holdout_agreement` and
+  `write_patterns`; held-back-days agreement ≥ 0.8 joins silhouette in §6 (issue #15,
+  spec 014).
+- **1.13 · 21 Oct 2026.** Sites with no chargers (§4.2 step 4): new `unserved_context` and
+  `write_unserved`; context keys, which sites the caller passes, missing features, the
+  profile fallback and the note stated; `unobserved` sites get no estimate (issue #16,
+  spec 015).
+- **1.14 · 21 Oct 2026.** Rules (§4.4): a rule is registered for its source, not for data
   availability; a check may return `passed = None` for a fact it needs only for some sites;
-  `screen_all` and `python -m optev.reasoning screen` screen Postgres (spec 008). Numbered
-  1.10 because #58 claims 1.9.
+  `screen_all` and `python -m optev.reasoning screen` screen Postgres (spec 008, #72).
