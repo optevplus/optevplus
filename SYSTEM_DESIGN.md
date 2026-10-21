@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.12 · 21 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.13 · 21 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -354,6 +354,10 @@ def write_patterns(conn: psycopg.Connection, patterns: dict[str, int],
 # optev/analysis/unserved.py
 def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate],
                       context: dict[str, dict[str, float]]) -> list[DemandEstimate]
+def unserved_context(window_start: datetime, window_end: datetime
+                     ) -> dict[str, dict[str, float]]   # site_id -> feature -> value
+def write_unserved(conn: psycopg.Connection, estimates: list[DemandEstimate]) -> int
+    # upserts demand_estimate with method = 'regression'; called by the pipeline
 ```
 
 **Method**
@@ -402,8 +406,16 @@ def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate]
    amenities nearby, residents in area, distance to the nearest charging point. Models: linear
    regression as the baseline, then scikit-learn `HistGradientBoostingRegressor`; keep the
    better under leave-area-out validation. Predict `all` for `no_supply` sites, then spread it
-   across bins with the mean normalised profile of training sites of the same kind.
-   `method = regression`.
+   across bins with the mean normalised profile of training sites of the same kind (all
+   training sites when none share it), rescaled so the bins average back to `all` by §3.4.
+   `method = regression`, `kind = point`; `note` names the model kept, the training sites and
+   its leave-area-out MAE. The caller passes the `supply_active` and `no_supply` sites and only
+   the `supply_active` estimates; `supply_idle` sites do not train, and `unobserved` sites get
+   no estimate (the rules defer them). Training sites in fewer than two planning areas is an
+   error. `context` keys: `cp_occupancy_night`, `cp_occupancy_day` (weekday car park
+   occupancy over the window), `residents_in_area`, `amenities_nearby`, `nearest_point_m`, and
+   `land_use:<VALUE>` = 1; a missing value is left out (NaN for the boosted model, the
+   training median for the linear one).
 
 **Checked by.** Silhouette (patterns); MAPE against simulated known demand, which also
 measures `RELIABLE_UP_TO` (queueing); MAE and Spearman ρ on hidden sites and hidden areas
@@ -704,3 +716,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   defined; new `label_patterns`, `pattern_silhouette`, `holdout_agreement` and
   `write_patterns`; held-back-days agreement ≥ 0.8 joins silhouette in §6 (issue #15,
   spec 014).
+- **1.13 · 21 Oct 2026.** Sites with no chargers (§4.2 step 4): new `unserved_context` and
+  `write_unserved`; context keys, which sites the caller passes, missing features, the
+  profile fallback and the note stated; `unobserved` sites get no estimate (issue #16,
+  spec 015).
