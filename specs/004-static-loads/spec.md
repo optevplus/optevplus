@@ -21,7 +21,7 @@ and from step 3 (conform, which reads what this loads): *"Convert SVY21 to WGS84
 (EPSG:3414 → 4326) … Fill `site_context` by point-in-polygon on MP2025 land use and planning
 areas."* §3.2: *"Ingest-internal staging tables are allowed if prefixed `stg_`."* §3.3 ids:
 `hdb:<car_park_no>`, `ura:<PP_CODE>`, `hawker:<id>` / `cc:<id>` / `petrol:<id>` from the source
-dataset, station = LTA `locationId` (*now `postalCode`, design 1.7; decision 8*), connector = LTA `evCpId`, planning area = URA `PLN_AREA_C`.
+dataset, station = LTA `locationId` (*now `postalCode`, design 1.14; decision 8*), connector = LTA `evCpId`, planning area = URA `PLN_AREA_C`.
 §2.3 rules 3 and 6 (installed only once seen active; upserts keyed on the primary key).
 
 ## Problem

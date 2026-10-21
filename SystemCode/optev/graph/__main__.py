@@ -1,5 +1,6 @@
 """python -m optev.graph {ping | schema | apply-schema | heartbeat | load | clear} [--sample]
 python -m optev.graph ask <question_type> [name=value ...]
+python -m optev.graph explain "<question in plain English>"
 
 Reads NEO4J_URI, NEO4J_USER and NEO4J_PASSWORD from the environment or SystemCode/.env.
 """
@@ -19,7 +20,8 @@ from .schema import SAMPLE_LABEL
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m optev.graph")
     parser.add_argument(
-        "command", choices=["ping", "schema", "apply-schema", "heartbeat", "load", "clear", "ask"]
+        "command",
+        choices=["ping", "schema", "apply-schema", "heartbeat", "load", "clear", "ask", "explain"],
     )
     parser.add_argument("--sample", action="store_true", help="load or clear optev.sample")
     parser.add_argument("question", nargs="*", help="ask: <question_type> [name=value ...]")
@@ -54,6 +56,29 @@ def main(argv: list[str] | None = None) -> int:
         params = dict(p.split("=", 1) for p in args.question[1:])
         rows = retrieve(args.question[0], **params)
         print(json.dumps(rows, indent=1, default=str) if rows else "no evidence")
+    elif args.command == "explain":
+        from .explain import classify, explain
+        from .llm import LLMNotConfigured
+        from .retrieve import retrieve
+
+        question = " ".join(args.question)
+        try:
+            answer = explain(question)
+        except LLMNotConfigured as err:
+            found = classify(question)
+            print(f"No model configured ({err}). Evidence only:")
+            if found is None:
+                print("out of scope")
+                return 0
+            rows = retrieve(found[0], **found[1])
+            print(found[0], found[1])
+            print(json.dumps(rows, indent=1, default=str) if rows else "no evidence")
+            return 0
+        print(("REFUSED: " if answer.refused else "") + answer.text)
+        if answer.cited:
+            print("cites:", ", ".join(answer.cited))
+        if answer.problems:
+            print("failed checks:", "; ".join(answer.problems))
     elif args.command == "clear":
         with driver() as d, d.session() as s:
             print(f"removed {clear_sample(s)} sample nodes")

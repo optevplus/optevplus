@@ -23,6 +23,9 @@ MEAN_SESSION_HOURS = Assumption(
 RELIABLE_UP_TO = Assumption(
     0.93, "share of time", "Provisional; measured by the demand recovery test (#14)")
 IDLE_BELOW = Assumption(0.05, "share of time", "Project assumption: below this, supply is idle")
+MIN_COVERAGE = Assumption(
+    0.5, "share of expected snapshots",
+    "Project assumption: below this, a site's utilisation is unobserved, not measured")
 
 # Stage 3 · growth to 2030
 GROWTH_LOW = Assumption(1.4, "multiplier", "PLACEHOLDER until #28 fits EV registrations")
