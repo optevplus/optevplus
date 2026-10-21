@@ -152,8 +152,8 @@ def test_too_many_points_for_the_budget_report_the_most_feasible():
     result = _base(planning_area="PR", requested_connectors=40, budget=300_000)
     assert isinstance(result, InfeasibilityReport)
     assert (result.planning_area, result.requested_connectors, result.max_feasible) == (
-        "PR", 40, 32)  # as the sample's report; binding constraints are #23's
-    assert result.max_feasible == S.infeasibility.max_feasible
+        "PR", 40, 32)
+    assert result == S.infeasibility  # the sample's report, binding constraints included
 
 
 def test_an_area_request_stays_in_the_area():
@@ -192,3 +192,50 @@ def test_the_same_request_gives_the_same_plan():
     first, second = _base(requested_connectors=12), _base(requested_connectors=12)
     assert first == second
     assert math.isclose(sum(i.cost for i in first.items), 12 * COST)  # type: ignore[union-attr]
+
+
+# Unmet requirement (#23) ---------------------------------------------------------------
+
+
+def _pr_room() -> int:
+    pool = A.eligible_sites(S.decisions, S.sites, "base", "PR")
+    c = A.effective_connectors(pool, BASE)
+    return sum(A.room(s.total_lots, c[s.site_id]) for s in pool)
+
+
+def test_over_the_budget_only_names_the_budget():
+    result = _base(planning_area="PR", requested_connectors=40, budget=300_000)
+    assert isinstance(result, InfeasibilityReport)
+    assert result.binding_constraints == ["budget"] and result.affected_areas == []
+
+
+def test_over_the_room_only_names_the_room():
+    total = _pr_room()
+    result = _base(planning_area="PR", requested_connectors=total + 1)
+    assert isinstance(result, InfeasibilityReport)
+    assert result.binding_constraints == ["room"] and result.max_feasible == total
+
+
+def test_over_both_names_neither_since_neither_alone_is_enough():
+    total = _pr_room()
+    result = _base(planning_area="PR", requested_connectors=total + 1, budget=COST * (total - 1))
+    assert isinstance(result, InfeasibilityReport)
+    assert result.binding_constraints == [] and result.max_feasible == total - 1
+
+
+def test_budget_only_with_too_little_room_requests_what_the_budget_pays_for():
+    total = _pr_room()
+    budget = COST * (total + 5) + 1000
+    result = _base(planning_area="PR", budget=budget)
+    assert isinstance(result, InfeasibilityReport)
+    assert result.requested_connectors == math.floor(budget / COST) == total + 5
+    assert result.binding_constraints == ["room"] and result.max_feasible == total
+
+
+def test_binding_names_only_groups_that_alone_fall_short():
+    rooms = {"a": 3, "b": 2}
+    assert A.binding(5, rooms, None) == []
+    assert A.binding(6, rooms, None) == ["room"]
+    assert A.binding(5, rooms, 4) == ["budget"]
+    assert A.binding(6, rooms, 4) == []
+    assert A.binding(4, {}, 10) == ["room"]  # no eligible site: the room is zero

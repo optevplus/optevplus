@@ -1,6 +1,6 @@
 # 018 · Unmet-requirement reporting
 
-**Owner:** Shrey  ·  **Status:** draft, awaiting Shrey's OK  ·  **Branch:** `shrey/23-unmet-requirement` (from `shrey/20-allocator`)
+**Owner:** Shrey  ·  **Status:** approved 21 Oct 2026; built  ·  **Branch:** `shrey/23-unmet-requirement` (from `shrey/20-allocator`)
 **Issue:** #23 (4.4 · Unmet-requirement reporting)  ·  **Builds on:** #68 (allocator), #69 (checker)
 
 ## Design section
@@ -24,25 +24,20 @@ Reads/produces `InfeasibilityReport` (`contracts/decisions.py`), unchanged:
 `affected_areas`. No contract change.
 
 ## Approach
-All in `optev/reasoning/allocate.py`; no new public function (the design names none).
+All in `optev/reasoning/allocate.py`.
 
-1. The constraints are cardinality only, so feasibility needs no second solve. With
-   `points` (requested, or derived from the budget), `total_room = Σ room` over eligible sites
-   and `cap = budget_cap(budget)`, the request is feasible iff
-   `points ≤ total_room` and (`cap` is None or `points ≤ cap`).
-2. A private `_binding(points, total_room, cap) -> list[str]` returns, in the fixed order
-   `requested`, `budget`, `room`, each group whose removal alone makes it feasible:
-   - `requested`: dropping `Σx = points` leaves only `≤` constraints, so always feasible
-     → always listed when infeasible (the planner can ask for fewer, up to `max_feasible`).
-   - `budget`: listed iff a budget was given and `points ≤ total_room`.
-   - `room`: listed iff `cap` is None or `points ≤ cap`.
-3. `allocate` fills `binding_constraints` from `_binding` when it returns a report;
-   `affected_areas` stays `[]`. `max_feasible` stays `most_points(rooms, cap)`.
-4. Budget-only: `requested_connectors` on the report is already
-   `floor(budget / COST_PER_POINT_SGD)` via `points_for`; a test pins it.
+1. The constraints are cardinality only, so feasibility needs no second solve: with `points`
+   (requested, or derived from the budget), the request fits iff `points ≤ Σ room` and
+   (`cap` is None or `points ≤ cap`), `cap = budget_cap(budget)`.
+2. `binding(points, rooms, cap) -> list[str]`, in the order `budget`, `room`: a group binds
+   when it falls short **and** every other group fits, i.e. removing it alone makes the
+   request feasible. This is the rule the sample's answer key uses
+   (`optev/sample/generate.py::over_request`, `binding_constraints = ["budget"]` for PR / 40
+   points / SGD 300,000), which the graph and app already read.
+3. `allocate` fills `binding_constraints` on the report; `affected_areas` stays `[]`;
+   `max_feasible` is unchanged (`most_points`).
 
-Not in scope: writing to the `infeasibility` table (no writer is named in §4.4; that is the
-pipeline, #35), app display (#32).
+Not in scope: writing the `infeasibility` table (pipeline, #35) and the app view (#32).
 
 ## Verification
 New tests in `tests/test_allocate.py`, on `optev.sample`:
@@ -54,11 +49,15 @@ New tests in `tests/test_allocate.py`, on `optev.sample`:
 - `affected_areas == []` in every case.
 Then `uv run ruff check .`, `uv run mypy optev`, `NEO4J_URI= uv run pytest`: all pass.
 
-## Open questions
-1. **`requested` is always binding.** Read literally, removing the points target always makes
-   the request feasible (place 0). I list it anyway, since it is the planner's own lever
-   ("ask for at most `max_feasible`"). Alternative: list it only when nothing else is. Your call.
-2. **Over both room and budget** gives `["requested"]` alone, which hides that room and budget
-   both fall short. That is what "removal alone" says; changing it is a design PR, not code.
-3. Should the report id (§3.3) be built here? The contract has no id field, so I leave it to
-   whoever writes the `infeasibility` table.
+## Decisions (were open questions)
+1. **`requested` is never listed.** The sample's answer key never lists it, and removing the
+   target trivially "fits" (place 0), so it says nothing. The planner's lever is `max_feasible`.
+2. **Over both room and budget lists nothing**, since neither alone is enough; `max_feasible`
+   still says how far to scale down. Changing that is a design PR, not code.
+3. The report id (§3.3) is not built here: the contract has no id field.
+
+## Checkpoint · 21 Oct 2026
+- **Works:** `binding` and the filled report; the PR / 40 / SGD 300,000 case now equals the
+  sample's `infeasibility` exactly. 5 new tests (budget only binds, room only, both → none,
+  budget-only request, `binding` table). ruff, mypy, pytest pass.
+- **Next:** PR on top of #68 (base `shrey/20-allocator`); retarget to `main` once #68 merges.
