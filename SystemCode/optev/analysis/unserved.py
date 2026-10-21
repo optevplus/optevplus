@@ -4,7 +4,7 @@ park is, its size, kind and surroundings) on sites where queueing recovered a ra
 predicted for the sites without.
 
 Linear regression is the baseline and HistGradientBoostingRegressor the challenger; the one
-with the lower leave-area-out MAE is kept. Spec 015 records what the sample can and cannot
+with the lower leave-area-out MAE is kept. Spec 019 records what the sample can and cannot
 show about either.
 """
 
@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 METHOD = "regression"
 RANDOM_STATE = 0
 # A model setting, not a declared assumption: the default leaf of 20 makes the boosted trees a
-# constant on the tens of training sites we have (spec 015, question 5).
+# constant on the tens of training sites we have (spec 019, question 5).
 MIN_SAMPLES_LEAF = 2
 NUMERIC = ["cp_occupancy_night", "cp_occupancy_day", "residents_in_area", "amenities_nearby",
            "nearest_point_m"]
@@ -112,7 +112,7 @@ def estimate_unserved(sites: list[CandidateSite], observed: list[DemandEstimate]
     Training rows are the sites in `sites` whose `all` in `observed` is a point estimate. Pass
     the supply_active and no_supply sites, and only the supply_active sites' estimates: idle
     sites would teach the model there is no demand, and unobserved sites are left for the rules
-    to defer (spec 015). Raises ValueError with training sites in fewer than two areas, since
+    to defer (spec 019). Raises ValueError with training sites in fewer than two areas, since
     leave-area-out validation then has nothing to hold out."""
     rates: dict[str, dict[str, float]] = defaultdict(dict)
     point = set()

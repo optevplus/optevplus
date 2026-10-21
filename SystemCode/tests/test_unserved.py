@@ -1,7 +1,7 @@
 """Demand at sites with no chargers (§4.2 step 4) on optev.sample. The sample has no
 `site_context`, so the context here is car park occupancy from `car_park_readings()` and the
 distance to the nearest station from coordinates. Scores against `truth()` are recorded in
-spec 015, not asserted: the generator gives served and no-charger sites unrelated demand.
+spec 019, not asserted: the generator gives served and no-charger sites unrelated demand.
 The live test runs only when DATABASE_URL is in the environment and is rolled back."""
 
 import math

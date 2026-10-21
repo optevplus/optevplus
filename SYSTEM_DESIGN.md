@@ -719,4 +719,4 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.13 · 21 Oct 2026.** Sites with no chargers (§4.2 step 4): new `unserved_context` and
   `write_unserved`; context keys, which sites the caller passes, missing features, the
   profile fallback and the note stated; `unobserved` sites get no estimate (issue #16,
-  spec 015).
+  spec 019).
