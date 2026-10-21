@@ -139,10 +139,24 @@ def test_load_sends_every_row_in_batches(monkeypatch: pytest.MonkeyPatch):
     session = _Session()
     counts = L.load(DATA, session, extra_label=S.SAMPLE_LABEL)
     sent: dict[str, int] = {}
-    for query, params in session.calls:
+    clears = [q for q, _ in session.calls if "DELETE" in q]
+    merges = [(q, p) for q, p in session.calls if "MERGE" in q]
+    assert len(clears) + len(merges) == len(session.calls)
+    assert all("DELETE" in q for q, _ in session.calls[: len(clears)])  # clears go first
+    for query, params in merges:
         assert params is not None and 0 < len(params["rows"]) <= 7
-        assert "MERGE" in query
         sent[query] = sent.get(query, 0) + len(params["rows"])
     assert sum(sent.values()) == sum(counts.values())
     assert counts["Decision-EVALUATED->Rule"] == 150
     assert all(f"SET n:{S.SAMPLE_LABEL}" in q for q, _ in session.calls if "MERGE (n:" in q)
+
+
+def test_every_loaded_nodes_outgoing_links_are_cleared_first():
+    stale = {b.name: b for b in L.stale_links(DATA)}
+    loaded = {n for n in BATCHES if "->" not in n} | {"SourceClass"}
+    for rel in S.RELATIONSHIPS:
+        name = f"clear {rel.start}-{rel.type}->{rel.end}"
+        assert (name in stale) == (rel.start in loaded and rel.start != "SourceClass"), name
+    allocation = stale["clear Allocation-ALLOCATES->CandidateSite"]
+    assert [r["key"] for r in allocation.rows] == [r["key"] for r in BATCHES["Allocation"].rows]
+    assert all("DELETE" in b.cypher and "MERGE" not in b.cypher for b in stale.values())
