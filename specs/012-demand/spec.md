@@ -4,7 +4,7 @@
 
 ## Design section
 
-`SYSTEM_DESIGN.md` 1.6, §4.2 (amended to 1.7 by this spec, see Decisions) Stage 2 · Measurement & inference (`analysis/`):
+`SYSTEM_DESIGN.md` 1.6, §4.2 (amended by this spec as 1.7, renumbered 1.11 on merging main; see Decisions) Stage 2 · Measurement & inference (`analysis/`):
 
 ```python
 # optev/analysis/demand.py
@@ -109,9 +109,9 @@ on this sample.
 ## Decisions (19 Oct 2026, Sushant)
 
 1. **`all` is a lower bound only when window `utilisation` ≥ `RELIABLE_UP_TO`**, the issue's
-   wording, instead of "if any bin is". Per-bin rows keep their own kind. Design 1.7.
+   wording, instead of "if any bin is". Per-bin rows keep their own kind. Design 1.11.
 2. **`write_estimates(conn, estimates) -> int`** in `demand.py` writes `demand_estimate`.
-   Design 1.7.
+   Design 1.11.
 3. **Lag (finding 2) is accepted for version 1.** The per-bin steady-state inversion stays; the
    bias is recorded here and goes in the report. A lag-aware inversion (occupancy at hour h
    reflects arrivals over the previous `MEAN_SESSION_HOURS`) was tested in spec 013 and not
@@ -124,7 +124,7 @@ on this sample.
 - **Works:** `optev/analysis/demand.py` with `erlang_b`, `invert_occupancy`, `infer_demand`,
   `write_estimates`; `tests/test_demand.py` (17 tests, one live). ruff, mypy, pytest pass; the
   live `write_estimates` test passed on Neon and was rolled back.
-- **Design 1.7** applied to `SYSTEM_DESIGN.md` §4.2 (decisions 1 and 2); it needs a CODEOWNER's
+- **Design 1.11** applied to `SYSTEM_DESIGN.md` §4.2 (decisions 1 and 2); it needs a CODEOWNER's
   review in the PR.
 - **Measured on the sample:** `all` MAPE below `RELIABLE_UP_TO` is about 14% per bin vs 28% whole
   window; only S-04 is a lower bound, and it is below truth. The §6 10% target is not met here.

@@ -102,6 +102,26 @@ def test_station_beyond_100_m_is_not_matched():
     assert got.supply_state == SupplyState.NO_SUPPLY
 
 
+def _shared_station(far_m: float) -> list[SiteIndicators]:
+    """One station within 100 m of two sites: SYN-T at 30 m and SYN-U at `far_m`."""
+    sites, near, conns, readings = _one_site([["occupied"]])
+    sites.append(sites[0].model_copy(update={"site_id": "SYN-U"}))
+    near = [{**near[0], "distance_m": 30.0},
+            {**near[0], "site_id": "SYN-U", "distance_m": far_m, "threshold_m": 100}]
+    return I.compute_indicators(sites, near, conns, readings, START, START + I.SLOT)
+
+
+def test_station_near_two_sites_counts_at_its_nearest_only():
+    t, u = _shared_station(far_m=80.0)
+    assert t.active_connectors == 1 and t.utilisation == 1.0
+    assert u.supply_state == SupplyState.NO_SUPPLY and u.active_connectors == 0
+
+
+def test_station_equally_near_two_sites_counts_at_the_lower_site_id():
+    t, u = _shared_station(far_m=30.0)
+    assert t.active_connectors == 1 and u.active_connectors == 0
+
+
 def test_slots_and_bins():
     assert timedelta(minutes=SNAPSHOT_MINUTES) == I.SLOT
     assert I.snapshot_slot(START - timedelta(seconds=100)) == START
@@ -162,7 +182,8 @@ def test_postgres_counts_match_and_upsert_is_rerunnable():
                 cur.executemany(
                     "INSERT INTO station_site (station_id, site_id, distance_m, threshold_m)"
                     " VALUES (%(station_id)s, %(site_id)s, %(distance_m)s, %(threshold_m)s)",
-                    S.near)
+                    S.near + [{**S.near[0], "site_id": S.sites[-1].site_id,
+                                "distance_m": 80.0, "threshold_m": 100}])
                 collect._copy(cur, READINGS)
             site_ids, active, counts = I.read_counts(conn, START, END)
             ours = {i.site_id: i for i in I._measure(

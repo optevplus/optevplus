@@ -106,6 +106,28 @@ def _ref_label(ref: str | None) -> str | None:
 def rows(data: Sample, extra_label: str | None = None) -> list[Batch]:
     """Every batch to send, in the order of design §4.5. Raw readings and per-bin estimates
     are never loaded: the graph explains decisions, it does not store measurements."""
+    return list(_build(data, extra_label).batches.values())
+
+
+def stale_links(data: Sample) -> list[Batch]:
+    """For every node this bundle loads, delete its outgoing relationships of each declared
+    type before they are re-merged. Without this a re-run keeps links the new data dropped:
+    a site removed from a re-solved plan would still look allocated."""
+    keys = _build(data, None).keys
+    out = []
+    for spec in S.RELATIONSHIPS:
+        starts = sorted(keys.get(spec.start, set()))
+        if not starts:
+            continue
+        key = S.node(spec.start).key
+        cypher = (f"UNWIND $rows AS r MATCH (a:{spec.start} {{{key}: r.key}})"
+                  f"-[x:{spec.type}]->(:{spec.end}) DELETE x")
+        out.append(Batch(f"clear {spec.start}-{spec.type}->{spec.end}", cypher,
+                         [{"key": k} for k in starts]))
+    return out
+
+
+def _build(data: Sample, extra_label: str | None) -> "_Builder":
     g = _Builder(extra_label)
 
     # Reference nodes first, so every later relationship can see its target.
@@ -206,13 +228,20 @@ def rows(data: Sample, extra_label: str | None = None) -> list[Batch]:
     for area_code in rep.affected_areas:
         g.rel("AFFECTS", "Infeasibility", k, "PlanningArea", area_code)
 
-    return list(g.batches.values())
+    return g
 
 
 def load(data: Sample, session: Session, extra_label: str | None = None) -> dict[str, int]:
     """MERGE the bundle into the graph. Returns rows sent per node label or relationship.
-    Run `apply_schema` first: the uniqueness constraints are what make MERGE safe."""
+    Run `apply_schema` first: the uniqueness constraints are what make MERGE safe.
+
+    The loaded nodes' outgoing links are replaced, not added to: they are deleted first, so
+    the graph matches the bundle after every run. Nodes the bundle does not mention are left
+    alone (use `clear_sample` to remove the sample)."""
     counts: dict[str, int] = {}
+    for batch in stale_links(data):
+        for i in range(0, len(batch.rows), BATCH_SIZE):
+            session.run(batch.cypher, {"rows": batch.rows[i : i + BATCH_SIZE]}).consume()
     for batch in rows(data, extra_label):
         for i in range(0, len(batch.rows), BATCH_SIZE):
             session.run(batch.cypher, {"rows": batch.rows[i : i + BATCH_SIZE]}).consume()

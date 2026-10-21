@@ -80,7 +80,7 @@ no contract change.
    days agrees poorly once k ≥ 3 (ARI 0.20), but assigning held-back days to the fitted centroids
    agrees 91–100%.
 
-## Decisions (20 Oct 2026, Sushant: recommended answers accepted, applied as design 1.8)
+## Decisions (20 Oct 2026, Sushant: recommended answers accepted, applied as design 1.8, renumbered 1.12 on merging main)
 
 1. **k stays 3–6.** Fewer than 4 sites to cluster raises `ValueError` (silhouette needs
    k < number of sites). Ties in silhouette go to the smaller k.
@@ -112,16 +112,16 @@ no contract change.
 2. **Held-back-days check (issue #15).** Proposed: fit on the week minus held-back days, assign
    the held-back days' profiles to the fitted centroids, and report the share of sites that keep
    their cluster, target ≥ 0.8; ARI of a full refit reported alongside. This adds a §6 row
-   (design 1.8). Which days to hold back on the real week (e.g. one weekday and one weekend day)?
+   (design 1.12). Which days to hold back on the real week (e.g. one weekday and one weekend day)?
 3. **Labels.** The design wants "a human label per cluster" but not how. Proposed: a
    deterministic rule on the cluster centroid: the peak band of its weekday half
    (`overnight` 00–05, `morning` 06–11, `daytime` 12–17, `evening` 18–23), plus `flat` when the
    centroid's range is small, plus `weekend` / `weekday` when one half is clearly busier. Site
    kind ("residential") is not used, since a cluster mixes kinds. Exposed as
-   `label_patterns(occupancy, patterns) -> dict[int, str]` (a new function: design 1.8).
+   `label_patterns(occupancy, patterns) -> dict[int, str]` (a new function: design 1.12).
 4. **Writing `site_pattern`.** No writer is defined. Proposed
    `write_patterns(conn, patterns, labels) -> int` in `patterns.py`, upsert on `site_id`, no
-   commit, like `write_estimates` (design 1.8). Stale rows for sites no longer clustered: leave
+   commit, like `write_estimates` (design 1.12). Stale rows for sites no longer clustered: leave
    them, or delete first?
 5. **Missing bins.** On the sample and with weekend-only gaps, a site may lack some of the 48
    bins. Proposed: fill a missing bin with the site's mean over its bins of the same half
@@ -140,7 +140,7 @@ no contract change.
 - **Works:** `optev/analysis/patterns.py` with `find_patterns`, `label_patterns`,
   `pattern_silhouette`, `holdout_agreement`, `write_patterns`; `tests/test_patterns.py` (12 tests,
   one live). ruff, mypy, pytest pass; the live `write_patterns` test passed on Neon, rolled back.
-- **Design 1.8** applied to `SYSTEM_DESIGN.md` §4.2 step 3, §6 and the change log; needs a
+- **Design 1.12** applied to `SYSTEM_DESIGN.md` §4.2 step 3, §6 and the change log; needs a
   CODEOWNER's review in the PR. `scikit-learn` added to `pyproject.toml` and `uv.lock`.
 - **Finding 5 (with the agreed gap fill):** the sample's `we` half is filled with each site's
   mean, which carries the normalised level. k = 3 (silhouette 0.30) then sets apart the two
