@@ -147,3 +147,40 @@ total lots, kind, distance to the nearest station. No land use, residents or ame
 - **Not built:** the pipeline call (#35) and filtering by `site_indicators` there.
 - **Next:** PR for #16; follow-ups: censored regression on lower bounds (issue's ask), and a
   sample generator where served and no-charger demand share one relationship.
+
+## Findings on the collected week (21 Oct 2026, read-only; nothing written to Neon)
+
+Window `[7 Oct 14:00, 14 Oct 11:00)` SGT: 1851 `supply_active` sites in 36 planning areas, all
+with a point `all` (none reaches `RELIABLE_UP_TO`), 983 `no_supply`, 91 idle, 7 unobserved.
+
+1. **`nearest_point_m` is 0 m at the training sites and 72–385 m (p10–p90) at the no-charger
+   sites.** A served site's nearest charging point is its own charger. The linear model
+   extrapolated on it and predicted 0 arrivals at 424 of 983 no-charger sites (mean 0.14/h
+   against 0.65/h on training sites). Leave-area-out cannot see this: the feature never
+   varies among training rows.
+2. Without it, validation is unchanged and no prediction is 0 (mean 0.33/h):
+
+| Leave-area-out, 1851 sites | MAE (arrivals/h) | Spearman ρ |
+|---|---|---|
+| Linear (kept) | 0.352 | 0.477 |
+| HGB | 0.360 | 0.448 |
+| Held-out area predicted by the other areas' mean | 0.394 | −0.27 |
+| Hidden site predicted by its own area's average (§6 baseline) | 0.376 | 0.21 |
+
+The model beats both baselines on MAE; ρ is just under the §6 0.5 target.
+
+## Decision (21 Oct 2026, Sushant)
+
+5. **Drop distance to the nearest charging point from the regression features** (design 1.16,
+   numbered after #58 and #72's 1.14 and 1.15). `nearest_point_m` is ignored if a context
+   carries it; the rules keep it as a fact. Sample results are unchanged by it.
+
+## Checkpoint · 21 Oct 2026 (2)
+
+- **Works:** `NUMERIC` and `_CONTEXT_SQL` without `nearest_point_m`; new test that a context
+  with the distance gives the same estimates. Branch `sushant/16-drop-nearest-point`, stacked
+  on `sushant/16-spec-number` (#78).
+- **Not done:** `site_indicators` and `demand_estimate` in Neon are still empty; the pipeline
+  (#35) writes them. ρ 0.477 misses the 0.5 target; spec 018 (censored, on hold) won't help on
+  this week, since it has no lower bounds.
+- **Next:** owner review of design 1.16; then post the table above for the report.

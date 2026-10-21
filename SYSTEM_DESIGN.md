@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.13 · 21 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.16 · 21 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -403,7 +403,10 @@ def write_unserved(conn: psycopg.Connection, estimates: list[DemandEstimate]) ->
    `supply_active` and an `all` estimate of `kind = point` (lower-bound labels are excluded in
    version 1; a censored regression is the stated improvement). Features: mean car park
    occupancy at night (wd-00…wd-05) and by day (wd-09…wd-17), total lots, site kind, land use,
-   amenities nearby, residents in area, distance to the nearest charging point. Models: linear
+   amenities nearby, residents in area. Not the distance to the nearest charging point: a
+   training site's nearest point is its own charger (0 m), so the model would extrapolate to
+   the distances no-charger sites have; on the collected week that predicted zero at 43% of
+   them (spec 019). Models: linear
    regression as the baseline, then scikit-learn `HistGradientBoostingRegressor`; keep the
    better under leave-area-out validation. Predict `all` for `no_supply` sites, then spread it
    across bins with the mean normalised profile of training sites of the same kind (all
@@ -413,8 +416,8 @@ def write_unserved(conn: psycopg.Connection, estimates: list[DemandEstimate]) ->
    the `supply_active` estimates; `supply_idle` sites do not train, and `unobserved` sites get
    no estimate (the rules defer them). Training sites in fewer than two planning areas is an
    error. `context` keys: `cp_occupancy_night`, `cp_occupancy_day` (weekday car park
-   occupancy over the window), `residents_in_area`, `amenities_nearby`, `nearest_point_m`, and
-   `land_use:<VALUE>` = 1; a missing value is left out (NaN for the boosted model, the
+   occupancy over the window), `residents_in_area`, `amenities_nearby`, and
+   `land_use:<VALUE>` = 1; any other key is ignored; a missing value is left out (NaN for the boosted model, the
    training median for the linear one).
 
 **Checked by.** Silhouette (patterns); MAPE against simulated known demand, which also
@@ -720,3 +723,8 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   `write_unserved`; context keys, which sites the caller passes, missing features, the
   profile fallback and the note stated; `unobserved` sites get no estimate (issue #16,
   spec 019).
+- **1.16 · 21 Oct 2026.** Sites with no chargers (§4.2 step 4): distance to the nearest
+  charging point is no longer a regression feature, and `nearest_point_m` leaves the
+  `context` keys. It is about 0 m at every training site, so the model extrapolated to 0
+  arrivals at 43% of no-charger sites on the collected week; without it, validation is
+  unchanged (spec 019). Rules keep it as a fact. 1.14 and 1.15 are #58 and #72.
