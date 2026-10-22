@@ -210,6 +210,20 @@ def test_station_connectors_count_at_the_nearest_site_only():
     assert sum(by_sample.values()) == sum(c.ever_active for c in S.connectors)
 
 
+def test_connector_totals_reconcile_with_the_source():
+    """#10 done-when: every active connector in the source is either counted at exactly one
+    site or sits at a station with no site within the largest threshold, never both, never
+    lost. One station is moved out to sea so the second case is exercised."""
+    far = S.stations[0].model_copy(update={"coord": Coordinate(lat=1.20, lon=104.05)})
+    stations = [far, *S.stations[1:]]
+    out = _run(stations=stations)
+    active = [c for c in out.connectors if c.ever_active]
+    linked = {p["station_id"] for p in out.station_site}
+    stranded = sum(1 for c in active if c.station_id not in linked)
+    assert far.station_id not in linked and stranded > 0
+    assert sum(s.existing_connectors for s in out.sites) + stranded == len(active)
+
+
 def test_nearest_point_is_distance_to_closest_active_station():
     out = _run()
     by_sample = {TO_SAMPLE[k]: v for k, v in out.nearest_point_m.items()}
