@@ -299,6 +299,22 @@ REFERENCES = {
             "url": "https://www.lta.gov.sg/content/dam/ltagov/industry_innovations/Technologies/"
             "Electric_Vehicles/PDF/ECCG_Guidelines_and_FAQs_05032025.pdf",
         },
+        {
+            "doc_id": "doc-mha-ev-carparks-2026",
+            "title": "Adequacy of Fire Safety Standards for Electric Vehicles in Enclosed and "
+            "Multi-Storey Car Parks (written parliamentary reply, 8 Sep 2026)",
+            "publisher": "MHA",
+            "url": "https://www.mha.gov.sg/media-room/newsroom/adequacy-of-fire-safety-"
+            "standards-for-electric-vehicles-in-enclosed-and-multi-storey-car-parks/",
+        },
+        {
+            "doc_id": "doc-mot-ev-reply-2025",
+            "title": "Progress on Installation of EV Chargers in HDB Car Parks and Public Spaces "
+            "(written parliamentary reply, 14 Oct 2025)",
+            "publisher": "MOT",
+            "url": "https://www.mot.gov.sg/news-resources/newsroom/"
+            "progress-on-installation-of-ev-chargers-in-hdb-car-parks-and-public-spaces/",
+        },
     ],
     "assumptions": [
         {
