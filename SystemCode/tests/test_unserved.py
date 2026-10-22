@@ -1,10 +1,9 @@
 """Demand at sites with no chargers (§4.2 step 4) on optev.sample. The sample has no
-`site_context`, so the context here is car park occupancy from `car_park_readings()` and the
-distance to the nearest station from coordinates. Scores against `truth()` are recorded in
-spec 019, not asserted: the generator gives served and no-charger sites unrelated demand.
+`site_context`, so the context here is car park occupancy from `car_park_readings()`. Scores
+against `truth()` are recorded in spec 019, not asserted: the generator gives served and
+no-charger sites unrelated demand.
 The live test runs only when DATABASE_URL is in the environment and is rolled back."""
 
-import math
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -31,12 +30,6 @@ SITES = [s for s in S.sites if s.site_id in ACTIVE | NO_SUPPLY]
 OBSERVED = [e for e in D.infer_demand(INDICATORS, OCCUPANCY) if e.site_id in ACTIVE]
 
 
-def _metres(a: Coordinate, b: Coordinate) -> float:
-    dy = (a.lat - b.lat) * 111_320
-    dx = (a.lon - b.lon) * 111_320 * math.cos(math.radians(a.lat))
-    return math.hypot(dx, dy)
-
-
 def _context() -> dict[str, dict[str, float]]:
     """What `unserved_context` reads from Postgres, built from the sample's contracts."""
     occ: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
@@ -48,7 +41,7 @@ def _context() -> dict[str, dict[str, float]]:
                 occ[r.car_park_id][band].append(1 - r.lots_available / r.total_lots)
     out = {}
     for s in S.sites:
-        c = {"nearest_point_m": min(_metres(s.coord, st.coord) for st in S.stations)}
+        c = {}
         for band, values in occ.get(s.car_park_id or "", {}).items():
             c[f"cp_occupancy_{band}"] = sum(values) / len(values)
         out[s.site_id] = c
@@ -109,6 +102,14 @@ def test_land_use_and_site_context_keys_are_used():
     assert x.shape == (len(SITES), len(U.NUMERIC) + 1 + len(SiteKind) + 2)
     assert {e.site_id for e in U.estimate_unserved(SITES, OBSERVED, context)
             if e.time_bin == "all"} == NO_SUPPLY
+
+
+def test_distance_to_the_nearest_point_is_not_a_feature():
+    """A served site's nearest point is its own charger, so the distance would only ever be
+    learned near 0 m (design 1.16). A context that carries it gives the same estimates."""
+    with_distance = {k: {**v, "nearest_point_m": 50.0 * i}
+                     for i, (k, v) in enumerate(CONTEXT.items())}
+    assert U.estimate_unserved(SITES, OBSERVED, with_distance) == ROWS
 
 
 def test_one_training_area_is_an_error_and_nothing_to_predict_is_empty():

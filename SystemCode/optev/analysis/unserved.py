@@ -32,8 +32,9 @@ RANDOM_STATE = 0
 # A model setting, not a declared assumption: the default leaf of 20 makes the boosted trees a
 # constant on the tens of training sites we have (spec 019, question 5).
 MIN_SAMPLES_LEAF = 2
-NUMERIC = ["cp_occupancy_night", "cp_occupancy_day", "residents_in_area", "amenities_nearby",
-           "nearest_point_m"]
+# No distance to the nearest charging point: a training site's nearest point is its own charger,
+# so the model would never see the distances no-charger sites have (design 1.16, spec 019).
+NUMERIC = ["cp_occupancy_night", "cp_occupancy_day", "residents_in_area", "amenities_nearby"]
 LAND_USE = "land_use:"
 """Context keys: NUMERIC, plus `land_use:<VALUE>` = 1.0 for a site's land use."""
 
@@ -167,8 +168,7 @@ WITH occ AS (
            avg(occupancy) FILTER (WHERE h BETWEEN 9 AND 17) AS day
     FROM occ GROUP BY car_park_id
 )
-SELECT s.site_id, cp.night, cp.day, x.residents_in_area, x.amenities_nearby,
-       x.nearest_point_m, x.land_use
+SELECT s.site_id, cp.night, cp.day, x.residents_in_area, x.amenities_nearby, x.land_use
 FROM candidate_site s
 LEFT JOIN cp ON cp.car_park_id = s.car_park_id
 LEFT JOIN site_context x ON x.site_id = s.site_id
