@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.17 · 22 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.18 · 22 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -636,8 +636,21 @@ Selecting a site calls `scenario.planned.select_site` and re-runs allocation. **
 given.
 Order: migrate check → `conform` → `site_indicators` + `occupancy_by_bin` → `infer_demand` →
 `find_patterns` → `estimate_unserved` → `make_scenarios` + `project` → rules for every site →
-`allocate` → `check` → graph `load_all`. Each step reads only what earlier steps wrote and can
-be re-run on its own. Target: one planning area end to end in under 10 minutes.
+`allocate` → `check` → write the plan → coverage report → graph `load_all`. Each step reads only
+what earlier steps wrote and can be re-run on its own: `--from STEP` restarts part-way, `--only
+STEP …` runs some (a step that needs this run's measurements pulls in `indicators`). Target: one
+planning area end to end in under 10 minutes.
+
+- **The plan is written by the pipeline** (`write_plan`), since no stage owns it: `allocation` and
+  `allocation_item`, or `infeasibility`, under the §3.3 ids; re-running a request replaces it.
+- **The allocator plans on the scenario's demand:** `scenario_demand` for a scenario,
+  `demand_estimate` for `observed`.
+- **`load_all`** reads every pipeline table into one bundle (`graph/read.py`) with all plans and
+  reports, and loads it with `load`; source titles and links come from the sample's references
+  until a reference table exists.
+- **Offline:** `python -m optev.sample.seed_db` writes the sample into an empty, migrated database
+  as collection and the static loads would (car parks in the §3.3 `hdb:`/`ura:` format), so the
+  whole pipeline runs without Neon. It refuses a database that holds real readings.
 
 ---
 
@@ -755,3 +768,6 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.17 · 22 Oct 2026.** Scenarios (§4.3, #28): new `write_scenarios` upserts `scenario` and
   replaces each scenario's `scenario_demand` rows; `python -m optev.scenario.project` reads
   `demand_estimate`, projects it and writes it (spec 027). The growth fit is still open.
+- **1.18 · 22 Oct 2026.** Pipeline (§5, #35): `--from` / `--only`, the pipeline writes the
+  plan, the allocator plans on `scenario_demand`, `load_all` reads every table, and
+  `sample.seed_db` runs the whole pipeline offline.
