@@ -1,4 +1,4 @@
-# 019 · Spatial joins: close out #10
+# 023 · Spatial joins: close out #10
 
 **Owner:** Shrey  ·  **Status:** approved 21 Oct 2026; built  ·  **Branch:** `shrey/10-spatial-joins` (from `main`)
 **Issue:** #10 (1.5 · Spatial joins at 100 / 150 / 300 m)
@@ -52,3 +52,6 @@ included. No database run.
 - **Decisions:** design thresholds stay (50 / 100 / 200 m); the issue's 100 / 150 / 300 m and
   three tables are superseded by design 1.6 and #53.
 - **Next:** reviewer closes #10 with this PR.
+
+## Checkpoint · 22 Oct 2026
+- Renumbered from 019 to **023**: 019 is taken by #78, #79, #84 and #85.
