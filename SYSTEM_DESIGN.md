@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.17 · 22 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.18 · 22 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -222,7 +222,7 @@ The database rejects any other value.
 
 `optev/assumptions.py` holds every declared value, with its unit and source:
 `MEAN_SESSION_HOURS` (3.0 h), `RELIABLE_UP_TO` (0.93, to be measured), `IDLE_BELOW` (0.05),
-`GROWTH_LOW/BASE/HIGH` (placeholders until #28), `HORIZON_MONTHS` (51),
+`GROWTH_LOW/BASE/HIGH` (3.26, 3.65, 3.99; fitted, spec 027), `HORIZON_MONTHS` (51),
 `MAX_SHARE_OF_LOTS` (0.15), `COST_PER_POINT_SGD` (9,250; tested at `COST_LOW_SGD` 5,500 and
 `COST_HIGH_SGD` 10,500), `MATCH_THRESHOLDS_M` (50, 100, 200),
 `AMENITY_LINK_M` (150), `SNAPSHOT_MINUTES` (30), `MIN_COVERAGE` (0.5). Placeholders must be replaced with cited
@@ -237,6 +237,7 @@ values before the report.
 | Points are the planning unit | LTA factsheet, 4 Mar 2021 (above) | 60,000 points by 2030: 40,000 in public car parks, 20,000 in private premises | Why points is the main input |
 | Operators fund HDB chargers | [LTA, 2 Nov 2022](https://www.lta.gov.sg/content/ltagov/en/newsroom/2022/11/news-releases/more_EV_charging_points_to_be_deployed.html) | Five operators won the HDB tender; they pay a concession fee for the right to install and operate | Why budget is optional |
 | Demand first, capacity permitting | [MOT written reply, 14 Oct 2025](https://www.mot.gov.sg/news-resources/newsroom/progress-on-installation-of-ev-chargers-in-hdb-car-parks-and-public-spaces/) | Scale up in "carparks with high charging demand, electrical capacity permitting" | Matches our objective (demand) and the room limit per site |
+| `GROWTH_LOW/BASE/HIGH` = 3.26, 3.65, 3.99 | [data.gov.sg, New Registration of Cars by Make](https://data.gov.sg/dataset/monthly-new-registration-of-cars-by-make) (Jul 2022 to May 2025); LTA monthly statistics [M03](https://www.lta.gov.sg/content/dam/ltagov/who_we_are/statistics_and_publications/statistics/pdf/M03-Car_Regn_by_make.pdf) and [M09](https://www.lta.gov.sg/content/dam/ltagov/who_we_are/statistics_and_publications/statistics/pdf/M09-Vehs_by_Fuel_Type.pdf) (2026) | Electric share of new cars rose from 12% to 42%; 4,007 to 5,049 new cars a month in 2026; 72,067 electric cars on 31 Aug 2026 | Electric-car fleet at Dec 2030 over the fleet at the collected week, assuming charging demand scales with the fleet (spec 027, `specs/027-scenarios/fit/fit.py`) |
 
 ### 3.6 Sample data
 
@@ -447,9 +448,12 @@ def clear_selection(scenario_id: str, site_id: str) -> None
 def effective_connectors(scenario_id: str, sites: list[CandidateSite]) -> dict[str, int]
 ```
 
-**Method.** Scenarios use `GROWTH` and `HORIZON_MONTHS`; #28 replaces the placeholder
-multipliers with a growth rate fitted to monthly EV registrations and checked against the
-LTA dashboard. Projected demand = observed estimate × multiplier, per site and bin, written
+**Method.** Scenarios use `GROWTH` and `HORIZON_MONTHS`. The multipliers are fitted offline
+(spec 027): a logistic curve for the electric share of monthly new car registrations, times
+new cars a month, added to the LTA electric-car population; low and high take the share's
+80% bounds and the lowest and highest month of 2026. A fit on the registration counts
+themselves outgrows the COE-capped car market within two years. Checked against LTA's 2026
+statistics, which the fit does not see. Projected demand = observed estimate × multiplier, per site and bin, written
 to `scenario_demand` with its `scenario_id`, **never** to `demand_estimate`. Lower bounds stay
 lower bounds. Planner selections go to `planned_capacity`. When solving a scenario,
 `effective_connectors` = existing + planned for that scenario only.
@@ -689,7 +693,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 | 1 | ~~LLM provider for #27~~ Settled in 1.6: any provider via `.env`; key to be added | Ghanashyam | 22 Oct |
 | 2 | Confirm the demo-area criterion (§1) | Team | Before results |
 | 3 | Minimum points per chosen site? The HDB tender asked for 3 to 6 per car park ([LTA, 29 Mar 2022](https://www.lta.gov.sg/content/ltagov/en/newsroom/2022/3/news-releases/ramping_up_charging_infrastructure.html)) | Shrey, Gurneet | 14 Oct |
-| 4 | Growth multipliers fitted from registrations | Sushant (#28) | 14 Oct |
+| 4 | ~~Growth multipliers fitted from registrations~~ Settled in 1.18: 3.26, 3.65, 3.99 | Sushant (#28) | 14 Oct |
 | 5 | Contract additions (estimate method, scenario on estimates, pattern label) | All four | Only if tables prove insufficient |
 
 ## 10. Change log
@@ -755,3 +759,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.17 · 22 Oct 2026.** Scenarios (§4.3, #28): new `write_scenarios` upserts `scenario` and
   replaces each scenario's `scenario_demand` rows; `python -m optev.scenario.project` reads
   `demand_estimate`, projects it and writes it (spec 027). The growth fit is still open.
+- **1.18 · 22 Oct 2026.** Growth (§3.5, §4.3, #28): `GROWTH_LOW/BASE/HIGH` fitted, 3.26, 3.65
+  and 3.99 in place of the 1.4, 1.8 and 2.2 placeholders. The fit is on the electric share of
+  new cars, not on the counts, which outgrow the whole car market; back-cast MAPE 8.3%, and
+  Jan to Aug 2026 registrations predicted within 6.3% (spec 027). Every scenario result moves.

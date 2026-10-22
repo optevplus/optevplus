@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from optev.assumptions import GROWTH, HORIZON_MONTHS
+from optev.assumptions import GROWTH, GROWTH_BASE, HORIZON_MONTHS
 from optev.contracts import Allocation, EstimateKind, Provenance
 from optev.reasoning import allocate as A
 from optev.sample import load
@@ -36,8 +36,8 @@ def test_project_scales_every_rate_and_keeps_site_bin_and_kind():
     for before, after in zip(S.estimates, out, strict=True):
         assert (after.site_id, after.time_bin, after.kind) == (
             before.site_id, before.time_bin, before.kind)
-        assert math.isclose(after.arrivals_per_hour, before.arrivals_per_hour * 1.8)
-        assert after.note == "simulated: x1.8 (base)"
+        assert math.isclose(after.arrivals_per_hour, before.arrivals_per_hour * GROWTH_BASE.value)
+        assert after.note == f"simulated: x{GROWTH_BASE.value:g} (base)"
 
 
 def test_a_lower_bound_stays_a_lower_bound():
@@ -57,7 +57,7 @@ def test_projected_base_demand_is_what_the_allocator_works_from():
     """Issue #28 done-when: a scenario produces demand the allocator can work from. The
     allocator tests scale the estimates by hand; `project` must give the same plan."""
     base = next(s for s in S.scenarios if s.scenario_id == "base")
-    by_hand = [e.model_copy(update={"arrivals_per_hour": e.arrivals_per_hour * 1.8})
+    by_hand = [e.model_copy(update={"arrivals_per_hour": e.arrivals_per_hour * GROWTH_BASE.value})
                for e in S.estimates]
     ours = A.allocate(S.decisions, S.sites, P.project(S.estimates, base), base,
                       requested_connectors=12)

@@ -58,6 +58,12 @@ def test_cost_and_lot_share_are_cited_not_placeholders():
     assert A.COST_LOW_SGD.value <= A.COST_PER_POINT_SGD.value <= A.COST_HIGH_SGD.value
 
 
+def test_growth_is_fitted_not_placeholders():
+    for a in A.GROWTH.values():
+        assert "PLACEHOLDER" not in a.source and "spec 027" in a.source
+    assert A.GROWTH_LOW.value < A.GROWTH_BASE.value < A.GROWTH_HIGH.value
+
+
 def test_allocation_and_report_ids_match_the_design_examples():
     from optev.graph.schema import allocation_key, infeasibility_key
 

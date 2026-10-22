@@ -347,7 +347,7 @@ REFERENCES = {
         },
     ],
 }
-SCENARIOS = [("low", 1.4), ("base", 1.8), ("high", 2.2)]
+SCENARIOS = [("low", 3.26), ("base", 3.65), ("high", 3.99)]
 
 
 def erlang_b(c: int, a: float) -> float:
