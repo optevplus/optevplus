@@ -1,4 +1,4 @@
-# 026 · Scenarios: growth fit and projected demand
+# 027 · Scenarios: growth fit and projected demand
 
 **Owner:** Shrey (B), Sushant (A, if he takes it)  ·  **Status:** approved 22 Oct 2026; part B built, part A open  ·  **Branch:** `shrey/28-scenarios` (from `main`)
 **Issue:** #28 (6.1 · Scenario generation from the collected baseline; leads Sushant + Shrey)
@@ -48,7 +48,7 @@ and `scenario_demand` only. Reads `demand_estimate` (Sushant's `write_estimates`
 4. Stability check (§6 stage 3): `top10_stability` is evaluation, not this PR, unless you want it.
 
 ### A · Growth fit (Sushant, or Shrey if he passes) — offline, no new module
-- Script in `specs/026-scenarios/fit/` (precedent: `specs/013-lag-demand/prototype/`), reading
+- Script in `specs/027-scenarios/fit/` (precedent: `specs/013-lag-demand/prototype/`), reading
   the data.gov.sg file into `data/raw/` (gitignored; never committed).
 - Monthly new **electric** registrations `r_m`; fit `log r_m = a + g·m` on the last 36 months.
 - Fleet now `E0` from the LTA dashboard (hand-copied, cited with its month). Fleet at the
@@ -56,7 +56,7 @@ and `scenario_demand` only. Reads `demand_estimate` (Sushant's `write_estimates`
   **Multiplier = E_H / E0**, assuming charging demand scales with the EV fleet.
 - `low` / `high`: `g` at the bounds of its 80% confidence interval.
 - Back-cast: fit on all but the last 12 months, predict them, report MAPE.
-- Result goes into `assumptions.py` as cited values ("fitted to data.gov.sg ..., spec 026").
+- Result goes into `assumptions.py` as cited values ("fitted to data.gov.sg ..., spec 027").
 
 ## Verification
 - B on `optev.sample`: three scenarios with the configured multipliers; `project` scales every
@@ -84,3 +84,4 @@ and `scenario_demand` only. Reads `demand_estimate` (Sushant's `write_estimates`
   database; live write test rolls back (not run here). ruff, mypy, pytest: 324 passed.
 - **Not run on Neon:** `python -m optev.scenario.project` waits for Shrey's OK.
 - **A open:** growth fit; Sushant asked first. Multipliers stay the placeholders until then.
+- Renumbered 026 → **027** (22 Oct): 026 is taken by #87.

@@ -1,4 +1,4 @@
-"""Growth scenarios and projected demand (#28, SYSTEM_DESIGN.md §4.3), spec 026.
+"""Growth scenarios and projected demand (#28, SYSTEM_DESIGN.md §4.3), spec 027.
 
 A scenario is a simulated layer on top of the observed estimates: every arrival rate is
 scaled by the scenario's growth multiplier and written to `scenario_demand`, never to

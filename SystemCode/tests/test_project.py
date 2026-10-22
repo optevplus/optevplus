@@ -1,4 +1,4 @@
-"""Scenarios and projected demand (SYSTEM_DESIGN.md §4.3, #28, spec 026), on optev.sample.
+"""Scenarios and projected demand (SYSTEM_DESIGN.md §4.3, #28, spec 027), on optev.sample.
 The live test runs only when DATABASE_URL is in the environment and rolls back what it writes."""
 
 import math

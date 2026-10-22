@@ -754,4 +754,4 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   unchanged (spec 019). Rules keep it as a fact. 1.14 and 1.15 are #58 and #72.
 - **1.17 · 22 Oct 2026.** Scenarios (§4.3, #28): new `write_scenarios` upserts `scenario` and
   replaces each scenario's `scenario_demand` rows; `python -m optev.scenario.project` reads
-  `demand_estimate`, projects it and writes it (spec 026). The growth fit is still open.
+  `demand_estimate`, projects it and writes it (spec 027). The growth fit is still open.
