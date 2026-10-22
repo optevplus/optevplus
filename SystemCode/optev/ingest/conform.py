@@ -380,6 +380,22 @@ UPSERT_CONTEXT = """INSERT INTO site_context (site_id, amenities_nearby, nearest
     VALUES (%s, %s, %s) ON CONFLICT (site_id) DO UPDATE SET
     amenities_nearby = EXCLUDED.amenities_nearby, nearest_point_m = EXCLUDED.nearest_point_m"""
 
+# the static loads (migration 004, spec 004): amenities, land-use plots, residents per area
+HAS_STAGING = "SELECT to_regclass('stg_amenity') IS NOT NULL AS staged"
+READ_AMENITIES = """SELECT amenity_id AS site_id, kind, ST_Y(geom) AS lat, ST_X(geom) AS lon
+    FROM stg_amenity"""
+# overlapping plots: the smallest id wins, so a rerun gives the same answer
+FILL_LAND_USE = """UPDATE site_context sc SET land_use = (
+    SELECT l.lu_desc FROM stg_land_use l JOIN candidate_site s ON ST_Contains(l.geom, s.geom)
+    WHERE s.site_id = sc.site_id ORDER BY l.land_use_id LIMIT 1)"""
+FILL_RESIDENTS = """UPDATE site_context sc SET residents_in_area = (
+    SELECT r.residents FROM stg_residents r JOIN candidate_site s
+    ON s.planning_area = r.planning_area WHERE s.site_id = sc.site_id)"""
+COUNT_UNPLACED = """SELECT
+    count(*) FILTER (WHERE s.planning_area IS NULL) AS site_without_planning_area,
+    count(*) FILTER (WHERE sc.land_use IS NULL) AS site_without_land_use
+    FROM candidate_site s JOIN site_context sc USING (site_id)"""
+
 
 def _with_coord(row: Mapping[str, Any]) -> dict[str, Any]:
     out = {k: v for k, v in row.items() if k not in ("lat", "lon")}
@@ -390,7 +406,7 @@ def _with_coord(row: Mapping[str, Any]) -> dict[str, Any]:
 def write(cur: Any, result: Conformed) -> dict[str, int]:
     """Upsert the conformed rows. Keyed on primary keys, so a rerun gives the same tables.
     `station_site` is rebuilt whole, since pairs can disappear when a station moves.
-    `land_use` and `residents_in_area` are left for the polygon loads to fill."""
+    `land_use` and `residents_in_area` are filled afterwards by `fill_context`."""
     live = [cp for cp in result.car_parks if cp.has_live_feed]
     cur.execute(MARK_FEED, ([cp.car_park_id for cp in live],))
     cur.executemany(SET_LOTS, [(cp.total_lots, cp.car_park_id) for cp in live
@@ -421,8 +437,24 @@ def write(cur: Any, result: Conformed) -> dict[str, int]:
     }
 
 
+def amenity_sites(rows: Iterable[Mapping[str, Any]], issues: dict[str, int]) -> list[CandidateSite]:
+    """`stg_amenity` rows as candidate sites; `build_sites` links or keeps each one."""
+    return parse_rows(CandidateSite, map(_with_coord, rows), issues, "amenity")
+
+
+def fill_context(cur: Any) -> dict[str, int]:
+    """Point-in-polygon land use and residents per planning area into `site_context`, after
+    `write`. Returns the sites left outside every planning area or land-use plot: they stay
+    NULL (design §4.1), so the run says how many."""
+    cur.execute(FILL_LAND_USE)
+    cur.execute(FILL_RESIDENTS)
+    counts = cur.execute(COUNT_UNPLACED).fetchone()
+    return {k: int(n) for k, n in counts.items() if n}
+
+
 def conform() -> dict[str, int]:
-    """Rows upserted per table. Needs DATABASE_URL and migrations 001-002."""
+    """Rows upserted per table. Needs DATABASE_URL and migrations 001-002; with 004 (the
+    static loads) it also adds amenity sites, land use and residents."""
     import psycopg
     from psycopg.rows import dict_row
 
@@ -433,15 +465,23 @@ def conform() -> dict[str, int]:
     with psycopg.connect(url, row_factory=dict_row) as conn, conn.cursor() as cur:
         car_parks = parse_rows(
             CarPark, map(_with_coord, cur.execute(READ_CAR_PARKS)), issues, "car_park")
-        # the collected data has no amenity source yet; amenity sites wait for one
-        log.info("conform: no amenity source in the collected data, car park sites only")
+        row = cur.execute(HAS_STAGING).fetchone()
+        staged = bool(row and row["staged"])
+        if staged:
+            amenities = amenity_sites(cur.execute(READ_AMENITIES), issues)
+        else:
+            amenities = []
+            log.info("conform: migration 004 not applied, car park sites only")
         stations = parse_rows(
             Station, map(_with_coord, cur.execute(READ_STATIONS)), issues, "station")
         connectors = parse_rows(Connector, cur.execute(READ_CONNECTORS), issues, "connector")
         observed = {r["connector_id"]: r["active"] for r in cur.execute(READ_OBSERVED)}
         feed = {r["car_park_id"]: r["total_lots"] for r in cur.execute(READ_FEED)}
-        result = conform_records(car_parks, [], stations, connectors, observed, feed, issues)
+        result = conform_records(car_parks, amenities, stations, connectors, observed, feed,
+                                 issues)
         written = write(cur, result)
+        if staged:
+            issues.update(fill_context(cur))
         conn.commit()
     for key, n in sorted(result.issues.items()):
         log.warning("conform: %d %s", n, key)
