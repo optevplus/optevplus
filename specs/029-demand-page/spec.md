@@ -61,6 +61,18 @@ served sites' 24 `wd` bins; patterns match `find_patterns`; the page renders (`A
 - Decision: on the sample, hourly bins and patterns come from running the analysis package over
   the sample readings (as decisions come from the rules engine); `all` stays the sample's, so the
   sample's daily figure and its hourly profile disagree. Real data has no such gap.
-- Not verified against Postgres (no DATABASE_URL here). The six `test_graph_*` failures in the
-  full run also fail on `main`; they are unrelated.
-- Next: review by Gurneet (owner of `data.py`), then check the page on the loaded database.
+- The six `test_graph_*` failures in the full run also fail on `main`; they are unrelated.
+- Next: review by Gurneet (owner of `data.py`).
+
+## Checkpoint · 22 Oct 2026 (Postgres)
+- Live Neon: `from_postgres` and the page run on 2,932 sites. `site_indicators`,
+  `demand_estimate` and `site_pattern` are still empty (the pipeline, #35, has not written
+  them), so the page shows zero counts and "not measured yet" without error.
+- Full scale, nothing written: the analysis package run in memory over the collected week
+  `[7 Oct 14:00, 14 Oct 11:00)` SGT read from Neon, then the page rendered on it.
+  1,851 active, 983 no supply, 91 idle, 7 unobserved; 2,925 daily estimates; 3 patterns;
+  48 bins at 1,818 sites; 327 sites with lower-bound hours read "at least"; no `no_supply`
+  site has a utilisation. No daily (`all`) figure is a lower bound on the real week.
+- Fixed from this: lower-bound wording now cites `RELIABLE_UP_TO` instead of "every charger
+  taken"; the no-profile note says why (no supply, unobserved, not measured yet).
+- Next: re-check on the stored tables once #35's pipeline has run.

@@ -9,6 +9,13 @@ import streamlit as st
 
 from optev.app.data import AppData, load
 from optev.app.demand_view import demand_table, figure, pattern_rows, profile, supply_counts
+from optev.assumptions import RELIABLE_UP_TO
+
+NO_PROFILE = {
+    "no_supply": "no chargers were observed here, so demand is inferred for the day as a whole.",
+    "unobserved": "too few snapshots were seen here to measure it; the rules defer this site.",
+    None: "this site has not been measured yet.",
+}
 
 st.set_page_config(page_title="OptEV+ · Demand", page_icon="📈", layout="wide")
 
@@ -22,8 +29,8 @@ data = _data()
 st.title("Demand at each site")
 st.caption("OBSERVED: what the charger feed showed over the collected week. INFERRED: arrivals "
            "per hour from the queueing model (sites with chargers) or the regression (sites "
-           "without). Where every charger was taken, drivers were turned away unseen, so the "
-           "figure is a lower bound and reads **at least**.")
+           f"without). Where occupancy reached {RELIABLE_UP_TO.value:.0%} or more, drivers were "
+           "turned away unseen, so the figure is a lower bound and reads **at least**.")
 if data.source == "sample":
     st.info("Showing the **synthetic sample** (ids `SYN-…`). Its daily figures are the sample's "
             "stand-in estimates; the hourly profiles are inferred from its two weekdays of "
@@ -76,14 +83,14 @@ if estimate and estimate.note:
 
 hours = profile(data, site_id)
 if not hours:
-    st.caption("No hourly profile: no chargers were observed here, so demand is inferred for the "
-               "day as a whole.")
+    st.caption("No hourly profile: " + NO_PROFILE.get(row["supply_state (observed)"],
+                                                      "no hourly estimates are stored for it."))
     st.stop()
 frame = pd.DataFrame(hours)
 st.line_chart(frame, x="hour", y="arrivals_per_h (inferred)", color="day")
 bounded = [h for h in hours if h["lower_bound"]]
 if bounded:
-    st.warning("Every charger was taken in "
+    st.warning(f"Occupancy was {RELIABLE_UP_TO.value:.0%} or more in "
                + ", ".join(h["time_bin"] for h in bounded)
                + ": demand in those hours is **at least** the figure shown.")
 st.dataframe(frame.drop(columns=["lower_bound"]), hide_index=True, width="stretch")
