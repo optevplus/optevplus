@@ -10,10 +10,8 @@ from optev.sample import load
 
 S = load()
 SAMPLE_RULES = {r.rule_id: r for r in S.rules}
-
-# What the collected week (HDB car park availability + LTA EVCBatch) lets conform and the
-# indicators produce. Rules read nothing else until more data is collected.
-COLLECTED_FACTS = {"total_lots", "existing_connectors", "supply_state", "utilisation"}
+REFERENCES = {ref.get("dataset_id") or ref.get("doc_id") or ref.get("assumption_id")
+              for refs in S.references.values() for ref in refs}
 
 GOOD = """
 [[rule]]
@@ -37,21 +35,46 @@ def _write(tmp_path: Path, text: str) -> Path:
 
 def test_shipped_register_loads_with_an_outcome_per_rule():
     rules, on_fail = load_register()
-    assert [r.rule_id for r in rules] == ["R01", "R03", "R04"]
+    assert [r.rule_id for r in rules] == ["R01", "R02", "R03", "R04", "R05", "R06"]
     assert set(on_fail) == {r.rule_id for r in rules}
-    assert all(o in (Outcome.REJECT, Outcome.CONDITIONAL) for o in on_fail.values())
+    assert on_fail["R02"] is on_fail["R06"] is Outcome.CONDITIONAL
+    assert all(on_fail[r] is Outcome.REJECT for r in ("R01", "R03", "R04", "R05"))
 
 
-def test_rules_read_only_facts_the_collected_week_provides():
+def test_every_rule_cites_a_known_reference():
+    # rules come from sources; the graph links each rule to what its source_ref names
     rules, _ = load_register()
     for r in rules:
-        assert set(r.required_facts) <= COLLECTED_FACTS, r.rule_id
+        assert r.source_ref in REFERENCES, r.rule_id
+
+
+def test_r02_cites_the_mha_reply_on_basement_fire_safety():
+    rules, on_fail = load_register()
+    r02 = {r.rule_id: r for r in rules}["R02"]
+    assert (r02.source, r02.source_ref) == (RuleSource.GOV_POLICY, "doc-mha-ev-carparks-2026")
+    assert on_fail["R02"] is Outcome.CONDITIONAL
+    doc = next(d for d in S.references["documents"] if d["doc_id"] == r02.source_ref)
+    assert doc["publisher"] == "MHA" and "8 Sep 2026" in doc["title"]
+
+
+def test_r06_cites_the_mot_reply_on_electrical_capacity():
+    rules, on_fail = load_register()
+    r06 = {r.rule_id: r for r in rules}["R06"]
+    assert (r06.source, r06.source_ref) == (RuleSource.GOV_POLICY, "doc-mot-ev-reply-2025")
+    doc = next(d for d in S.references["documents"] if d["doc_id"] == r06.source_ref)
+    assert doc["publisher"] == "MOT" and "14 Oct 2025" in doc["title"]
 
 
 def test_register_agrees_with_the_sample_rules_it_shares():
     rules, on_fail = load_register()
-    for r in rules:
+    shared = [r for r in rules if r.rule_id in SAMPLE_RULES]
+    assert [r.rule_id for r in shared] == ["R01", "R02", "R03", "R04", "R05"]
+    for r in shared:
         want = SAMPLE_RULES[r.rule_id]
+        if r.rule_id == "R02":
+            # R02 needs `kind` for every site and reads car_park_type only for car parks;
+            # requiring car_park_type would defer every hawker centre and community club
+            want = want.model_copy(update={"required_facts": ["kind"]})
         assert (r.source, r.required_facts, on_fail[r.rule_id]) == (
             want.source, want.required_facts, S.rule_on_fail[r.rule_id]
         )
@@ -63,19 +86,18 @@ def test_r01_cites_the_feed_that_supplies_lot_counts():
     assert {r.rule_id: r.source_ref for r in rules}["R01"] == "ds-hdb-availability"
 
 
-def test_every_source_class_but_policy_is_used():
-    # gov_policy waits for a rule whose fact is collected; see specs/008
+def test_every_source_class_is_used():
+    # so an explanation can tell policy, data, arithmetic and our own assumption apart
     rules, _ = load_register()
-    assert {r.source for r in rules} == {
-        RuleSource.GOV_DATASET, RuleSource.MATH_CONSTRAINT, RuleSource.PROJECT_ASSUMPTION
-    }
+    assert {r.source for r in rules} == set(RuleSource)
 
 
 def test_templates_render_with_a_sample_sites_facts():
     site = S.sites[0]
     ind = next(i for i in S.indicators if i.site_id == site.site_id)
     facts = {"total_lots": site.total_lots, "existing_connectors": site.existing_connectors,
-             "supply_state": ind.supply_state.value}
+             "supply_state": ind.supply_state.value, "planning_area": site.planning_area,
+             "kind": site.kind.value}
     rules, _ = load_register()
     for r in rules:
         text = r.explanation_template.format(**facts)
@@ -135,4 +157,4 @@ def test_empty_and_malformed_files_are_refused(tmp_path):
 
 
 def test_design_fact_keys_are_the_ten_in_section_4_4():
-    assert len(FACTS) == 10 and COLLECTED_FACTS <= FACTS
+    assert len(FACTS) == 10

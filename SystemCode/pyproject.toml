@@ -19,6 +19,7 @@ dependencies = [
     "certifi>=2024.2",
     "pyproj>=3.6",
     "langgraph>=0.2",
+    "h3>=4.1",
 ]
 
 [project.optional-dependencies]
