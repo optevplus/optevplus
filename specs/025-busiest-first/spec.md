@@ -1,6 +1,6 @@
 # 025 · Baseline: busiest first
 
-**Owner:** Shrey  ·  **Status:** draft, awaiting Shrey's OK  ·  **Branch:** `shrey/36-busiest-first` (from `gurneetkb/37-spatial-spread`, #80, which creates `evaluation/baselines.py`)
+**Owner:** Shrey  ·  **Status:** approved 22 Oct 2026; built  ·  **Branch:** `shrey/36-busiest-first` (from `gurneetkb/37-spatial-spread`, #80, which creates `evaluation/baselines.py`)
 **Issue:** #36 (7.1a · Baseline: rank by observed utilisation)
 
 ## Design section
@@ -47,10 +47,17 @@ Reads `SiteIndicators.utilisation` (unchanged contract); returns `Allocation`.
 - the harness table lists "busiest first (#36)".
 ruff, mypy, `NEO4J_URI= uv run pytest` pass; `uv run python -m optev.evaluation.harness` prints the row.
 
-## Open questions
-1. **Fill to room vs one point per site.** "Busiest first" read literally fills the busiest
-   site first. Spreading one per site round-robin is a different rule (closer to #38). I'd fill.
-2. **Touching the harness** (Ghanashyam's #39) to add `indicators` to `Inputs`. It's additive
-   with a default; the alternative is passing utilisation through `residents`-style ad hoc
-   dicts, which is worse. I'd ping him on the PR.
-3. **Stacked on #80** (Gurneet, unreviewed). If #80 changes, this rebases.
+## Decisions (were open questions)
+1. **Fill to room**, then the next site: "busiest first" read literally.
+2. `harness.Inputs` gains `indicators` (default empty, so no caller breaks); to raise with
+   Ghanashyam (#39) on the PR.
+3. Stacked on #80; rebase if it changes.
+
+## Checkpoint · 22 Oct 2026
+- **Works:** `baselines.utilisation` (latest window per site, None kept) and
+  `baselines.busiest_first`; registered in `harness.sample_inputs`.
+- **Sample table (12 points, base, island-wide):** busiest first 3.658 drivers rescued / h,
+  1.08× the best of random and population share, 0 violations (spatial spread 3.632,
+  sample reference 3.738). All 12 points go to SYN-S-04 (utilisation 0.95, room 27).
+- **Tests:** 6 new in `tests/test_baselines.py`. ruff, mypy, pytest pass.
+- **Next:** PR on top of #80; retarget to `main` once #80 merges.

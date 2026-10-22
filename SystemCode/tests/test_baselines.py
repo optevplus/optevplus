@@ -1,10 +1,11 @@
-"""Baselines (#37 spatial spread, SYSTEM_DESIGN.md §6), on optev.sample through the harness."""
+"""Baselines (#36 busiest first, #37 spatial spread, SYSTEM_DESIGN.md §6), on optev.sample
+through the harness."""
 
 import math
 from dataclasses import replace
 
 from optev.evaluation import harness as H
-from optev.evaluation.baselines import _metres, spatial_spread
+from optev.evaluation.baselines import _metres, busiest_first, spatial_spread, utilisation
 
 REQ, INPUTS, METHODS = H.sample_inputs()
 SITES = {s.site_id: s for s in INPUTS.sites}
@@ -71,3 +72,63 @@ def test_is_in_the_comparison_table():
     rows = {r.method: r for r in H.compare(REQ, INPUTS, METHODS)}
     spread = rows["spatial spread (#37)"]
     assert spread.points == REQ.points and spread.violations == 0
+
+
+# Busiest first (#36, spec 025) ---------------------------------------------------------
+
+UTIL = utilisation(INPUTS.indicators)
+
+
+def _plan_of(plan) -> dict[str, int]:
+    return {i.site_id: i.connectors for i in plan.items}
+
+
+def test_busiest_first_places_the_requested_points_with_no_violations():
+    plan = busiest_first(REQ, INPUTS)
+    assert plan.total_connectors == REQ.points and H.violations(plan, REQ, INPUTS) == []
+    assert plan.requested_connectors == REQ.points and plan.scenario_id == REQ.scenario_id
+
+
+def test_busiest_first_fills_the_busiest_site_to_its_room_before_the_next():
+    measured = sorted((sid for sid in _open() if UTIL.get(sid) is not None),
+                      key=lambda sid: (-UTIL[sid], sid))  # type: ignore[operator]
+    first, second = measured[:2]
+    room = _open()[first]
+    assert _plan_of(busiest_first(REQ, INPUTS)) == {first: REQ.points}  # 12 <= room 27
+    assert _plan_of(busiest_first(replace(REQ, points=room + 3), INPUTS)) == {
+        first: room, second: 3}
+
+
+def test_unmeasured_sites_come_after_every_measured_one_never_as_zero():
+    space = _open()
+    measured = sum(r for sid, r in space.items() if UTIL.get(sid) is not None)
+    plan = _plan_of(busiest_first(replace(REQ, points=measured + 1), INPUTS))
+    unmeasured = sorted(sid for sid in space if UTIL.get(sid) is None)
+    assert {sid for sid in plan if UTIL.get(sid) is None} == {unmeasured[0]}
+    assert plan[unmeasured[0]] == 1
+    assert all(plan.get(sid) == r for sid, r in space.items() if UTIL.get(sid) is not None)
+
+
+def test_utilisation_takes_the_latest_window_and_keeps_none():
+    old = INPUTS.indicators[0]
+    new = old.model_copy(update={"window_end": "2099-01-01T00:00:00+08:00",
+                                 "utilisation": None if old.utilisation is None else 0.01})
+    assert utilisation([old, new])[old.site_id] == new.utilisation
+    assert utilisation([new, old])[old.site_id] == new.utilisation
+    assert None in UTIL.values() and 0 not in UTIL.values()
+
+
+def test_busiest_first_ignores_demand_and_respects_the_area():
+    tripled = replace(INPUTS, demand=[e.model_copy(update={"arrivals_per_hour":
+                                                          e.arrivals_per_hour * 3 + 1})
+                                      for e in INPUTS.demand])
+    assert busiest_first(REQ, tripled) == busiest_first(REQ, INPUTS)
+    in_pr = busiest_first(replace(REQ, planning_area="PR"), INPUTS)
+    assert {SITES[i.site_id].planning_area for i in in_pr.items} == {"PR"}
+    total = sum(_open().values())
+    assert busiest_first(replace(REQ, points=total + 50), INPUTS).total_connectors == total
+
+
+def test_busiest_first_is_in_the_comparison_table():
+    row = {r.method: r for r in H.compare(REQ, INPUTS, METHODS)}["busiest first (#36)"]
+    assert row.points == REQ.points and row.violations == 0

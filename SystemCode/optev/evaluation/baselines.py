@@ -8,7 +8,7 @@ selection logic differs (evaluation/CLAUDE.md). Plug one in with
 
 import math
 
-from optev.contracts import Allocation, Coordinate
+from optev.contracts import Allocation, Coordinate, SiteIndicators
 from optev.evaluation.harness import Inputs, Request, _plan, effective, eligible, room
 
 EARTH_RADIUS_M = 6_371_000.0
@@ -46,4 +46,38 @@ def spatial_spread(request: Request, inputs: Inputs) -> Allocation:
         where = open_sites[pick].coord
         for sid, site in open_sites.items():
             nearest[sid] = min(nearest[sid], _metres(site.coord, where))
+    return _plan(request, counts)
+
+
+def utilisation(indicators: list[SiteIndicators]) -> dict[str, float | None]:
+    """Observed utilisation per site from its latest indicators window. None stays None:
+    no supply is not "idle" (§2.3 rule 2)."""
+    latest: dict[str, SiteIndicators] = {}
+    for i in indicators:
+        if i.site_id not in latest or i.window_end > latest[i.site_id].window_end:
+            latest[i.site_id] = i
+    return {sid: i.utilisation for sid, i in latest.items()}
+
+
+def busiest_first(request: Request, inputs: Inputs) -> Allocation:
+    """#36: put points where the existing chargers are busiest, ignoring demand.
+
+    Eligible sites with room are ranked by observed utilisation, highest first, ties by site
+    id; each is filled to its room before the next. Sites with no measured utilisation (no
+    supply, or unobserved) come after every measured site, in site id order, never as 0."""
+    c = effective(inputs)
+    util = utilisation(inputs.indicators)
+    space = {s.site_id: room(s, c[s.site_id]) for s in eligible(request, inputs)}
+
+    def rank(sid: str) -> tuple[bool, float, str]:
+        u = util.get(sid)
+        return (u is None, -(u or 0.0), sid)
+
+    counts: dict[str, int] = {}
+    left = request.points
+    for sid in sorted((s for s, r in space.items() if r > 0), key=rank):
+        if not left:
+            break
+        counts[sid] = min(left, space[sid])
+        left -= counts[sid]
     return _plan(request, counts)
