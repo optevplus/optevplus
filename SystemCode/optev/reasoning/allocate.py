@@ -1,5 +1,5 @@
 """Where the new charging points go, and how many at each site. SYSTEM_DESIGN.md §4.4
-(#20 cost model and constraints, #21 allocator), spec 015.
+(#20 cost model and constraints, #21 allocator), spec 021.
 
 Pure: decisions, sites, demand and the scenario come in as contracts, an `Allocation` or an
 `InfeasibilityReport` goes out. Nothing here touches the database or another workstream's
@@ -71,7 +71,7 @@ def room(total_lots: int | None, connectors: int) -> int:
 
 def demand_profile(demand: Iterable[DemandEstimate]) -> dict[str, Profile]:
     """Per site, the weighted weekday and weekend bins (§3.4). A site with only an `all` rate
-    gets it with weight 1, the same as a flat profile (spec 015, raised for review)."""
+    gets it with weight 1, the same as a flat profile (spec 021, raised for review)."""
     bins: dict[str, Profile] = defaultdict(list)
     overall: dict[str, float] = {}
     for e in demand:
@@ -106,7 +106,7 @@ def eligible_sites(
     planning_area: str | None,
 ) -> list[CandidateSite]:
     """Sites whose decision is accept or conditional, inside `planning_area` when given. A
-    site's own decision for this scenario wins over the baseline one (spec 015)."""
+    site's own decision for this scenario wins over the baseline one (spec 021)."""
     own: dict[str, Decision] = {}
     base: dict[str, Decision] = {}
     for d in decisions:
