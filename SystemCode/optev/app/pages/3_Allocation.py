@@ -90,7 +90,8 @@ else:
 st.subheader("The plan")
 st.caption("Most points first. **To confirm first** lists the rules a conditional site must "
            "still satisfy (e.g. electrical capacity, fire safety) before building.")
-st.dataframe(pd.DataFrame(plan_rows(data, result)), hide_index=True, width="stretch")
+scenario = next(x for x in data.scenarios if x.scenario_id == scenario_id)
+st.dataframe(pd.DataFrame(plan_rows(data, result, scenario)), hide_index=True, width="stretch")
 
 st.subheader("Declared values behind these numbers")
 st.caption("DECLARED: values we chose and cite; change one and every plan follows.")

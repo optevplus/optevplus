@@ -34,7 +34,8 @@ def test_a_plan_is_summarised_with_cost_and_a_passing_check(sample):
 def test_plan_rows_follow_the_plan_and_never_exceed_room(sample):
     result, _ = plan(sample, Request("base", None, 12, None))
     assert isinstance(result, Allocation)
-    rows = plan_rows(sample, result)
+    base = next(x for x in sample.scenarios if x.scenario_id == "base")
+    rows = plan_rows(sample, result, base)
     assert sum(r["new points (recommended)"] for r in rows) == 12
     assert [r["new points (recommended)"] for r in rows] == sorted(
         (r["new points (recommended)"] for r in rows), reverse=True)
@@ -69,3 +70,15 @@ def test_the_page_renders_a_plan_and_an_impossible_request(monkeypatch, tmp_path
     at.sidebar.number_input(key="alloc_points").set_value(5000).run()
     assert not at.exception
     assert any("cannot be met" in e.value for e in at.error)
+
+
+def test_room_counts_the_scenarios_planned_points(sample):
+    # Shrey's review of #87: base has 2 planned at SYN-S-04, so a plan that fills it must
+    # show the room the allocator saw, not the room before the planner's picks.
+    base = next(x for x in sample.scenarios if x.scenario_id == "base")
+    picked = {p.site_id: p.connectors for p in base.planned}
+    result, _ = plan(sample, Request("base", None, 400, None))
+    assert isinstance(result, Allocation)
+    for row in plan_rows(sample, result, base):
+        assert row["planned already (planned)"] == picked.get(row["site"], 0)
+        assert row["room left after"] >= 0

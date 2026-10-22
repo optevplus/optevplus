@@ -10,14 +10,14 @@ from typing import Any
 
 from optev.app.data import AppData
 from optev.assumptions import COST_PER_POINT_SGD, MAX_SHARE_OF_LOTS, MEAN_SESSION_HOURS
-from optev.contracts import Allocation, InfeasibilityReport
+from optev.contracts import Allocation, Decision, InfeasibilityReport, Scenario
 
 # What each binding constraint means for a planner (design §4.4, #23).
 BINDING = {
     "budget": "The budget pays for fewer points than requested at the cited cost per point.",
     "room": "Eligible sites have room for fewer points: each site may hold charging points on "
-            "at most 15% of its car lots, existing ones included.",
-    "requested": "The requested number of points cannot be placed exactly.",
+            f"at most {MAX_SHARE_OF_LOTS.value:.0%} of its car lots, existing and planned "
+            "ones included.",
 }
 
 
@@ -47,13 +47,23 @@ def summary(plan: Allocation) -> Summary:
         checked=plan.checked, violations=list(plan.violations))
 
 
-def plan_rows(data: AppData, plan: Allocation) -> list[dict[str, Any]]:
+def _decisions(data: AppData, scenario_id: str) -> dict[str, Decision]:
+    """The scenario's own decision per site, else the baseline one (as the allocator does)."""
+    chosen = {d.site_id: d for d in data.decisions if d.scenario_id in (None, "observed")}
+    chosen |= {d.site_id: d for d in data.decisions if d.scenario_id == scenario_id}
+    return chosen
+
+
+def plan_rows(data: AppData, plan: Allocation, scenario: Scenario) -> list[dict[str, Any]]:
     """One row per site in the plan, most points first. Conditional sites carry the rules they
-    must still satisfy, so the planner sees the caveat next to the recommendation."""
-    from optev.reasoning.allocate import room  # the allocator's own rule, not re-derived here
+    must still satisfy, so the planner sees the caveat next to the recommendation. Room counts
+    existing plus this scenario's planned points, as the allocator does."""
+    # the allocator's own rules, not re-derived here
+    from optev.reasoning.allocate import effective_connectors, room
 
     site = {s.site_id: s for s in data.sites}
-    decision = {d.site_id: d for d in data.decisions}
+    decision = _decisions(data, plan.scenario_id)
+    installed = effective_connectors(data.sites, scenario)
     demand = {e.site_id: e for e in data.estimates if e.time_bin == "all"}
     rows = []
     for item in sorted(plan.items, key=lambda i: (-i.connectors, i.site_id)):
@@ -66,7 +76,9 @@ def plan_rows(data: AppData, plan: Allocation) -> list[dict[str, Any]]:
             "to confirm first": ", ".join(d.failing_rules) if d and d.failing_rules else "",
             "existing points (observed)": s.existing_connectors if s else None,
             "new points (recommended)": item.connectors,
-            "room left after": (room(s.total_lots, s.existing_connectors) - item.connectors)
+            "planned already (planned)": installed.get(item.site_id, 0)
+            - (s.existing_connectors if s else 0),
+            "room left after": (room(s.total_lots, installed[item.site_id]) - item.connectors)
             if s else None,
             "demand / h (observed)": round(e.arrivals_per_hour, 3) if e else None,
             "demand kind": ("at least" if e.kind.value == "lower_bound" else "point")
