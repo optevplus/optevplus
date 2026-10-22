@@ -1,4 +1,4 @@
-"""Allocator (SYSTEM_DESIGN.md §4.4, #20 and #21, spec 015), on optev.sample. No database."""
+"""Allocator (SYSTEM_DESIGN.md §4.4, #20 and #21, spec 021), on optev.sample. No database."""
 
 import math
 
@@ -68,7 +68,7 @@ def test_the_48_bin_weights_sum_to_one_and_bins_win_over_all():
                            kind=EstimateKind.LOWER_BOUND)]
     profile = A.demand_profile(est)
     assert len(profile["X"]) == 48 and {lam for _, lam in profile["X"]} == {1.0}
-    assert profile["Y"] == [(1.0, 2.0)]  # only `all`: used with weight 1 (spec 015)
+    assert profile["Y"] == [(1.0, 2.0)]  # only `all`: used with weight 1 (spec 021)
 
 
 def test_room_is_fifteen_percent_of_lots_less_effective_connectors():

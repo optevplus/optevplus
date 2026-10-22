@@ -1,4 +1,4 @@
-# 018 · Unmet-requirement reporting
+# 022 · Unmet-requirement reporting
 
 **Owner:** Shrey  ·  **Status:** approved 21 Oct 2026; built  ·  **Branch:** `shrey/23-unmet-requirement` (from `shrey/20-allocator`)
 **Issue:** #23 (4.4 · Unmet-requirement reporting)  ·  **Builds on:** #68 (allocator), #69 (checker)
@@ -61,3 +61,7 @@ Then `uv run ruff check .`, `uv run mypy optev`, `NEO4J_URI= uv run pytest`: all
   sample's `infeasibility` exactly. 5 new tests (budget only binds, room only, both → none,
   budget-only request, `binding` table). ruff, mypy, pytest pass.
 - **Next:** PR on top of #68 (base `shrey/20-allocator`); retarget to `main` once #68 merges.
+
+## Checkpoint · 22 Oct 2026
+- Renumbered from 018 to **022** (018 is taken by #80); the allocator spec is now 021.
+  Merged `shrey/20-allocator`. No code change.

@@ -1,4 +1,4 @@
-# 015 · allocator
+# 021 · allocator
 
 **Owner:** Shrey  ·  **Status:** approved 20 Oct 2026 (proposals as written); built, open questions raised on the PR  ·  **Branch:** `shrey/20-allocator`
 **Issues:** #20 (4.1 cost model and constraint formulation), #21 (4.2 allocator)
@@ -150,3 +150,7 @@ confirm rather than deciding it in code.
 - Tests: the area-minimum tests are replaced. An area without demand now gets 0 points, an area
   with no room no longer blocks the others, and asking for more than all the room is
   infeasible with `max_feasible` equal to the total room. 17 tests.
+
+## Checkpoint · 22 Oct 2026
+- Renumbered from 015 to **021**: `015-unserved` took 015 on `main`, and 018–020 are taken by
+  open PRs. No code change.
