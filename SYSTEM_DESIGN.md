@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.16 · 22 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.17 · 22 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -436,6 +436,9 @@ and record planner selections without touching observed data.
 # optev/scenario/project.py
 def make_scenarios() -> list[Scenario]                                   # low, base, high
 def project(estimates: list[DemandEstimate], scenario: Scenario) -> list[DemandEstimate]
+def write_scenarios(conn: Connection, scenarios: list[Scenario],
+                    demand: dict[str, list[DemandEstimate]]) -> dict[str, int]
+                                                # upserts scenario, replaces its scenario_demand
 
 # optev/scenario/planned.py
 def select_site(scenario_id: str, site_id: str, connectors: int,
@@ -749,3 +752,6 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   `context` keys. It is about 0 m at every training site, so the model extrapolated to 0
   arrivals at 43% of no-charger sites on the collected week; without it, validation is
   unchanged (spec 019). Rules keep it as a fact. 1.14 and 1.15 are #58 and #72.
+- **1.17 · 22 Oct 2026.** Scenarios (§4.3, #28): new `write_scenarios` upserts `scenario` and
+  replaces each scenario's `scenario_demand` rows; `python -m optev.scenario.project` reads
+  `demand_estimate`, projects it and writes it (spec 027). The growth fit is still open.
