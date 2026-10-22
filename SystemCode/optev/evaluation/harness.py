@@ -248,7 +248,10 @@ def sample_inputs() -> tuple[Request, Inputs, dict[str, Method]]:
                                       e.arrivals_per_hour * scenario.growth_multiplier})
                  for e in s.estimates]
     inputs = Inputs(s.decisions, s.sites, projected, scenario)
-    methods: dict[str, Method] = {"sample reference (greedy)": lambda r, i: s.allocation}
+    from optev.evaluation.baselines import spatial_spread  # here: baselines imports harness
+
+    methods: dict[str, Method] = {"sample reference (greedy)": lambda r, i: s.allocation,
+                                  "spatial spread (#37)": spatial_spread}
     try:
         from optev.reasoning.allocate import allocate  # type: ignore[import-not-found]
 
