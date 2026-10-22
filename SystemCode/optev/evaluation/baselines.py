@@ -81,3 +81,31 @@ def busiest_first(request: Request, inputs: Inputs) -> Allocation:
         counts[sid] = min(left, space[sid])
         left -= counts[sid]
     return _plan(request, counts)
+
+
+def extend_existing(request: Request, inputs: Inputs) -> Allocation:
+    """#38: add points where chargers already are, ignoring demand.
+
+    Eligible sites with room that already charge (existing or planned connectors) are ranked
+    by connectors, most first, ties by site id; points go round-robin down that ranking, so
+    every charging site is extended before any gets a second. Once they are all full, the
+    remaining points go to the other eligible sites in site id order."""
+    c = effective(inputs)
+    space = {s.site_id: room(s, c[s.site_id]) for s in eligible(request, inputs)}
+    charging = sorted((sid for sid, r in space.items() if r > 0 and c[sid] > 0),
+                      key=lambda sid: (-c[sid], sid))
+    counts: dict[str, int] = {}
+    left = request.points
+    while left and charging:
+        for sid in charging:
+            if not left:
+                break
+            counts[sid] = counts.get(sid, 0) + 1
+            left -= 1
+        charging = [sid for sid in charging if counts[sid] < space[sid]]
+    for sid in sorted(sid for sid, r in space.items() if r > 0 and c[sid] == 0):
+        if not left:
+            break
+        counts[sid] = min(left, space[sid])
+        left -= counts[sid]
+    return _plan(request, counts)
