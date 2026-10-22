@@ -1,5 +1,5 @@
 """Where the new charging points go, and how many at each site. SYSTEM_DESIGN.md §4.4
-(#20 cost model and constraints, #21 allocator), spec 021.
+(#20 cost model and constraints, #21 allocator, #23 unmet requirement), specs 021 and 022.
 
 Pure: decisions, sites, demand and the scenario come in as contracts, an `Allocation` or an
 `InfeasibilityReport` goes out. Nothing here touches the database or another workstream's
@@ -191,6 +191,16 @@ def most_points(rooms: Mapping[str, int], cap: int | None) -> int:
     return int(solver.objective_value) if status in (cp_model.OPTIMAL, cp_model.FEASIBLE) else 0
 
 
+def binding(points: int, rooms: Mapping[str, int], cap: int | None) -> list[str]:
+    """The constraint groups that alone stop the request (#23): a group binds when removing it
+    alone would make `points` feasible. Only `Σx ≤ cap` and `x ≤ room` can fall short, so
+    over both gives none: neither alone is enough."""
+    caps = {"budget": cap, "room": sum(rooms.values())}
+    return [g for g, v in caps.items()
+            if v is not None and v < points
+            and all(w is None or w >= points for k, w in caps.items() if k != g)]
+
+
 def allocate(decisions: list[Decision], sites: list[CandidateSite],
              demand: list[DemandEstimate], scenario: Scenario, *,
              planning_area: str | None = None, requested_connectors: int | None = None,
@@ -206,9 +216,11 @@ def allocate(decisions: list[Decision], sites: list[CandidateSite],
                                        min(rooms[s.site_id], points)) for s in pool}
     plan = solve(gains, points, budget_cap(budget))
     if plan is None:
+        cap = budget_cap(budget)
         return InfeasibilityReport(
             scenario_id=scenario.scenario_id, planning_area=planning_area,
-            requested_connectors=points, max_feasible=most_points(rooms, budget_cap(budget)))
+            requested_connectors=points, max_feasible=most_points(rooms, cap),
+            binding_constraints=binding(points, rooms, cap))
     cost = COST_PER_POINT_SGD.value
     return Allocation(
         scenario_id=scenario.scenario_id, planning_area=planning_area,
