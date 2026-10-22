@@ -287,7 +287,7 @@ def test_cli_conform_needs_a_database(monkeypatch, tmp_path):
     assert cli.main() == 2
 
 
-# Static loads in conform (#11, spec 020) ------------------------------------------------
+# Static loads in conform (#11, spec 024) ------------------------------------------------
 
 def _stg_amenity_rows() -> list[dict[str, object]]:
     """The sample's amenities shaped as `READ_AMENITIES` returns `stg_amenity` rows."""

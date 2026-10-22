@@ -1,4 +1,4 @@
-# 020 · Planning area, land use and amenity sites in conform
+# 024 · Planning area, land use and amenity sites in conform
 
 **Owner:** Shrey  ·  **Status:** approved 21 Oct 2026; built; live test passed, conform not yet re-run on Neon  ·  **Branch:** `shrey/11-planning-area` (from `shrey/55-static-loads`, which has the `stg_` tables)
 **Issue:** #11 (1.6 · Planning area assignment)  ·  **Builds on:** #58, #59 (migration 004, `load_static`)
@@ -68,3 +68,6 @@ In `optev/ingest/conform.py` (Gurneet's module; ingest is shared):
 - `conform.py` is now ~490 lines, over the ~300 guideline.
 - **Next, with Shrey's OK only:** `optev-db conform` on Neon and record
   amenity sites added and the two counts.
+
+## Checkpoint · 22 Oct 2026
+- Renumbered from 020 to **024**: 020 is taken by #85.
