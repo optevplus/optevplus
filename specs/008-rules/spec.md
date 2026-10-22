@@ -30,16 +30,22 @@ SYSTEM_DESIGN.md §4.4, Rules (#17–#19, Gurneet), as of v1.7 (this PR adds `sc
 Tables: `rule`, `decision`, `rule_result` (§3.2). Baseline decisions use `scenario_id = 'observed'`.
 
 ## Basis
-Built and tested on `optev.sample` (the team moves to the real data later). Rules read only
-facts the collected week can produce (#52): `total_lots`, `existing_connectors`,
-`supply_state`, `utilisation`.
+**A rule is in the register because a source supports it** (a government dataset, a policy
+document or a declared assumption), never because its facts happen to be loaded. Missing data
+only decides whether a rule evaluates or defers. (Corrected 20 Oct 2026 after review of #54,
+which had trimmed the register to the facts the collected week provided.)
+
+Tests run on `optev.sample`. `screen_all` runs the same code on Postgres.
 
 ## Register (`optev/reasoning/register.toml`, #17)
 | id | condition | source · ref | facts | on_fail |
 |---|---|---|---|---|
 | R01 | Car capacity is published for the site | gov_dataset · `ds-hdb-availability` | total_lots | reject |
+| R02 | A basement car park needs its fire-safety provisions for EV charging confirmed first | gov_policy · `doc-mha-ev-carparks-2026` | kind (+ car_park_type for car parks) | conditional |
 | R03 | Existing points plus one new point stay within `MAX_SHARE_OF_LOTS` of the car lots | math_constraint · `doc-lta-ev-factsheet-2021` | total_lots, existing_connectors | reject |
 | R04 | Sites whose chargers are idle (`IDLE_BELOW`) get no more points | project_assumption · `asm-idle-threshold` | supply_state | reject |
+| R05 | The site lies inside a Master Plan 2025 planning area | gov_dataset · `ds-mp2025-areas` | planning_area | reject |
+| R06 | Electrical capacity must be confirmed before points are added where no charger runs yet | gov_policy · `doc-mot-ev-reply-2025` | existing_connectors | conditional |
 
 - Ids follow the sample, so results can be compared with `sample.decisions`.
 - **R01** cites data.gov.sg Car Park Availability, the proposal's source and the feed that
@@ -52,13 +58,33 @@ facts the collected week can produce (#52): `total_lots`, `existing_connectors`,
   template placeholders outside the rule's `required_facts`, a `source_ref` whose prefix does not
   match its class (§3.3 `ds-` / `doc-` / `asm-`), an empty or malformed file.
 
-**Not in the register yet:**
-- **R02** (basement → conditional) needs `car_park_type`, not in the collected week. It also has
-  no official source: the proposal's LTA safety page, SCDF Fire Code 2023 cl. 10.4 and the
-  LTA/BCA/SCDF reply of 5 Sep 2024 set no basement-specific condition for chargers (checked
-  17 Oct 2026). Re-add with a source, or as `project_assumption`.
-- **R05** (inside a planning area) needs MP2025 boundaries, not in the collected week.
-- So no rule gives `conditional` yet. The engine supports it (tested with a stand-in rule).
+- **R05** is back (it was dropped in #54 only because planning areas weren't loaded; Shrey's
+  #59 loads them). Conform assigns the area by point-in-polygon, so a present `planning_area`
+  means inside one and passes. A site outside every polygon has none, so R05 **defers** it as a
+  data gap: the design's policy that a missing fact never rejects applies to R05 too.
+- **R06** cites the MOT written parliamentary reply of 14 Oct 2025 (Acting Minister Jeffrey
+  Siow): deploy "in carparks with high charging demand, electrical capacity permitting"
+  (checked 20 Oct 2026). No dataset reports spare electrical capacity, so the check treats it as
+  shown only where chargers already run (`existing_connectors ≥ 1`); everywhere else it fails
+  with `electrical capacity to be confirmed` → **conditional**. That reading of the policy is a
+  judgement for review.
+- **R02 is back** (20 Oct 2026). Source: MHA written parliamentary reply of 8 Sep 2026
+  (Minister K Shanmugam), "Adequacy of fire safety standards for electric vehicles in enclosed
+  and multi-storey car parks": "sprinklers are required for enclosed basement carparks", and
+  SCDF has mandated "at least one emergency main isolation shut-off switch ... within 15 metres
+  of an electric vehicle (EV) charging station" (checked 20 Oct 2026; the MHA reply of
+  10 Sep 2024 and the LTA/BCA/SCDF reply of 3 Sep 2024 say the same). No source says a basement
+  needs a *review*; what they state is a basement-specific requirement that no dataset can
+  confirm, so a basement car park is **conditional** on confirming it.
+  - Not a car park (hawker, community club, petrol): passes, `not a car park`.
+  - Car park whose type contains BASEMENT: fails → conditional,
+    `basement: confirm sprinklers and EV isolation switch`.
+  - Car park of unknown type: `passed = None` → **defer**, never assumed safe. On real data that
+    is every URA car park (#59 loads type for HDB only, ~659 sites), which needs a team call.
+  - Required fact is `kind`, not `car_park_type`, so non-car-park sites are not deferred; the
+    check reads the type for car parks only (design 1.15 lets a check return None for that).
+- `doc-mha-ev-carparks-2026` and `doc-mot-ev-reply-2025` are added to the sample's references,
+  so the graph can link R02 and R06.
 
 ## Engine (#18)
 - **Checks** are functions in `rules.CHECKS`, keyed by `rule_id`. A register rule with no check
@@ -81,8 +107,9 @@ facts the collected week can produce (#52): `total_lots`, `existing_connectors`,
 - `write_decisions` upserts `rule` from the register, then `decision`, and replaces that
   (site, scenario)'s `rule_result` rows, so a rerun gives the same tables.
 
-**Sample funnel:** accept 25 · reject 2 (S-13 no room, S-14 idle) · defer 3 (S-27, S-28, S-30:
-no lot count) · conditional 0. S-06 and S-11 were conditional in the sample only through R02.
+**Sample funnel (R01–R06):** accept 8 (chargers already running, room, not idle, not a
+basement) · conditional 17 (16 with no charger yet; S-11 is a basement) · reject 2 (S-13 no
+room, S-14 idle) · defer 3 (S-27, S-28, S-30: no lot count). All four outcomes appear.
 
 ## Verification
 - `tests/test_rules.py` (register, 20 tests) and `tests/test_screen.py` (engine and screening,
@@ -107,3 +134,24 @@ no lot count) · conditional 0. S-06 and S-11 were conditional in the sample onl
   shows #53's commits. Spec renumbered 004 → 008, since 004 is taken on other branches.
 - **Moving to real data later:** run `screen` over `candidate_site`, `car_park`,
   `site_indicators` and `site_context` from Postgres, then `write_decisions`.
+
+## Checkpoint · 20 Oct 2026 · follow-up to #54
+- **Register:** R05 back; R06 added (the first `conditional` rule). Every rule's `source_ref`
+  must be a known reference (test). Sample funnel: accept 9 · conditional 16 · reject 2 · defer 3.
+- **`screen_all` + `python -m optev.reasoning screen [--scenario ID] [--dry-run]`:** reads
+  `candidate_site`, `car_park`, `site_indicators`, `site_context`; screens; writes; prints the
+  funnel. Tested end to end on the sample through a fake connection. Design v1.15.
+- **Real data: not run yet.** Needs `site_indicators` (Sushant's #64, open) and `DATABASE_URL`
+  on this machine. Run: `uv run python -m optev.reasoning screen --dry-run`, check all four
+  outcomes appear, then without `--dry-run`, and post the funnel on the PR.
+- Expected on real data: R05 defers any site outside every planning-area polygon; R06 makes
+  sites without chargers conditional; R04 rejects idle ones; R01 defers sites with no lots.
+- `rules.py` is ~380 lines, over the ~300 guideline; the Postgres runner could move out.
+- Suite: 146 passed, 11 skipped (live DB and graph tests).
+
+## Checkpoint · 20 Oct 2026 (2) · R02 back
+- R02 (basement, gov_policy, conditional) cites the MHA reply of 8 Sep 2026. Checks may now
+  return `passed = None` (design 1.15). Sample funnel: accept 8 · conditional 17 · reject 2 ·
+  defer 3. Suite: 154 passed, 11 skipped.
+- **Team call:** URA car parks have no type, so R02 defers all ~659 of them. Options: load a
+  type for URA, or treat URA surface/multi-storey as known (needs a source).
