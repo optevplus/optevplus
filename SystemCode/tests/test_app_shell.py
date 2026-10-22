@@ -169,3 +169,17 @@ def test_map_page_renders_on_the_sample(monkeypatch, tmp_path):
     assert any("synthetic sample" in i.value for i in at.info)
     assert [m.label for m in at.metric][:2] == ["Candidate sites", "Accept"]
     assert at.dataframe  # the ranking
+
+
+def test_the_plan_follows_the_chosen_scenario():
+    # Higher growth means more drivers turned away, so the same points rescue more of them;
+    # before this, every scenario got today's demand and the selector changed nothing.
+    from optev.app.shell import Request, plan
+
+    data = D.from_sample()
+    rescued = {}
+    for sid in ("low", "base", "high"):
+        result, _ = plan(data, Request(sid, None, 12, None))
+        assert result is not None and hasattr(result, "items")
+        rescued[sid] = sum(i.marginal_relief or 0 for i in result.items)
+    assert rescued["low"] < rescued["base"] < rescued["high"]
