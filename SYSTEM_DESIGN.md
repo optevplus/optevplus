@@ -732,7 +732,7 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
 - **1.13 · 21 Oct 2026.** Sites with no chargers (§4.2 step 4): new `unserved_context` and
   `write_unserved`; context keys, which sites the caller passes, missing features, the
   profile fallback and the note stated; `unobserved` sites get no estimate (issue #16,
-  spec 015).
+  spec 019).
 - **1.14 · 21 Oct 2026.** New ingest staging tables `stg_amenity`, `stg_land_use` and
   `stg_residents` (§3.2, migration `004_static.sql`), written by `load_static` and read by
   conform. Petrol stations are dropped: the Customs licence list holds only terminals,

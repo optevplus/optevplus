@@ -12,4 +12,4 @@ Spec: `specs/012-demand/` — demand inverts occupancy per time bin, never over 
 
 Spec: `specs/014-patterns/` — k-means on min-max normalised 48-bin profiles; labels come from cluster centroids by rule, never from site kind.
 
-Spec: `specs/015-unserved/` — no-charger demand is regressed on sites with a point `all`; lower bounds and idle sites never train it; the sample cannot show the §6 target.
+Spec: `specs/019-unserved/` — no-charger demand is regressed on sites with a point `all`; lower bounds and idle sites never train it; the sample cannot show the §6 target.
