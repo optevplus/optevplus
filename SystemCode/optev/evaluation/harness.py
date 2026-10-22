@@ -29,6 +29,7 @@ from optev.contracts import (
     DemandEstimate,
     Outcome,
     Scenario,
+    SiteIndicators,
 )
 
 WEIGHT = {"wd": 5 / 7 / 24, "we": 2 / 7 / 24}  # §4.4: 48 bins weighted to an average hour
@@ -52,6 +53,7 @@ class Inputs:
     demand: list[DemandEstimate]
     scenario: Scenario
     residents: dict[str, int] = field(default_factory=dict)
+    indicators: list[SiteIndicators] = field(default_factory=list)  # observed, for #36
 
 
 Method = Callable[[Request, Inputs], Allocation]
@@ -247,10 +249,14 @@ def sample_inputs() -> tuple[Request, Inputs, dict[str, Method]]:
     projected = [e.model_copy(update={"arrivals_per_hour":
                                       e.arrivals_per_hour * scenario.growth_multiplier})
                  for e in s.estimates]
-    inputs = Inputs(s.decisions, s.sites, projected, scenario)
-    from optev.evaluation.baselines import spatial_spread  # here: baselines imports harness
+    inputs = Inputs(s.decisions, s.sites, projected, scenario, indicators=s.indicators)
+    from optev.evaluation.baselines import (  # here: baselines imports harness
+        busiest_first,
+        spatial_spread,
+    )
 
     methods: dict[str, Method] = {"sample reference (greedy)": lambda r, i: s.allocation,
+                                  "busiest first (#36)": busiest_first,
                                   "spatial spread (#37)": spatial_spread}
     try:
         from optev.reasoning.allocate import allocate  # type: ignore[import-not-found]
