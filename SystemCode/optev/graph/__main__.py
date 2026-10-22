@@ -28,8 +28,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     load_dotenv()
 
-    if args.command in ("load", "clear") and not args.sample:
-        print("Only --sample is supported until Postgres is live (#2).", file=sys.stderr)
+    if args.command == "clear" and not args.sample:
+        print("clear only removes the sample: use clear --sample.", file=sys.stderr)
         return 2
 
     if args.command == "schema":
@@ -39,6 +39,18 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "heartbeat":
         heartbeat()
         print("ok")
+    elif args.command == "load" and not args.sample:
+        import os
+
+        from .load import load_all
+
+        url = os.environ.get("DATABASE_URL")
+        if not url:
+            print("DATABASE_URL is not set; use load --sample for the sample.", file=sys.stderr)
+            return 1
+        counts = load_all(url)
+        for name, n in counts.items():
+            print(f"{n:6d}  {name}")
     elif args.command == "load":
         from optev.sample import load as sample
 

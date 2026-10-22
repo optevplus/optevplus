@@ -103,6 +103,14 @@ def _ref_label(ref: str | None) -> str | None:
     return None
 
 
+def _many(data: Any, plural: str, single: str) -> list[Any]:
+    """The sample holds one plan and one report; Postgres may hold any number (or none)."""
+    if hasattr(data, plural):
+        return list(getattr(data, plural))
+    one = getattr(data, single, None)
+    return [one] if one is not None else []
+
+
 def rows(data: Sample, extra_label: str | None = None) -> list[Batch]:
     """Every batch to send, in the order of design §4.5. Raw readings and per-bin estimates
     are never loaded: the graph explains decisions, it does not store measurements."""
@@ -208,25 +216,25 @@ def _build(data: Sample, extra_label: str | None) -> "_Builder":
             g.rel("EVALUATED", "Decision", k, "Rule", r.rule_id,
                   {"verdict": S.verdict(r), "detail": r.detail})
 
-    a = data.allocation
-    values = _flat(a)
-    values["allocation_id"] = S.allocation_key(
-        a.scenario_id, a.planning_area, a.requested_connectors, a.budget
-    )
-    k = g.node("Allocation", values)
-    g.rel("UNDER", "Allocation", k, "Scenario", a.scenario_id)
-    for item in a.items:
-        g.rel("ALLOCATES", "Allocation", k, "CandidateSite", item.site_id, _flat(item))
+    for a in _many(data, "allocations", "allocation"):
+        values = _flat(a)
+        values["allocation_id"] = S.allocation_key(
+            a.scenario_id, a.planning_area, a.requested_connectors, a.budget
+        )
+        k = g.node("Allocation", values)
+        g.rel("UNDER", "Allocation", k, "Scenario", a.scenario_id)
+        for item in a.items:
+            g.rel("ALLOCATES", "Allocation", k, "CandidateSite", item.site_id, _flat(item))
 
-    rep = data.infeasibility
-    values = _flat(rep)
-    values["report_id"] = S.infeasibility_key(
-        rep.scenario_id, rep.planning_area, rep.requested_connectors
-    )
-    k = g.node("Infeasibility", values)
-    g.rel("FOR", "Infeasibility", k, "Scenario", rep.scenario_id)
-    for area_code in rep.affected_areas:
-        g.rel("AFFECTS", "Infeasibility", k, "PlanningArea", area_code)
+    for rep in _many(data, "infeasibilities", "infeasibility"):
+        values = _flat(rep)
+        values["report_id"] = S.infeasibility_key(
+            rep.scenario_id, rep.planning_area, rep.requested_connectors
+        )
+        k = g.node("Infeasibility", values)
+        g.rel("FOR", "Infeasibility", k, "Scenario", rep.scenario_id)
+        for area_code in rep.affected_areas:
+            g.rel("AFFECTS", "Infeasibility", k, "PlanningArea", area_code)
 
     return g
 
@@ -247,6 +255,19 @@ def load(data: Sample, session: Session, extra_label: str | None = None) -> dict
             session.run(batch.cypher, {"rows": batch.rows[i : i + BATCH_SIZE]}).consume()
         counts[batch.name] = len(batch.rows)
     return counts
+
+
+def load_all(database_url: str) -> dict[str, int]:
+    """Design §4.5: rebuild the graph from Postgres after a pipeline run. Reads every pipeline
+    table into one bundle (graph.read) and MERGEs it; the sample, if loaded, is left alone."""
+    from .client import driver
+    from .ddl import apply_schema
+    from .read import read_bundle
+
+    data = read_bundle(database_url)
+    with driver() as d, d.session() as s:
+        apply_schema(s)
+        return load(data, s)  # type: ignore[arg-type]  # GraphBundle has Sample's fields
 
 
 def clear_sample(session: Session) -> int:
