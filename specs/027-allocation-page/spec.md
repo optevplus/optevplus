@@ -1,4 +1,4 @@
-# 026 · Allocation page (#32)
+# 027 · Allocation page (#32)
 
 **Owner:** Ghanashyam (taken over from Shrey for the 22 Oct cut-off)  ·  **Status:** built, in review  ·  **Branch:** `ghanashyam/32-allocation-page`
 
