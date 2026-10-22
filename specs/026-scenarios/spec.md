@@ -1,6 +1,6 @@
 # 026 · Scenarios: growth fit and projected demand
 
-**Owner:** Shrey (B), Sushant (A, if he takes it)  ·  **Status:** draft, awaiting Shrey's OK  ·  **Branch:** `shrey/28-scenarios` (from `main`)
+**Owner:** Shrey (B), Sushant (A, if he takes it)  ·  **Status:** approved 22 Oct 2026; part B built, part A open  ·  **Branch:** `shrey/28-scenarios` (from `main`)
 **Issue:** #28 (6.1 · Scenario generation from the collected baseline; leads Sushant + Shrey)
 
 ## Design section
@@ -43,7 +43,7 @@ and `scenario_demand` only. Reads `demand_estimate` (Sushant's `write_estimates`
    "simulated: × m (<scenario>)". Scales **arrival rates**, never occupancy. Pure.
 3. **Writer (design gap):** `write_scenarios(conn, scenarios, demand) -> dict[str, int]`
    upserts `scenario` and replaces each scenario's `scenario_demand` rows. Needs a one-line
-   design PR (1.15), as `write_estimates` got in 1.11. Plus `python -m optev.scenario.project`
+   design change (1.17, in this PR), as `write_estimates` got in 1.11. Plus `python -m optev.scenario.project`
    to read `demand_estimate`, project, write. **Run on Neon only with your OK.**
 4. Stability check (§6 stage 3): `top10_stability` is evaluation, not this PR, unless you want it.
 
@@ -74,3 +74,13 @@ and `scenario_demand` only. Reads `demand_estimate` (Sushant's `write_estimates`
    `high`. Only matters if you end up doing A.
 4. **Data after May 2025:** data.gov.sg stops there; the guide says take later months from
    DataMall's monthly statistics (manual). The fit works without them; add if time allows.
+
+## Checkpoint · 22 Oct 2026
+- **B works:** `optev/scenario/project.py`: `make_scenarios`, `project`, `write_scenarios`,
+  `run`, and `python -m optev.scenario.project`. Design 1.17 adds `write_scenarios` (main had
+  reached 1.16). 9 tests in `tests/test_project.py`: multipliers, scale-rates-only, lower
+  bounds kept, observed list untouched, projected `base` gives the allocator the same plan as
+  hand-scaled demand, writer SQL order and no write to `demand_estimate`, CLI without a
+  database; live write test rolls back (not run here). ruff, mypy, pytest: 324 passed.
+- **Not run on Neon:** `python -m optev.scenario.project` waits for Shrey's OK.
+- **A open:** growth fit; Sushant asked first. Multipliers stay the placeholders until then.
