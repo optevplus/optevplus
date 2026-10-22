@@ -82,7 +82,7 @@ Tests run on `optev.sample`. `screen_all` runs the same code on Postgres.
   - Car park of unknown type: `passed = None` → **defer**, never assumed safe. On real data that
     is every URA car park (#59 loads type for HDB only, ~659 sites), which needs a team call.
   - Required fact is `kind`, not `car_park_type`, so non-car-park sites are not deferred; the
-    check reads the type for car parks only (design 1.14 lets a check return None for that).
+    check reads the type for car parks only (design 1.15 lets a check return None for that).
 - `doc-mha-ev-carparks-2026` and `doc-mot-ev-reply-2025` are added to the sample's references,
   so the graph can link R02 and R06.
 
@@ -140,7 +140,7 @@ room, S-14 idle) · defer 3 (S-27, S-28, S-30: no lot count). All four outcomes 
   must be a known reference (test). Sample funnel: accept 9 · conditional 16 · reject 2 · defer 3.
 - **`screen_all` + `python -m optev.reasoning screen [--scenario ID] [--dry-run]`:** reads
   `candidate_site`, `car_park`, `site_indicators`, `site_context`; screens; writes; prints the
-  funnel. Tested end to end on the sample through a fake connection. Design v1.14.
+  funnel. Tested end to end on the sample through a fake connection. Design v1.15.
 - **Real data: not run yet.** Needs `site_indicators` (Sushant's #64, open) and `DATABASE_URL`
   on this machine. Run: `uv run python -m optev.reasoning screen --dry-run`, check all four
   outcomes appear, then without `--dry-run`, and post the funnel on the PR.
@@ -151,7 +151,7 @@ room, S-14 idle) · defer 3 (S-27, S-28, S-30: no lot count). All four outcomes 
 
 ## Checkpoint · 20 Oct 2026 (2) · R02 back
 - R02 (basement, gov_policy, conditional) cites the MHA reply of 8 Sep 2026. Checks may now
-  return `passed = None` (design 1.14). Sample funnel: accept 8 · conditional 17 · reject 2 ·
+  return `passed = None` (design 1.15). Sample funnel: accept 8 · conditional 17 · reject 2 ·
   defer 3. Suite: 154 passed, 11 skipped.
 - **Team call:** URA car parks have no type, so R02 defers all ~659 of them. Options: load a
   type for URA, or treat URA surface/multi-storey as known (needs a source).

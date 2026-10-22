@@ -5,7 +5,7 @@
 > something here is wrong, **stop and raise it**: change this file by PR, approved by the
 > owners it affects. Never improvise a table, function, threshold or file layout in code.
 
-**Version** 1.14 · 21 Oct 2026 · **Owner** Ghanashyam (team lead)
+**Version** 1.15 · 22 Oct 2026 · **Owner** Ghanashyam (team lead)
 **Built from** the submitted proposal (13 Sep), the Dataset Guide v2 (28 Sep), the proposal
 presentation (29 Sep), the frozen contracts, and the knowledge graph spec (`specs/005`).
 
@@ -153,7 +153,7 @@ contract needs all four owners.
 
 ### 3.2 Database tables
 
-Migrations `001_init.sql` and `002_pipeline.sql` create every table below. Apply with
+Migrations `001_init.sql` to `004_static.sql` create every table below. Apply with
 `uv run optev-db migrate`. Ingest-internal staging tables are allowed if prefixed `stg_`.
 
 | Table | Mirrors | Written by | Read by |
@@ -162,6 +162,9 @@ Migrations `001_init.sql` and `002_pipeline.sql` create every table below. Apply
 | `car_park`, `station`, `connector` | CarPark, Station, Connector | ingest | analysis, reasoning, graph |
 | `car_park_reading`, `connector_reading` | readings | ingest `load_collected` | analysis |
 | `stg_collect_slot` | one row per feed per 30-minute slot loaded | ingest `load_collected` | ingest coverage |
+| `stg_amenity` | hawker centres and community clubs, ids per §3.3 | ingest `load_static` | ingest conform |
+| `stg_land_use` | MP2025 land-use plots (`LU_DESC`, simplified polygon) | ingest `load_static` | ingest conform |
+| `stg_residents` | residents per planning area (Census 2020) | ingest `load_static` | ingest conform |
 | `candidate_site` | CandidateSite | ingest | all |
 | `station_site` | station-site association | ingest | analysis, graph |
 | `site_context` | features (land use, residents, amenities, nearest point) | ingest | analysis, reasoning |
@@ -189,7 +192,7 @@ Stable, deterministic ids, so every join and every graph MERGE lines up:
 | URA car park site | `ura:<PP_CODE>` |
 | Mall car park site | `mall:<CarParkID>` |
 | Hawker centre / community club / petrol station | `hawker:<id>` / `cc:<id>` / `petrol:<id>` from the source dataset |
-| Station | LTA `locationId` |
+| Station | LTA `postalCode` of the location (the feed has no `locationId`) |
 | Connector | LTA `evCpId` |
 | Planning area | URA `PLN_AREA_C` |
 | Allocation | `<scenario>:<area or all>:points=<n or ->:budget=<SGD to 2 dp, or ->`, e.g. `base:TM:points=12:budget=-`, `base:all:points=-:budget=150000.00` |
@@ -730,6 +733,11 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   `write_unserved`; context keys, which sites the caller passes, missing features, the
   profile fallback and the note stated; `unobserved` sites get no estimate (issue #16,
   spec 015).
-- **1.14 · 21 Oct 2026.** Rules (§4.4): a rule is registered for its source, not for data
+- **1.14 · 21 Oct 2026.** New ingest staging tables `stg_amenity`, `stg_land_use` and
+  `stg_residents` (§3.2, migration `004_static.sql`), written by `load_static` and read by
+  conform. Petrol stations are dropped: the Customs licence list holds only terminals,
+  refineries and power stations. Station id is LTA `postalCode` (§3.3): the `EVCBatch` feed
+  has no `locationId`, and `postalCode` is present and unique on every location (spec 004).
+- **1.15 · 22 Oct 2026.** Rules (§4.4): a rule is registered for its source, not for data
   availability; a check may return `passed = None` for a fact it needs only for some sites;
   `screen_all` and `python -m optev.reasoning screen` screen Postgres (spec 008, #72).
