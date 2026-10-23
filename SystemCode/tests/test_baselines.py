@@ -1,11 +1,17 @@
-"""Baselines (#36 busiest first, #37 spatial spread, SYSTEM_DESIGN.md §6), on optev.sample
-through the harness."""
+"""Baselines (#36 busiest first, #37 spatial spread, #38 extend existing, SYSTEM_DESIGN.md §6),
+on optev.sample through the harness."""
 
 import math
 from dataclasses import replace
 
 from optev.evaluation import harness as H
-from optev.evaluation.baselines import _metres, busiest_first, spatial_spread, utilisation
+from optev.evaluation.baselines import (
+    _metres,
+    busiest_first,
+    extend_existing,
+    spatial_spread,
+    utilisation,
+)
 
 REQ, INPUTS, METHODS = H.sample_inputs()
 SITES = {s.site_id: s for s in INPUTS.sites}
@@ -131,4 +137,66 @@ def test_busiest_first_ignores_demand_and_respects_the_area():
 
 def test_busiest_first_is_in_the_comparison_table():
     row = {r.method: r for r in H.compare(REQ, INPUTS, METHODS)}["busiest first (#36)"]
+    assert row.points == REQ.points and row.violations == 0
+
+
+# Extend existing (#38, spec 030) -------------------------------------------------------
+
+EFFECTIVE = H.effective(INPUTS)
+
+
+def _charging() -> list[str]:
+    return sorted((sid for sid in _open() if EFFECTIVE[sid] > 0),
+                  key=lambda sid: (-EFFECTIVE[sid], sid))
+
+
+def test_extend_existing_places_the_requested_points_with_no_violations():
+    plan = extend_existing(REQ, INPUTS)
+    assert plan.total_connectors == REQ.points and H.violations(plan, REQ, INPUTS) == []
+    assert plan.requested_connectors == REQ.points and plan.scenario_id == REQ.scenario_id
+
+
+def test_extend_existing_goes_round_robin_over_charging_sites_largest_first():
+    charging = _charging()
+    assert "SYN-S-04" in charging  # 2 existing + 2 planned: planned picks count
+    extra = REQ.points - len(charging)
+    assert 0 < extra < len(charging)  # the sample: 12 points over 9 charging sites
+    assert _plan_of(extend_existing(REQ, INPUTS)) == {
+        sid: 2 if n < extra else 1 for n, sid in enumerate(charging)}
+
+
+def test_extend_existing_with_more_charging_sites_than_points():
+    charging = _charging()
+    few = replace(REQ, points=3)
+    assert few.points < len(charging)  # the round stops partway: later sites never reached
+    plan = extend_existing(few, INPUTS)
+    assert _plan_of(plan) == {sid: 1 for sid in charging[:3]}
+    assert H.violations(plan, few, INPUTS) == []
+
+
+def test_extend_existing_falls_back_to_other_sites_in_id_order_once_full():
+    space = _open()
+    full = sum(space[sid] for sid in _charging())
+    plan = _plan_of(extend_existing(replace(REQ, points=full + 3), INPUTS))
+    others = sorted(sid for sid in space if EFFECTIVE[sid] == 0)
+    assert all(plan[sid] == space[sid] for sid in _charging())
+    assert {sid: n for sid, n in plan.items() if EFFECTIVE[sid] == 0} == {others[0]: 3}
+
+
+def test_extend_existing_ignores_demand_and_respects_the_area():
+    tripled = replace(INPUTS, demand=[e.model_copy(update={"arrivals_per_hour":
+                                                          e.arrivals_per_hour * 3 + 1})
+                                      for e in INPUTS.demand])
+    assert extend_existing(REQ, tripled) == extend_existing(REQ, INPUTS)
+    in_pr = extend_existing(replace(REQ, planning_area="PR"), INPUTS)
+    assert {SITES[i.site_id].planning_area for i in in_pr.items} == {"PR"}
+    assert all(EFFECTIVE[i.site_id] > 0 for i in in_pr.items)
+    total = sum(_open().values())
+    big = extend_existing(replace(REQ, points=total + 50), INPUTS)
+    assert big.total_connectors == total
+    assert H.violations(big, replace(REQ, points=total + 50), INPUTS) == []
+
+
+def test_extend_existing_is_in_the_comparison_table():
+    row = {r.method: r for r in H.compare(REQ, INPUTS, METHODS)}["extend existing (#38)"]
     assert row.points == REQ.points and row.violations == 0
