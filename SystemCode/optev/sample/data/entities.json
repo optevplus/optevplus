@@ -2874,31 +2874,19 @@
     "site_id": "SYN-S-03",
     "connectors": 1,
     "cost": 9250.0,
-    "marginal_relief": 0.3119
+    "marginal_relief": 0.3234
    },
    {
     "site_id": "SYN-S-04",
-    "connectors": 7,
-    "cost": 64750.0,
-    "marginal_relief": 2.2035
-   },
-   {
-    "site_id": "SYN-S-10",
-    "connectors": 1,
-    "cost": 9250.0,
-    "marginal_relief": 0.3106
-   },
-   {
-    "site_id": "SYN-S-12",
-    "connectors": 1,
-    "cost": 9250.0,
-    "marginal_relief": 0.3112
+    "connectors": 10,
+    "cost": 92500.0,
+    "marginal_relief": 3.2514
    },
    {
     "site_id": "SYN-S-15",
-    "connectors": 2,
-    "cost": 18500.0,
-    "marginal_relief": 0.6241
+    "connectors": 1,
+    "cost": 9250.0,
+    "marginal_relief": 0.3231
    }
   ],
   "checked": true,
@@ -2918,7 +2906,7 @@
   {
    "scenario_id": "low",
    "seed": 25,
-   "growth_multiplier": 1.4,
+   "growth_multiplier": 3.26,
    "horizon_months": 51,
    "baseline_window": "2026-10-01/2026-10-03",
    "planned": [],
@@ -2927,7 +2915,7 @@
   {
    "scenario_id": "base",
    "seed": 25,
-   "growth_multiplier": 1.8,
+   "growth_multiplier": 3.65,
    "horizon_months": 51,
    "baseline_window": "2026-10-01/2026-10-03",
    "planned": [
@@ -2943,7 +2931,7 @@
   {
    "scenario_id": "high",
    "seed": 25,
-   "growth_multiplier": 2.2,
+   "growth_multiplier": 3.99,
    "horizon_months": 51,
    "baseline_window": "2026-10-01/2026-10-03",
    "planned": [],
