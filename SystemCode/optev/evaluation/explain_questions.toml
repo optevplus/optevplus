@@ -26,7 +26,7 @@ must_mention = ["R04", "idle"]
 question = "Why is SYN-S-06 only conditional?"
 type = "why_not_site"
 params = { site_id = "SYN-S-06" }
-must_cite = ["R02", "doc-lta-ev-safety"]
+must_cite = ["R02", "doc-mha-ev-carparks-2026"]  # R02's source since the #72 register
 must_mention = ["R02", "basement"]
 
 [[q]]
@@ -47,8 +47,8 @@ must_mention = ["accept"]
 question = "Why does SYN-S-15 get new charging points?"
 type = "why_site"
 params = { site_id = "SYN-S-15" }
-must_cite = ["observed:SYN-S-15", "base:all:points=12:budget=-"]
-must_mention = ["2"]
+must_cite = ["observed:SYN-S-15"]  # the plan id is shared with the real base plan
+must_mention = ["accept"]
 
 [[q]]
 question = "Where does the demand estimate for SYN-S-04 come from?"
@@ -90,7 +90,7 @@ question = "Where does rule R03 come from?"
 type = "rule_sources"
 params = { rule_id = "R03" }
 must_cite = ["R03", "doc-lta-ev-factsheet-2021"]
-must_mention = ["15%"]
+must_mention = ["factsheet"]  # the register states MAX_SHARE_OF_LOTS by name since #72
 
 [[q]]
 question = "What is rule R04 based on?"

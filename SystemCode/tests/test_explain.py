@@ -144,3 +144,23 @@ def test_a_site_with_no_recorded_path_is_visibly_refused():
     model = FakeLLM(GOOD)
     a = explain("Why was SYN-S-99 rejected?", llm=model)
     assert a.refused and model.calls == 0 and a.evidence == []
+
+
+def test_a_citation_with_a_field_name_or_quotes_is_the_same_id():
+    rows = [{"site_id": "hdb:A76", "decision_id": "observed:hdb:A76",
+             "rules": [{"rule_id": "R03"}]}]
+    problems, cited = check('Rejected [rule_id: "R03"] at [\'hdb:A76\'] [observed:hdb:A76].', rows)
+    assert problems == [] and cited == ["R03", "hdb:A76", "observed:hdb:A76"]
+    assert "not in the evidence" in check("Rejected [rule_id: R99].", rows)[0][0]
+
+
+def test_the_scorer_accepts_the_same_fact_in_other_words():
+    from optev.evaluation.explain_eval import REAL, mentions, questions
+
+    assert mentions("demand is at least 4.7 an hour", "lower bound")
+    assert mentions("busy 86.87% of the time", "0.8687")
+    assert mentions("a project assumption", "project_assumption")
+    assert not mentions("it was accepted", "reject")
+    for q in questions(REAL):  # the real answer key classifies as written
+        expected = (q["type"], q["params"]) if "type" in q else None
+        assert classify(q["question"]) == expected, q["question"]

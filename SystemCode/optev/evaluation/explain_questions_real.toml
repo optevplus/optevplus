@@ -1,0 +1,143 @@
+# Stage 5 answer key on the REAL data (SYSTEM_DESIGN.md §6): 20 planner questions about real
+# sites, answered beforehand from the pipeline's tables (the first Neon run, 22 Oct 2026, base
+# scenario, 12 points island-wide), read back through the graph that load_all built from them.
+# Same fields as explain_questions.toml. Regenerate if the pipeline is re-run with other data.
+
+[[q]]
+question = "Why was hdb:A33 rejected?"
+type = "why_not_site"
+params = { site_id = "hdb:A33" }
+must_cite = ["R03", "doc-lta-ev-factsheet-2021"]
+must_mention = ["reject"]
+
+[[q]]
+question = "Why wasn't hdb:A49 chosen?"
+type = "why_not_site"
+params = { site_id = "hdb:A49" }
+must_cite = ["R04", "asm-idle-threshold"]
+must_mention = ["idle"]
+
+[[q]]
+question = "Why is hdb:ACB only conditional?"
+type = "why_not_site"
+params = { site_id = "hdb:ACB" }
+must_cite = ["R02", "doc-mha-ev-carparks-2026"]
+must_mention = ["basement"]
+
+[[q]]
+question = "Why is hdb:A10 conditional?"
+type = "why_not_site"
+params = { site_id = "hdb:A10" }
+must_cite = ["R06", "doc-mot-ev-reply-2025"]
+must_mention = ["electrical"]
+
+[[q]]
+question = "Why was ura:A0007 deferred?"
+type = "why_not_site"
+params = { site_id = "ura:A0007" }
+must_cite = ["R02"]
+must_mention = ["defer"]
+
+[[q]]
+question = "Why was hdb:A76 chosen?"
+type = "why_site"
+params = { site_id = "hdb:A76" }
+must_cite = ["observed:hdb:A76", "base:all:points=12:budget=-"]
+must_mention = ["3"]
+
+[[q]]
+question = "Why does hdb:JS3L get new charging points?"
+type = "why_site"
+params = { site_id = "hdb:JS3L" }
+must_cite = ["observed:hdb:JS3L", "base:all:points=12:budget=-"]
+must_mention = ["3"]
+
+[[q]]
+question = "Where does the demand estimate for hdb:A76 come from?"
+type = "demand_basis"
+params = { site_id = "hdb:A76" }
+must_cite = ["hdb:A76@all", "ds-lta-evcbatch", "asm-session-hours"]
+must_mention = ["3.22"]
+
+[[q]]
+question = "How busy are the chargers at hdb:A76?"
+type = "demand_basis"
+params = { site_id = "hdb:A76" }
+must_cite = ["hdb:A76@all"]
+must_mention = ["0.8687"]
+
+[[q]]
+question = "Where does hdb:JS3L's demand estimate come from, with no chargers there?"
+type = "demand_basis"
+params = { site_id = "hdb:JS3L" }
+must_cite = ["hdb:JS3L@all"]
+must_mention = ["regression"]
+
+[[q]]
+question = "Compare hdb:A76 and hdb:A33."
+type = "compare_sites"
+params = { site_a = "hdb:A76", site_b = "hdb:A33" }
+must_cite = ["hdb:A76", "hdb:A33", "R03"]
+must_mention = ["accept", "reject"]
+
+[[q]]
+question = "Why hdb:JS3L over hdb:A49?"
+type = "compare_sites"
+params = { site_a = "hdb:JS3L", site_b = "hdb:A49" }
+must_cite = ["hdb:JS3L", "hdb:A49", "R04"]
+must_mention = ["idle"]
+
+[[q]]
+question = "Where does rule R03 come from?"
+type = "rule_sources"
+params = { rule_id = "R03" }
+must_cite = ["R03", "doc-lta-ev-factsheet-2021"]
+must_mention = ["factsheet"]
+
+[[q]]
+question = "Where does rule R06 come from?"
+type = "rule_sources"
+params = { rule_id = "R06" }
+must_cite = ["R06", "doc-mot-ev-reply-2025"]
+must_mention = ["electrical"]
+
+[[q]]
+question = "What is rule R04 based on?"
+type = "rule_sources"
+params = { rule_id = "R04" }
+must_cite = ["R04", "asm-idle-threshold"]
+must_mention = ["project_assumption"]
+
+[[q]]
+question = "What assumptions sit behind hdb:A76?"
+type = "assumptions_used"
+params = { site_id = "hdb:A76" }
+must_cite = ["asm-session-hours"]
+must_mention = ["3"]
+
+[[q]]
+question = "Which assumptions does hdb:A49 depend on?"
+type = "assumptions_used"
+params = { site_id = "hdb:A49" }
+must_cite = ["asm-session-hours", "asm-idle-threshold"]
+must_mention = ["idle"]
+
+[[q]]
+question = "Why was hdb:NOPE99 rejected?"
+type = "why_not_site"
+params = { site_id = "hdb:NOPE99" }
+must_cite = []
+must_mention = []
+refuse = true
+
+[[q]]
+question = "What's the weather in Jurong West tomorrow?"
+must_cite = []
+must_mention = []
+refuse = true
+
+[[q]]
+question = "Write me a poem about charging stations."
+must_cite = []
+must_mention = []
+refuse = true
