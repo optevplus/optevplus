@@ -43,7 +43,7 @@ question = "Why was hdb:A76 chosen?"
 type = "why_site"
 params = { site_id = "hdb:A76" }
 must_cite = ["observed:hdb:A76", "base:all:points=12:budget=-"]
-must_mention = ["3"]
+must_mention = ["5"]  # points the 12-point base plan gives it (exact plan, #98)
 
 [[q]]
 question = "Why does hdb:JS3L get new charging points?"
