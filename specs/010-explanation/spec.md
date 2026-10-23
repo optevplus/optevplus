@@ -39,3 +39,20 @@ that sentence never claims more than the graph holds.
   ids inside a retrieved row carries no meaning, so ranking them would measure nothing.
 - **Waiting on:** a model key. Then run `explain_eval --llm` for accuracy, citation rate,
   unsupported claims and Precision@k, and record them for the report (#43).
+
+## Checkpoint · 23 Oct 2026 (model connected)
+- **Model:** OpenAI `gpt-4o-mini` through `openai_compatible` (GitHub Models was retired on
+  30 Jul 2026, so it cannot be used).
+- **Real-data answer key:** `evaluation/explain_questions_real.toml`, 20 questions about real
+  sites from the first Neon run (rejected by R03/R04, conditional by R02/R06, deferred, the two
+  sites with 3 points, demand of a busy and a no-charger site, comparisons, rule sources,
+  assumptions, 3 refusals). `python -m optev.evaluation.explain_eval --llm --real`.
+- **Results, real key (two runs, identical):** classification 1.000, evidence recall 1.000,
+  accuracy 0.950, answered 17 of 17, citation rate 1.000, unsupported claims 0,
+  Precision@k ≈ 0.2 (answers cite the site and decision before the rule and document).
+- **Fixed on the way:** the system prompt showed real ids as citation examples and the model
+  copied them into unrelated answers (the check caught it and refused); the prompt now
+  describes the format without ids. The checker reads `rule_id: "R03"` as `R03`. The scorer
+  accepts the same fact in other words ("at least" = lower bound, a share as a percentage).
+- **Sample key:** 0.75, because the real load shares rule, scenario and plan ids with the sample
+  graph and replaced parts of it. Report the real key.

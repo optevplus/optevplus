@@ -131,10 +131,21 @@ def _supported(written: str, known: list[float]) -> bool:
     return any(abs(value - k) <= tol + 1e-9 for k in candidates)
 
 
+FIELD_PREFIX = re.compile(
+    r"^(\w+_id|planning_area|code|source_ref|based_on|affected_areas|indicator_ids)\s*[:=]\s*")
+
+
+def _citation(raw: str) -> str:
+    """One cited id as written: `R03`, `rule_id: "R03"` and `'R03'` all mean R03. Only a known
+    field name and quotes are removed; the id itself must still be in the evidence."""
+    c = FIELD_PREFIX.sub("", raw.strip())
+    return c.strip().strip("\"'`").strip()
+
+
 def check(text: str, rows: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     """(problems, citations). An answer passes when problems is empty."""
     ids = evidence_ids(rows)
-    cited = [c.strip() for group in CITATION.findall(text) for c in group.split(",")]
+    cited = [_citation(c) for group in CITATION.findall(text) for c in group.split(",")]
     problems = [f"cites {c!r}, which is not in the evidence" for c in cited if c not in ids]
     if not cited:
         problems.append("cites nothing; every fact needs an [id] from the evidence")
@@ -152,10 +163,13 @@ def check(text: str, rows: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
 
 SYSTEM = """You explain decisions of OptEV+, a planner for Singapore's public EV charging points.
 Answer ONLY from the EVIDENCE (JSON rows retrieved from the knowledge graph).
-- Cite every fact with the id it comes from in square brackets, e.g. [R03] or
-  [doc-lta-ev-factsheet-2021] or [SYN-S-13@all]. Use only ids that appear in the evidence.
-- Copy numbers exactly as they appear in the evidence. A share like 0.9479 may be written as
-  94.79%. Do not compute new numbers.
+- Cite every fact with the id it comes from, in square brackets. Ids are the values of fields
+  whose names end in "_id" (and planning_area codes). Put only the value inside the brackets,
+  exactly as written in THIS evidence, with no field name and no quotes. Never cite an id
+  that is not in this evidence.
+- State the rule's condition in your own words when you name a rule.
+- Copy numbers exactly as they appear in the evidence; a share between 0 and 1 may be written
+  as a percentage. Do not compute new numbers.
 - verdict "unevaluated" means the rule could not be checked, not that it failed.
 - kind "lower_bound" means demand is at least this value.
 - If the evidence does not answer the question, say "The evidence does not say."
