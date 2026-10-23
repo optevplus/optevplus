@@ -17,6 +17,7 @@ from optev.sample import Sample
 
 from . import schema as S
 from .ddl import Session
+from .read import GraphBundle, from_sample
 
 BATCH_SIZE = 500
 WITH_SUPPLY = {SupplyState.SUPPLY_ACTIVE, SupplyState.SUPPLY_IDLE}
@@ -103,13 +104,18 @@ def _ref_label(ref: str | None) -> str | None:
     return None
 
 
-def rows(data: Sample, extra_label: str | None = None) -> list[Batch]:
+def as_bundle(data: Sample | GraphBundle) -> GraphBundle:
+    """The sample or a Postgres bundle, as the one shape the loader reads."""
+    return data if isinstance(data, GraphBundle) else from_sample(data)
+
+
+def rows(data: Sample | GraphBundle, extra_label: str | None = None) -> list[Batch]:
     """Every batch to send, in the order of design §4.5. Raw readings and per-bin estimates
     are never loaded: the graph explains decisions, it does not store measurements."""
     return list(_build(data, extra_label).batches.values())
 
 
-def stale_links(data: Sample) -> list[Batch]:
+def stale_links(data: Sample | GraphBundle) -> list[Batch]:
     """For every node this bundle loads, delete its outgoing relationships of each declared
     type before they are re-merged. Without this a re-run keeps links the new data dropped:
     a site removed from a re-solved plan would still look allocated."""
@@ -127,7 +133,8 @@ def stale_links(data: Sample) -> list[Batch]:
     return out
 
 
-def _build(data: Sample, extra_label: str | None) -> "_Builder":
+def _build(raw: Sample | GraphBundle, extra_label: str | None) -> "_Builder":
+    data = as_bundle(raw)
     g = _Builder(extra_label)
 
     # Reference nodes first, so every later relationship can see its target.
@@ -208,30 +215,31 @@ def _build(data: Sample, extra_label: str | None) -> "_Builder":
             g.rel("EVALUATED", "Decision", k, "Rule", r.rule_id,
                   {"verdict": S.verdict(r), "detail": r.detail})
 
-    a = data.allocation
-    values = _flat(a)
-    values["allocation_id"] = S.allocation_key(
-        a.scenario_id, a.planning_area, a.requested_connectors, a.budget
-    )
-    k = g.node("Allocation", values)
-    g.rel("UNDER", "Allocation", k, "Scenario", a.scenario_id)
-    for item in a.items:
-        g.rel("ALLOCATES", "Allocation", k, "CandidateSite", item.site_id, _flat(item))
+    for a in data.allocations:
+        values = _flat(a)
+        values["allocation_id"] = S.allocation_key(
+            a.scenario_id, a.planning_area, a.requested_connectors, a.budget
+        )
+        k = g.node("Allocation", values)
+        g.rel("UNDER", "Allocation", k, "Scenario", a.scenario_id)
+        for item in a.items:
+            g.rel("ALLOCATES", "Allocation", k, "CandidateSite", item.site_id, _flat(item))
 
-    rep = data.infeasibility
-    values = _flat(rep)
-    values["report_id"] = S.infeasibility_key(
-        rep.scenario_id, rep.planning_area, rep.requested_connectors
-    )
-    k = g.node("Infeasibility", values)
-    g.rel("FOR", "Infeasibility", k, "Scenario", rep.scenario_id)
-    for area_code in rep.affected_areas:
-        g.rel("AFFECTS", "Infeasibility", k, "PlanningArea", area_code)
+    for rep in data.infeasibilities:
+        values = _flat(rep)
+        values["report_id"] = S.infeasibility_key(
+            rep.scenario_id, rep.planning_area, rep.requested_connectors
+        )
+        k = g.node("Infeasibility", values)
+        g.rel("FOR", "Infeasibility", k, "Scenario", rep.scenario_id)
+        for area_code in rep.affected_areas:
+            g.rel("AFFECTS", "Infeasibility", k, "PlanningArea", area_code)
 
     return g
 
 
-def load(data: Sample, session: Session, extra_label: str | None = None) -> dict[str, int]:
+def load(data: Sample | GraphBundle, session: Session,
+         extra_label: str | None = None) -> dict[str, int]:
     """MERGE the bundle into the graph. Returns rows sent per node label or relationship.
     Run `apply_schema` first: the uniqueness constraints are what make MERGE safe.
 
@@ -247,6 +255,19 @@ def load(data: Sample, session: Session, extra_label: str | None = None) -> dict
             session.run(batch.cypher, {"rows": batch.rows[i : i + BATCH_SIZE]}).consume()
         counts[batch.name] = len(batch.rows)
     return counts
+
+
+def load_all(database_url: str) -> dict[str, int]:
+    """Design §4.5: rebuild the graph from Postgres after a pipeline run. Reads every pipeline
+    table into one bundle (graph.read) and MERGEs it; the sample, if loaded, is left alone."""
+    from .client import driver
+    from .ddl import apply_schema
+    from .read import read_bundle
+
+    data = read_bundle(database_url)
+    with driver() as d, d.session() as s:
+        apply_schema(s)
+        return load(data, s)
 
 
 def clear_sample(session: Session) -> int:

@@ -92,6 +92,19 @@ uv run python -m optev.graph load --sample
 uv run streamlit run optev/app/main.py
 ```
 
+### C. Run the whole pipeline offline (local Postgres)
+
+With Postgres and PostGIS installed locally (e.g. `brew install postgresql@17 postgis`), the
+sample goes into a scratch database and every stage runs on it:
+
+```bash
+createdb optev && psql -d optev -c "CREATE EXTENSION postgis;"
+export DATABASE_URL=postgresql://localhost/optev
+uv run optev-db migrate
+uv run python -m optev.sample.seed_db                 # the sample, as if collected
+uv run python -m optev.pipeline run --scenario base --points 12
+```
+
 ### Try it
 
 On the **Evidence** page, ask in plain words or pick a question:
@@ -123,6 +136,8 @@ Run from `SystemCode/`.
 | `uv run optev-db load-collected <folder>` | Load the collected week of readings | Postgres, raw files |
 | `uv run optev-db conform` | Build candidate sites from car parks, stations and readings | Postgres |
 | `uv run optev-db coverage` | Measure data completeness and freshness | Postgres |
+| `uv run python -m optev.pipeline run --scenario base --area TM --points 12` | Every stage end to end; `--from STEP` restarts part-way (`python -m optev.pipeline steps` lists them) | Postgres, Neo4j |
+| `uv run python -m optev.graph load` | Rebuild the graph from Postgres (`load_all`) | Postgres, Neo4j |
 | `uv run python -m optev.graph load --sample` | Load the sample into the graph (`clear --sample` removes it) | Neo4j |
 | `uv run python -m optev.graph ask why_not_site site_id=SYN-S-13` | One fixed graph query, raw evidence | Neo4j |
 | `uv run python -m optev.graph explain "Why was SYN-S-13 rejected?"` | Written, cited answer, or a refusal | Neo4j (+ model) |
