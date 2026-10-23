@@ -154,3 +154,119 @@ def test_the_whole_pipeline_runs_on_a_database():
     state = P.run(os.environ["OPTEV_PIPELINE_DB"], P.Request("base", None, 12, None),
                   only=["migrations", "allocate"])
     assert state.plan is not None
+
+
+# Review of #90 (Sushant) ------------------------------------------------------------------
+
+def test_a_reload_clears_a_plans_old_links_before_merging():
+    # load() deletes every loaded node's outgoing links first (#71), Postgres bundles included,
+    # so a site dropped from a re-run plan loses its ALLOCATES edge.
+    rows = _rows_from_sample()
+    data = bundle(lambda name: rows[name])
+    stale = {b.name: b for b in L.stale_links(data)}
+    clear = stale["clear Allocation-ALLOCATES->CandidateSite"]
+    key = allocation_key(S.allocation.scenario_id, S.allocation.planning_area,
+                         S.allocation.requested_connectors, S.allocation.budget)
+    assert {r["key"] for r in clear.rows} == {key} and "DELETE" in clear.cypher
+
+
+def test_planning_inputs_take_the_scenarios_decision_else_the_observed_one():
+    rows = {
+        "decisions": [{"site_id": "A", "scenario_id": "observed", "outcome": "accept"},
+                      {"site_id": "A", "scenario_id": "base", "outcome": "reject"},
+                      {"site_id": "B", "scenario_id": "observed", "outcome": "accept"}],
+        "results": [], "planned": [{"scenario_id": "base", "site_id": "B", "connectors": 2,
+                                    "selected_by": "x"}],
+        "scenarios": [{"scenario_id": "base", "seed": 0, "growth_multiplier": 1.8,
+                       "horizon_months": 51, "baseline_window": None,
+                       "provenance": "simulated"}],
+        "sites": [], "scenario_demand": [{"site_id": "A", "time_bin": "all",
+                                          "arrivals_per_hour": 2.0, "kind": "point"}],
+        "observed_demand": [{"site_id": "A", "time_bin": "all", "arrivals_per_hour": 1.0,
+                             "kind": "point", "note": "queueing"}],
+    }
+    inputs, demand = P.planning_inputs(lambda name, *p: rows[name], "base")
+    outcomes = {d.site_id: d.outcome.value for d in inputs["decisions"]}
+    assert outcomes == {"A": "reject", "B": "accept"}  # one per site; the scenario's wins
+    assert inputs["scenario"].planned[0].site_id == "B" and demand[0].arrivals_per_hour == 2.0
+    _, observed = P.planning_inputs(lambda name, *p: rows[name], "observed")
+    assert observed[0].note == "queueing"  # the note is kept
+    with pytest.raises(RuntimeError, match="not in Postgres"):
+        P.planning_inputs(lambda name, *p: rows[name], "high")
+
+
+def test_only_names_are_checked_and_do_not_mix_with_from():
+    with pytest.raises(ValueError, match="unknown step"):
+        P.run("postgresql://unused", P.Request(), only=["allocte", "coverage"])
+    with pytest.raises(ValueError, match="not both"):
+        P.run("postgresql://unused", P.Request(), start_at="rules", only=["coverage"])
+
+
+def test_run_does_not_leak_the_database_url(monkeypatch):
+    import optev.pipeline as mod
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(mod, "STEPS", [("migrations", lambda run: {})])
+    P.run("postgresql://scratch", P.Request(), only=["migrations"])
+    assert "DATABASE_URL" not in os.environ
+
+
+def test_seed_ids_and_areas_follow_the_real_formats():
+    from optev.sample import seed_db
+
+    ids = seed_db.car_park_ids()
+    assert set(ids) == {c.car_park_id for c in S.car_parks}
+    assert all(v.startswith(("hdb:SYN-", "ura:SYN-")) for v in ids.values())
+    hdb = {s.car_park_id for s in S.sites if s.kind.value == "hdb_car_park"}
+    assert all(ids[c].startswith("hdb:") == (c in hdb) for c in ids)
+    for area in S.planning_areas:  # each square contains that area's sites
+        wkt = seed_db._square(area.code)
+        nums = [float(v) for v in wkt.replace("MULTIPOLYGON(((", "").rstrip(")").replace(",", " ")
+                .split()]
+        lons, lats = nums[0::2], nums[1::2]
+        for s in S.sites:
+            if s.planning_area == area.code:
+                assert min(lons) < s.coord.lon < max(lons) and min(lats) < s.coord.lat < max(lats)
+
+
+class _SeedConn:
+    def __init__(self, real_readings: int) -> None:
+        self.real, self.sql = real_readings, []
+
+    def execute(self, sql: str, params: Any = None) -> Any:
+        self.sql.append(sql)
+        return type("R", (), {"fetchone": lambda _self: (self.real,)})()
+
+    def cursor(self) -> "_SeedCur":
+        return _SeedCur(self.sql)
+
+
+class _SeedCur(_Cur):
+    def __init__(self, sql: list[str]) -> None:
+        super().__init__()
+        self.sql = sql
+
+    def execute(self, sql: str, params: Any = None) -> None:
+        self.sql.append(sql)
+
+    def executemany(self, sql: str, rows: Any) -> None:
+        self.sql.append(sql)
+
+
+def test_seed_replaces_the_samples_readings_and_refuses_real_ones():
+    from optev.sample import seed_db
+
+    conn = _SeedConn(real_readings=0)
+    counts = seed_db.seed(conn)  # type: ignore[arg-type]
+    deletes = [i for i, q in enumerate(conn.sql) if q.startswith("DELETE")]
+    inserts = [i for i, q in enumerate(conn.sql) if "INSERT INTO connector_reading" in q]
+    assert len(deletes) == 2 and max(deletes) < min(inserts)  # replace, never double
+    assert counts["connector_reading"] == len(sample_connector_readings())
+    with pytest.raises(RuntimeError, match="real readings"):
+        seed_db.seed(_SeedConn(real_readings=5))  # type: ignore[arg-type]
+
+
+def sample_connector_readings() -> list[Any]:
+    from optev.sample import connector_readings
+
+    return connector_readings()

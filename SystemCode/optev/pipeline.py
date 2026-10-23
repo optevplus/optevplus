@@ -35,6 +35,9 @@ from optev.graph.schema import allocation_key, infeasibility_key
 
 log = logging.getLogger("optev.pipeline")
 _ENV = Path(__file__).resolve().parents[1] / ".env"
+BASELINE = "observed"
+SQL_SITES = """SELECT site_id, kind, planning_area, car_park_id, total_lots,
+    existing_connectors, provenance, ST_Y(geom) AS lat, ST_X(geom) AS lon FROM candidate_site"""
 REQUIRED_TABLES = ("candidate_site", "site_indicators", "demand_estimate", "scenario",
                    "scenario_demand", "decision", "allocation", "stg_collect_slot")
 
@@ -133,12 +136,10 @@ def unserved(run: Run) -> dict[str, Any]:
         cur = conn.cursor(row_factory=dict_row)
         sites = [s for s in models(CandidateSite, cur.execute(SQL["sites"]))
                  if run.supply.get(s.site_id) in keep]
-        observed = [DemandEstimate(site_id=r["site_id"], time_bin=r["time_bin"],
-                                   arrivals_per_hour=r["arrivals_per_hour"],
-                                   kind=EstimateKind(r["kind"]), note=r["note"])
-                    for r in cur.execute("SELECT site_id, time_bin, arrivals_per_hour, kind, "
-                                         "note FROM demand_estimate WHERE method = 'queueing'")
-                    if run.supply.get(r["site_id"]) is SupplyState.SUPPLY_ACTIVE]
+        observed = [e for e in models(DemandEstimate, cur.execute(
+                        "SELECT site_id, time_bin, arrivals_per_hour, kind, note "
+                        "FROM demand_estimate WHERE method = 'queueing'"))
+                    if run.supply.get(e.site_id) is SupplyState.SUPPLY_ACTIVE]
     estimates = estimate_unserved(sites, observed, unserved_context(*run.window))
     with _connect(run.url) as conn:
         n = write_unserved(conn, estimates)
@@ -214,37 +215,66 @@ NEEDS_WINDOW = {"demand", "patterns", "unserved"}  # use what `indicators` measu
 
 # The plan, which no stage owns ------------------------------------------------------------
 
-def read_planning_inputs(url: str, scenario_id: str) -> tuple[dict[str, Any],
-                                                               list[DemandEstimate]]:
-    """Decisions, sites and the scenario from Postgres, and the scenario's demand: projected
-    rows from `scenario_demand`, or the observed estimates for `observed`."""
+PLANNING_SQL = {
+    "sites": SQL_SITES,
+    "decisions": "SELECT site_id, scenario_id, outcome FROM decision",
+    "results": "SELECT site_id, scenario_id, rule_id, passed, detail FROM rule_result",
+    "scenarios": """SELECT scenario_id, seed, growth_multiplier, horizon_months,
+        baseline_window, provenance FROM scenario""",
+    "planned": "SELECT scenario_id, site_id, connectors, selected_by FROM planned_capacity",
+    "observed_demand": """SELECT site_id, time_bin, arrivals_per_hour, kind, note
+        FROM demand_estimate""",
+    "scenario_demand": """SELECT site_id, time_bin, arrivals_per_hour, kind FROM scenario_demand
+        WHERE scenario_id = %s""",
+}
+
+
+def planning_inputs(q: Callable[..., list[dict[str, Any]]], scenario_id: str
+                    ) -> tuple[dict[str, Any], list[DemandEstimate]]:
+    """Only what the allocator needs, from `q(name, *params) -> rows`: sites, one decision per
+    site (the scenario's own, else the observed one), the scenario with its planned picks, and
+    its demand (`scenario_demand`, or `demand_estimate` for `observed`)."""
+    from optev.contracts import CandidateSite, Decision, PlannedCapacity, RuleResult
+    from optev.graph.read import models
+
+    results: dict[tuple[str, str], list[RuleResult]] = {}
+    for r in q("results"):
+        results.setdefault((r["site_id"], r["scenario_id"]), []).append(
+            RuleResult(rule_id=r["rule_id"], passed=r["passed"], detail=r["detail"]))
+    chosen: dict[str, dict[str, Any]] = {}
+    for d in q("decisions"):
+        if d["scenario_id"] == scenario_id or (
+                d["scenario_id"] == BASELINE and d["site_id"] not in chosen):
+            chosen[d["site_id"]] = d
+    decisions = [Decision(site_id=d["site_id"], outcome=d["outcome"],
+                          scenario_id=None if d["scenario_id"] == BASELINE else d["scenario_id"],
+                          results=results.get((d["site_id"], d["scenario_id"]), []))
+                 for d in chosen.values()]
+    if scenario_id == BASELINE:
+        scenario = Scenario(scenario_id=BASELINE, growth_multiplier=1.0)
+        demand = models(DemandEstimate, q("observed_demand"))
+    else:
+        found = [r for r in q("scenarios") if r["scenario_id"] == scenario_id]
+        if not found:
+            raise RuntimeError(f"scenario {scenario_id!r} not in Postgres; run the scenarios "
+                               "step first")
+        planned = [PlannedCapacity(site_id=p["site_id"], connectors=p["connectors"],
+                                   selected_by=p["selected_by"])
+                   for p in q("planned") if p["scenario_id"] == scenario_id]
+        scenario = Scenario(**found[0], planned=planned)
+        demand = models(DemandEstimate, q("scenario_demand", scenario_id))
+    sites = models(CandidateSite, q("sites"))
+    return {"decisions": decisions, "sites": sites, "scenario": scenario}, demand
+
+
+def read_planning_inputs(url: str, scenario_id: str
+                         ) -> tuple[dict[str, Any], list[DemandEstimate]]:
     from psycopg.rows import dict_row
 
-    from optev.graph.read import SQL, bundle
-
     with psycopg.connect(url, row_factory=dict_row) as conn, conn.cursor() as cur:
-        def q(name: str) -> list[dict[str, Any]]:
-            return list(cur.execute(SQL[name]))
-
-        data = bundle(q)
-        if scenario_id == "observed":
-            rows = cur.execute("SELECT site_id, time_bin, arrivals_per_hour, kind FROM "
-                               "demand_estimate").fetchall()
-            scenario = Scenario(scenario_id="observed", growth_multiplier=1.0)
-        else:
-            rows = cur.execute("SELECT site_id, time_bin, arrivals_per_hour, kind FROM "
-                               "scenario_demand WHERE scenario_id = %s", (scenario_id,)
-                               ).fetchall()
-            found = [s for s in data.scenarios if s.scenario_id == scenario_id]
-            if not found:
-                raise RuntimeError(f"scenario {scenario_id!r} not in Postgres; run the "
-                                   "scenarios step first")
-            scenario = found[0]
-    demand = [DemandEstimate(site_id=r["site_id"], time_bin=r["time_bin"],
-                             arrivals_per_hour=r["arrivals_per_hour"],
-                             kind=EstimateKind(r["kind"])) for r in rows]
-    decisions = [d for d in data.decisions if d.scenario_id in (None, scenario_id)]
-    return {"decisions": decisions, "sites": data.sites, "scenario": scenario}, demand
+        return planning_inputs(
+            lambda name, *params: list(cur.execute(PLANNING_SQL[name], params or None)),
+            scenario_id)
 
 
 def write_plan(conn: psycopg.Connection[Any], plan: Allocation | InfeasibilityReport) -> str:
@@ -282,21 +312,33 @@ def write_plan(conn: psycopg.Connection[Any], plan: Allocation | InfeasibilityRe
 def run(url: str, request: Request, start_at: str = "migrations",
         only: list[str] | None = None) -> Run:
     """Run the steps in order from `start_at` (or exactly `only`). Stops at the first error."""
-    os.environ["DATABASE_URL"] = url  # the steps' own modules read it
     names = [n for n, _ in STEPS]
     if start_at not in names:
         raise ValueError(f"unknown step {start_at!r}; one of {names}")
+    unknown = [n for n in only or [] if n not in names]
+    if unknown:
+        raise ValueError(f"unknown step(s) {unknown}; one of {names}")
+    if only and start_at != names[0]:
+        raise ValueError("use --from or --only, not both")
     chosen = only or names[names.index(start_at):]
     if set(chosen) & NEEDS_WINDOW and "indicators" not in chosen:
         chosen = ["indicators", *chosen]  # they need this run's measurements
     state = Run(url, request)
-    for name, step in STEPS:
-        if name not in chosen:
-            continue
-        t0 = time.perf_counter()
-        log.info("step %s …", name)
-        state.report[name] = {**step(state), "seconds": round(time.perf_counter() - t0, 1)}
-        log.info("step %s done: %s", name, state.report[name])
+    before = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = url  # the steps' own modules read it
+    try:
+        for name, step in STEPS:
+            if name not in chosen:
+                continue
+            t0 = time.perf_counter()
+            log.info("step %s …", name)
+            state.report[name] = {**step(state), "seconds": round(time.perf_counter() - t0, 1)}
+            log.info("step %s done: %s", name, state.report[name])
+    finally:  # never leak the URL into later tests or the app process
+        if before is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = before
     return state
 
 

@@ -17,6 +17,7 @@ from optev.sample import Sample
 
 from . import schema as S
 from .ddl import Session
+from .read import GraphBundle, from_sample
 
 BATCH_SIZE = 500
 WITH_SUPPLY = {SupplyState.SUPPLY_ACTIVE, SupplyState.SUPPLY_IDLE}
@@ -103,21 +104,18 @@ def _ref_label(ref: str | None) -> str | None:
     return None
 
 
-def _many(data: Any, plural: str, single: str) -> list[Any]:
-    """The sample holds one plan and one report; Postgres may hold any number (or none)."""
-    if hasattr(data, plural):
-        return list(getattr(data, plural))
-    one = getattr(data, single, None)
-    return [one] if one is not None else []
+def as_bundle(data: Sample | GraphBundle) -> GraphBundle:
+    """The sample or a Postgres bundle, as the one shape the loader reads."""
+    return data if isinstance(data, GraphBundle) else from_sample(data)
 
 
-def rows(data: Sample, extra_label: str | None = None) -> list[Batch]:
+def rows(data: Sample | GraphBundle, extra_label: str | None = None) -> list[Batch]:
     """Every batch to send, in the order of design §4.5. Raw readings and per-bin estimates
     are never loaded: the graph explains decisions, it does not store measurements."""
     return list(_build(data, extra_label).batches.values())
 
 
-def stale_links(data: Sample) -> list[Batch]:
+def stale_links(data: Sample | GraphBundle) -> list[Batch]:
     """For every node this bundle loads, delete its outgoing relationships of each declared
     type before they are re-merged. Without this a re-run keeps links the new data dropped:
     a site removed from a re-solved plan would still look allocated."""
@@ -135,7 +133,8 @@ def stale_links(data: Sample) -> list[Batch]:
     return out
 
 
-def _build(data: Sample, extra_label: str | None) -> "_Builder":
+def _build(raw: Sample | GraphBundle, extra_label: str | None) -> "_Builder":
+    data = as_bundle(raw)
     g = _Builder(extra_label)
 
     # Reference nodes first, so every later relationship can see its target.
@@ -216,7 +215,7 @@ def _build(data: Sample, extra_label: str | None) -> "_Builder":
             g.rel("EVALUATED", "Decision", k, "Rule", r.rule_id,
                   {"verdict": S.verdict(r), "detail": r.detail})
 
-    for a in _many(data, "allocations", "allocation"):
+    for a in data.allocations:
         values = _flat(a)
         values["allocation_id"] = S.allocation_key(
             a.scenario_id, a.planning_area, a.requested_connectors, a.budget
@@ -226,7 +225,7 @@ def _build(data: Sample, extra_label: str | None) -> "_Builder":
         for item in a.items:
             g.rel("ALLOCATES", "Allocation", k, "CandidateSite", item.site_id, _flat(item))
 
-    for rep in _many(data, "infeasibilities", "infeasibility"):
+    for rep in data.infeasibilities:
         values = _flat(rep)
         values["report_id"] = S.infeasibility_key(
             rep.scenario_id, rep.planning_area, rep.requested_connectors
@@ -239,7 +238,8 @@ def _build(data: Sample, extra_label: str | None) -> "_Builder":
     return g
 
 
-def load(data: Sample, session: Session, extra_label: str | None = None) -> dict[str, int]:
+def load(data: Sample | GraphBundle, session: Session,
+         extra_label: str | None = None) -> dict[str, int]:
     """MERGE the bundle into the graph. Returns rows sent per node label or relationship.
     Run `apply_schema` first: the uniqueness constraints are what make MERGE safe.
 
@@ -267,7 +267,7 @@ def load_all(database_url: str) -> dict[str, int]:
     data = read_bundle(database_url)
     with driver() as d, d.session() as s:
         apply_schema(s)
-        return load(data, s)  # type: ignore[arg-type]  # GraphBundle has Sample's fields
+        return load(data, s)
 
 
 def clear_sample(session: Session) -> int:

@@ -5,8 +5,8 @@
 For running the whole pipeline (#35) without Neon: a local database, a marker's machine, or
 a test. It writes only what collection and the static loads would write (planning areas, car
 parks, stations, connectors, readings, the slot manifest, amenities); every later table is
-left for the pipeline to fill. Every id starts with SYN-. Refuses a database that already
-holds real readings.
+left for the pipeline to fill. Every id carries SYN-. Refuses a database that already holds
+real readings. Re-runnable: the sample's earlier readings are replaced, never doubled.
 """
 
 import os
@@ -51,6 +51,9 @@ def seed(conn: psycopg.Connection[Any]) -> dict[str, int]:
     ids = car_park_ids()
     point = "ST_SetSRID(ST_MakePoint(%s, %s), 4326)"
     with conn.cursor() as cur:
+        # Readings have no natural key, so a second run would double them: replace instead.
+        cur.execute("DELETE FROM connector_reading WHERE connector_id LIKE 'SYN-%'")
+        cur.execute("DELETE FROM car_park_reading WHERE car_park_id LIKE '%SYN-%'")
         cur.executemany(
             "INSERT INTO planning_area (code, name, region, geom) VALUES "
             "(%s, %s, %s, ST_GeomFromText(%s, 4326)) ON CONFLICT (code) DO NOTHING",

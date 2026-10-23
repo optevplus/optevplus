@@ -88,6 +88,18 @@ class GraphBundle:
     references: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
 
+def from_sample(data: Any) -> GraphBundle:
+    """The sample (one plan, one report) as a GraphBundle (lists), so `load()` has one shape."""
+    return GraphBundle(
+        planning_areas=data.planning_areas, car_parks=data.car_parks, stations=data.stations,
+        connectors=data.connectors, sites=data.sites, near=data.near,
+        indicators=data.indicators, estimates=data.estimates, rules=data.rules,
+        rule_on_fail=data.rule_on_fail, decisions=data.decisions, scenarios=data.scenarios,
+        allocations=[data.allocation] if data.allocation else [],
+        infeasibilities=[data.infeasibility] if data.infeasibility else [],
+        references=data.references)
+
+
 def models[M: BaseModel](model: type[M], rows: Iterable[Mapping[str, Any]]) -> list[M]:
     """Contracts from rows: lat/lon nested as `coord`, timestamps as ISO text."""
     out = []
