@@ -53,8 +53,11 @@ def plan(data: AppData, request: Request) -> tuple[Allocation | InfeasibilityRep
         if found:
             return found, "stored plan (allocator not installed)"
         return None, "The allocator (#21) is not installed and no stored plan matches."
+    from optev.scenario.project import project
+
     scenario = next(s for s in data.scenarios if s.scenario_id == request.scenario_id)
-    result = allocate(data.decisions, data.sites, data.estimates, scenario,
+    # Plan for the scenario's demand (§4.3): observed rates × its growth, lower bounds kept.
+    result = allocate(data.decisions, data.sites, project(data.estimates, scenario), scenario,
                       planning_area=request.planning_area,
                       requested_connectors=request.points, budget=request.budget)
     return result, "allocator (CP-SAT)"
