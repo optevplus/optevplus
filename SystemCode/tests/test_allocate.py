@@ -239,3 +239,53 @@ def test_binding_names_only_groups_that_alone_fall_short():
     assert A.binding(5, rooms, 4) == ["budget"]
     assert A.binding(6, rooms, 4) == []
     assert A.binding(4, {}, 10) == ["room"]  # no eligible site: the room is zero
+
+
+# Pruning (scale fix for the real data) ---------------------------------------------------
+
+def _objective(gains, plan):
+    return sum(sum(gains[s][:n]) for s, n in plan.items())
+
+
+def test_pruning_never_changes_the_optimum():
+    import random
+
+    from optev.reasoning.allocate import prune, solve
+
+    rng = random.Random(7)
+    for _ in range(25):
+        gains = {f"s{i}": sorted((rng.random() for _ in range(rng.randint(0, 6))), reverse=True)
+                 for i in range(12)}
+        total = sum(len(g) for g in gains.values())
+        for points in (1, 3, 7, total):
+            full, pruned = solve(gains, points, None), solve(prune(gains, points), points, None)
+            assert (full is None) == (pruned is None)
+            if full:
+                assert abs(_objective(gains, full) - _objective(gains, pruned)) < 1e-3
+
+
+def test_pruning_keeps_each_sites_list_a_prefix_and_enough_points():
+    from optev.reasoning.allocate import prune
+
+    gains = {"a": [5.0, 3.0, 1.0], "b": [4.0, 2.0], "c": [0.5]}
+    kept = prune(gains, 3)
+    assert kept == {"a": [5.0, 3.0], "b": [4.0]}
+    assert sum(len(g) for g in kept.values()) >= 3
+    assert prune(gains, 10) == gains  # fewer candidates than points: nothing to drop
+
+
+def test_island_wide_scale_solves_quickly_after_pruning():
+    import random
+    import time
+
+    from optev.reasoning.allocate import prune, solve
+
+    rng = random.Random(1)
+    gains = {f"s{i}": sorted((rng.random() for _ in range(30)), reverse=True)
+             for i in range(3000)}  # the real data's size: ~3,000 sites, 30 points each
+    t0 = time.perf_counter()
+    plan = solve(prune(gains, 100), 100, None)
+    assert plan is not None and sum(plan.values()) == 100
+    assert time.perf_counter() - t0 < 10
+    best = sorted((g for gs in gains.values() for g in gs), reverse=True)[:100]
+    assert abs(_objective(gains, plan) - sum(best)) < 1e-2  # the top 100 gains overall
