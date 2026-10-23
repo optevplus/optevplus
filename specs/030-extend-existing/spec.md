@@ -67,3 +67,10 @@ ruff, mypy, pytest pass; `uv run python -m optev.evaluation.harness` prints the 
   sites that already have chargers rescues little.
 - **Tests:** 5 new in `tests/test_baselines.py`. ruff, mypy, pytest pass.
 - **Next:** PR to `main`, review by a CODEOWNER other than Sushant.
+
+## Checkpoint · 23 Oct 2026
+- **Fixed:** KeyError on real data (1,856 charging sites, 12 points). The round-robin stopped
+  partway through its first round, and the room filter read `counts[sid]` for sites it never
+  reached; it now reads `counts.get(sid, 0)`.
+- **Tests:** a new test with fewer points than charging sites (3 vs 9) fails on the old line
+  and passes on the fix. ruff, mypy, pytest pass.

@@ -102,7 +102,7 @@ def extend_existing(request: Request, inputs: Inputs) -> Allocation:
                 break
             counts[sid] = counts.get(sid, 0) + 1
             left -= 1
-        charging = [sid for sid in charging if counts[sid] < space[sid]]
+        charging = [sid for sid in charging if counts.get(sid, 0) < space[sid]]
     for sid in sorted(sid for sid, r in space.items() if r > 0 and c[sid] == 0):
         if not left:
             break

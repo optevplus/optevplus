@@ -165,6 +165,15 @@ def test_extend_existing_goes_round_robin_over_charging_sites_largest_first():
         sid: 2 if n < extra else 1 for n, sid in enumerate(charging)}
 
 
+def test_extend_existing_with_more_charging_sites_than_points():
+    charging = _charging()
+    few = replace(REQ, points=3)
+    assert few.points < len(charging)  # the round stops partway: later sites never reached
+    plan = extend_existing(few, INPUTS)
+    assert _plan_of(plan) == {sid: 1 for sid in charging[:3]}
+    assert H.violations(plan, few, INPUTS) == []
+
+
 def test_extend_existing_falls_back_to_other_sites_in_id_order_once_full():
     space = _open()
     full = sum(space[sid] for sid in _charging())
