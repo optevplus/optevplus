@@ -32,6 +32,21 @@ EXAMPLES = (
     "Compare SYN-S-04 and SYN-S-13.",
     "Why was SYN-S-99 rejected?",
 )
+REAL_EXAMPLES = (  # sites from the real answer key (evaluation/explain_questions_real.toml)
+    "Why was hdb:A76 chosen?",
+    "Why was hdb:A33 rejected?",
+    "Why is hdb:ACB only conditional?",
+    "Compare hdb:A76 and hdb:A33.",
+)
+SAMPLE_DEFAULTS = {"site_id": "SYN-S-13", "site_a": "SYN-S-04", "site_b": "SYN-S-13",
+                   "planning_area": "PR"}
+REAL_DEFAULTS = {"site_id": "hdb:A33", "site_a": "hdb:A76", "site_b": "hdb:A33",
+                 "planning_area": "TM"}
+
+
+def examples(real: bool) -> tuple[tuple[str, ...], dict[str, str]]:
+    """Example questions and form defaults for the data the app shows: ids that exist."""
+    return (REAL_EXAMPLES, REAL_DEFAULTS) if real else (EXAMPLES, SAMPLE_DEFAULTS)
 
 LAYER_HELP = {
     "observed": "Measured from a government feed.",

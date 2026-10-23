@@ -198,3 +198,21 @@ def test_the_map_page_shows_only_a_checked_plan():
     result, _ = plan(D.from_sample(), Request("base", None, 12, None))
     assert result is not None and getattr(result, "checked", False)
     assert result.violations == []
+
+
+def test_the_app_plans_on_every_time_bin_like_the_pipeline(monkeypatch):
+    # Erlang B per time bin (§4.2): planning on the daily mean alone picked a different plan
+    # on the real data than the pipeline did for the same request.
+    import optev.reasoning.allocate as A
+    from optev.app.shell import Request, plan
+
+    seen = {}
+    real = A.allocate
+
+    def spy(decisions, sites, demand, scenario, **kw):
+        seen["bins"] = {e.time_bin for e in demand}
+        return real(decisions, sites, demand, scenario, **kw)
+
+    monkeypatch.setattr(A, "allocate", spy)
+    plan(D.from_sample(), Request("base", None, 12, None))
+    assert "all" in seen["bins"] and any(b.startswith(("wd-", "we-")) for b in seen["bins"])
