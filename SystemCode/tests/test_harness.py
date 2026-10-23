@@ -57,7 +57,8 @@ def test_the_table_compares_every_method_on_one_request():
     assert names[:2] == ["random (mean of 100)", "population share"]
     assert "sample reference (greedy)" in names
     assert all(r.violations == 0 for r in rows)
-    best = max(rows[:2], key=lambda r: r.rescued)
+    baselines = [r for r in rows if not r.method.startswith(H.NOT_BASELINES)]
+    best = max(baselines, key=lambda r: r.rescued)  # the best of every baseline
     assert best.vs_best_baseline == pytest.approx(1.0)
     greedy = next(r for r in rows if r.method == "sample reference (greedy)")
     assert greedy.rescued > rows[0].rescued  # beats random on average
