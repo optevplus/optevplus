@@ -35,6 +35,7 @@ from optev.contracts import (
 WEIGHT = {"wd": 5 / 7 / 24, "we": 2 / 7 / 24}  # §4.4: 48 bins weighted to an average hour
 _BIN = re.compile(r"^(wd|we)-\d{2}$")
 SEEDS = 100
+NOT_BASELINES = ("optimiser", "sample reference")  # every other method is a baseline
 
 
 @dataclass(frozen=True)
@@ -204,7 +205,8 @@ class Row:
 def compare(request: Request, inputs: Inputs,
             methods: dict[str, Method] | None = None) -> list[Row]:
     """Score every method on the same request. `vs_best_baseline` is each method's rescued
-    drivers over the best baseline's (the design's end-to-end number, per point)."""
+    drivers over the best baseline's: the best of all baselines, not only the two built here
+    (the design's end-to-end number)."""
     rows: list[Row] = []
     t0 = time.perf_counter()
     plans = [random_plan(request, inputs, seed) for seed in range(SEEDS)]
@@ -220,7 +222,10 @@ def compare(request: Request, inputs: Inputs,
         ms = (time.perf_counter() - t0) * 1000
         rows.append(Row(name, plan.total_connectors, rescued(plan, inputs), 0.0, 0.0, 0.0,
                         len(violations(plan, request, inputs)), ms))
-    best = max(r.rescued for r in rows[:2]) or 1.0  # random and population share
+    # The best baseline is the best of every baseline, built here or registered (#36-#38);
+    # only the optimiser and the sample's reference plan are not baselines.
+    best = max((r.rescued for r in rows if not r.method.startswith(NOT_BASELINES)),
+               default=0.0) or 1.0
     for r in rows:
         r.per_point = r.rescued / r.points if r.points else 0.0
         r.vs_best_baseline = r.rescued / best
