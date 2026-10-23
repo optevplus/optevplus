@@ -78,6 +78,9 @@ class FakeCursor:
                                                                   exclude={"items"})}],
             D.SQL["items"]: [{"allocation_id": "base:all:points=12:budget=-",
                               **i.model_dump(mode="json")} for i in s.allocations[0].items],
+            D.SQL["profiles"]: [x.model_dump(mode="json") for x in s.profiles],
+            D.SQL["patterns"]: [{"site_id": k, "cluster": c, "label": s.pattern_labels[c]}
+                                for k, c in s.patterns.items()],
         }
 
     def __enter__(self): return self
@@ -97,6 +100,8 @@ def test_postgres_bundle_reads_every_table(monkeypatch):
     base = next(s for s in pg.scenarios if s.scenario_id == "base")
     assert [(p.site_id, p.connectors) for p in base.planned] == [("SYN-S-07", 2)]
     assert pg.allocations[0].total_connectors == DATA.allocations[0].total_connectors
+    assert pg.profiles == DATA.profiles
+    assert (pg.patterns, pg.pattern_labels) == (DATA.patterns, DATA.pattern_labels)
 
 
 # Map page logic ---------------------------------------------------------------------------

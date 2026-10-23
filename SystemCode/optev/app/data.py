@@ -10,12 +10,13 @@ import logging
 import os
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from optev.assumptions import SNAPSHOT_MINUTES
 from optev.contracts import (
     Allocation,
     AllocationItem,
@@ -53,6 +54,10 @@ class AppData:
     allocations: list[Allocation] = field(default_factory=list)
     references: dict[str, dict[str, Any]] = field(default_factory=dict)
     """Datasets, documents and assumptions by id (`ds-`, `doc-`, `asm-`), for rule sources."""
+    profiles: list[DemandEstimate] = field(default_factory=list)
+    """The hourly bins (`wd-`, `we-`) behind `estimates`, for the Demand page."""
+    patterns: dict[str, int] = field(default_factory=dict)  # site_id -> cluster
+    pattern_labels: dict[int, str] = field(default_factory=dict)  # cluster -> label
 
     def site(self, site_id: str) -> CandidateSite | None:
         return next((s for s in self.sites if s.site_id == site_id), None)
@@ -68,15 +73,40 @@ def _references(raw: Mapping[str, list[dict[str, Any]]]) -> dict[str, dict[str, 
     return out
 
 
+def _sample_bins(s: Any) -> tuple[list[DemandEstimate], dict[str, int], dict[int, str]]:
+    """Hourly demand and patterns for the sample, which stores only `all` rows: the analysis
+    package run over the sample's readings, over the readings' own window."""
+    from optev.analysis.demand import infer_demand
+    from optev.analysis.indicators import (
+        compute_indicators,
+        compute_occupancy_by_bin,
+        snapshot_slot,
+    )
+    from optev.analysis.patterns import find_patterns, label_patterns
+    from optev.sample import connector_readings
+
+    readings = connector_readings()
+    seen = [r.collected_ts for r in readings]
+    start = snapshot_slot(min(seen))
+    end = snapshot_slot(max(seen)) + timedelta(minutes=SNAPSHOT_MINUTES)
+    args = (s.sites, s.near, s.connectors, readings, start, end)
+    occupancy = compute_occupancy_by_bin(*args)
+    bins = [e for e in infer_demand(compute_indicators(*args), occupancy) if e.time_bin != "all"]
+    patterns = find_patterns(occupancy)
+    return bins, patterns, label_patterns(occupancy, patterns)
+
+
 def from_sample() -> AppData:
     from optev.sample import load
 
     s = load()
     rules, on_fail = load_register()
     decisions, _ = screen(s.sites, s.car_parks, s.indicators, {}, rules, on_fail)
+    profiles, patterns, labels = _sample_bins(s)
     return AppData("sample", s.planning_areas, s.sites, s.car_parks, s.indicators,
                    [e for e in s.estimates if e.time_bin == "all"], decisions, rules, on_fail,
-                   s.scenarios, [s.allocation], _references(s.references))
+                   s.scenarios, [s.allocation], _references(s.references),
+                   profiles, patterns, labels)
 
 
 # Postgres ---------------------------------------------------------------------------------
@@ -92,6 +122,9 @@ SQL = {
         observation_coverage FROM site_indicators ORDER BY site_id, window_end DESC""",
     "estimates": """SELECT site_id, time_bin, arrivals_per_hour, kind, note
         FROM demand_estimate WHERE time_bin = 'all'""",
+    "profiles": """SELECT site_id, time_bin, arrivals_per_hour, kind, note
+        FROM demand_estimate WHERE time_bin <> 'all' ORDER BY site_id, time_bin""",
+    "patterns": "SELECT site_id, cluster, label FROM site_pattern ORDER BY site_id",
     "decisions": "SELECT site_id, outcome FROM decision WHERE scenario_id = %s",
     "results": """SELECT site_id, rule_id, passed, detail FROM rule_result
         WHERE scenario_id = %s ORDER BY site_id, rule_id""",
@@ -152,13 +185,17 @@ def from_postgres(url: str) -> AppData:
         allocations = [Allocation(**{k: v for k, v in h.items() if k != "allocation_id"},
                                   items=items.get(h["allocation_id"], [])) for h in heads]
         rules, on_fail = load_register()
+        patterns = q("patterns")
         return AppData(
             "postgres", _models(PlanningArea, q("areas")), _models(CandidateSite, q("sites")),
             _models(CarPark, q("car_parks")), _models(SiteIndicators, q("indicators")),
             _models(DemandEstimate, q("estimates")), decisions, rules, on_fail, scenarios,
             allocations,
             # no reference table yet; source metadata (titles, links) lives with the sample
-            _references(load_sample().references))
+            _references(load_sample().references),
+            _models(DemandEstimate, q("profiles")),
+            {p["site_id"]: p["cluster"] for p in patterns},
+            {p["cluster"]: p["label"] for p in patterns if p["label"]})
 
 
 def load() -> AppData:
