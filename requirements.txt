@@ -1,0 +1,4 @@
+# Streamlit Community Cloud installs from this file (repo root). It installs the optev
+# package and its dependencies from SystemCode/pyproject.toml; uv.lock stays the source of
+# truth for local development.
+-e ./SystemCode
