@@ -213,7 +213,7 @@ RULES = [
         "rule_id": "R02",
         "condition": "A basement car park needs a fire-safety review first",
         "source": "gov_policy",
-        "source_ref": "doc-lta-ev-safety",
+        "source_ref": "doc-mha-ev-carparks-2026",
         "required_facts": ["car_park_type"],
         "explanation_template": "Basement car park: conditional on a fire-safety review.",
     },

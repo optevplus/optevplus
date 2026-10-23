@@ -188,3 +188,13 @@ def test_the_plan_follows_the_chosen_scenario():
         assert result is not None and hasattr(result, "items")
         rescued[sid] = sum(i.marginal_relief or 0 for i in result.items)
     assert rescued["low"] < rescued["base"] < rescued["high"]
+
+
+def test_the_map_page_shows_only_a_checked_plan():
+    # §4.4: only checked allocations are written or shown; the checker re-tests every
+    # constraint independently of the allocator.
+    from optev.app.shell import Request, plan
+
+    result, _ = plan(D.from_sample(), Request("base", None, 12, None))
+    assert result is not None and getattr(result, "checked", False)
+    assert result.violations == []

@@ -60,6 +60,10 @@ def plan(data: AppData, request: Request) -> tuple[Allocation | InfeasibilityRep
     result = allocate(data.decisions, data.sites, project(data.estimates, scenario), scenario,
                       planning_area=request.planning_area,
                       requested_connectors=request.points, budget=request.budget)
+    if isinstance(result, Allocation):  # §4.4: only checked allocations are shown
+        from optev.reasoning.checker import check
+
+        result = check(result, data.decisions, data.sites)
     return result, "allocator (CP-SAT)"
 
 
