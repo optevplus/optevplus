@@ -1,6 +1,6 @@
 # 027 · Scenarios: growth fit and projected demand
 
-**Owner:** Shrey (B), Sushant (A, if he takes it)  ·  **Status:** approved 22 Oct 2026; part B built, part A open  ·  **Branch:** `shrey/28-scenarios` (from `main`)
+**Owner:** Shrey (B), Sushant (A, if he takes it)  ·  **Status:** approved 22 Oct 2026; part B built; part A amended and built 22 Oct 2026  ·  **Branch:** `shrey/28-scenarios` (from `main`)
 **Issue:** #28 (6.1 · Scenario generation from the collected baseline; leads Sushant + Shrey)
 
 ## Design section
@@ -47,16 +47,25 @@ and `scenario_demand` only. Reads `demand_estimate` (Sushant's `write_estimates`
    to read `demand_estimate`, project, write. **Run on Neon only with your OK.**
 4. Stability check (§6 stage 3): `top10_stability` is evaluation, not this PR, unless you want it.
 
-### A · Growth fit (Sushant, or Shrey if he passes) — offline, no new module
-- Script in `specs/027-scenarios/fit/` (precedent: `specs/013-lag-demand/prototype/`), reading
-  the data.gov.sg file into `data/raw/` (gitignored; never committed).
-- Monthly new **electric** registrations `r_m`; fit `log r_m = a + g·m` on the last 36 months.
-- Fleet now `E0` from the LTA dashboard (hand-copied, cited with its month). Fleet at the
-  horizon `E_H = E0 + Σ_{m=1..51} r̂_m` (no scrappage: the EV fleet is young).
-  **Multiplier = E_H / E0**, assuming charging demand scales with the EV fleet.
-- `low` / `high`: `g` at the bounds of its 80% confidence interval.
-- Back-cast: fit on all but the last 12 months, predict them, report MAPE.
-- Result goes into `assumptions.py` as cited values ("fitted to data.gov.sg ..., spec 027").
+### A · Growth fit (Sushant) — offline, no new module
+**Amended 22 Oct 2026, approved by Sushant.** The approved fit, `log r_m = a + g·m` on the
+counts, gives g = 0.061/month (108% a year) and 116,000 new EVs a month by Dec 2030, against
+a COE-capped market of about 4,500 cars a month. So the fit is on the **share** instead.
+- Script `specs/027-scenarios/fit/fit.py` (precedent: `specs/013-lag-demand/prototype/`),
+  reading the data.gov.sg file from `data/raw/registrations/` (gitignored; never committed).
+  data.gov.sg reports electric cars from Jul 2022 only, so the fit has 35 months, not 36.
+- Monthly electric share of new cars `s_m`; fit `logit s_m = a + b·m` by least squares.
+- Registrations per month = fitted share × `T`, new cars a month (LTA M03, Jan–Aug 2026).
+- `E0` = 72,067 electric cars on 31 Aug 2026 (LTA M09, cars only). Fleet at the collected
+  week `E_B = E0 + r̂(Sep 2026)`; at the horizon `E_H = E_B + Σ r̂` over Oct 2026–Dec 2030
+  (51 months). No scrappage: Jan–Aug 2026 the fleet grew by 99.7% of registrations.
+  **Multiplier = E_H / E_B**, assuming charging demand scales with the electric-car fleet.
+- `low` / `high`: `b` at the bounds of its 80% confidence interval (t, 33 df) **and** `T` at
+  the lowest / highest month of 2026; `base`: point fit, mean `T`.
+- Back-cast: fit on all but the last 12 months, predict their electric registrations, MAPE.
+  Out of sample: predict Jan–Aug 2026 (LTA M03), which the fit never sees.
+- Result into `assumptions.py` as cited values; sample `SCENARIOS` and `entities.json`
+  regenerated to match (`test_design` ties them); design 1.18 (§3.5, §4.3, §9 #4).
 
 ## Verification
 - B on `optev.sample`: three scenarios with the configured multipliers; `project` scales every
@@ -85,3 +94,17 @@ and `scenario_demand` only. Reads `demand_estimate` (Sushant's `write_estimates`
 - **Not run on Neon:** `python -m optev.scenario.project` waits for Shrey's OK.
 - **A open:** growth fit; Sushant asked first. Multipliers stay the placeholders until then.
 - Renumbered 026 → **027** (22 Oct): 026 is taken by #87.
+
+## Checkpoint · 22 Oct 2026 (part A)
+- **Fit works:** `uv run python ../specs/027-scenarios/fit/fit.py` from `SystemCode/`. Share
+  11.7% → 42.4% (Jul 2022–May 2025), b = 0.0522/month, 80% CI [0.0480, 0.0565].
+  Back-cast MAPE 8.3% (last 12 months); Jan–Aug 2026 predicted 21,586 vs LTA 23,028 (−6.3%).
+- **Multipliers:** low 3.26, base 3.65, high 3.99 (fleet Dec 2030 243k / 274k / 301k; share
+  of new cars 95–97% by then). In `assumptions.py`; design 1.18; sample regenerated.
+- **Decision:** share not counts (counts outgrow the market); low/high vary market size too,
+  since the slope CI alone is narrow (3.52–3.67 at fixed T).
+- **Caveat for the report:** assumes public charging demand scales with the fleet. More home
+  and condo charging would make this an upper bound. The low–high spread (±9%) is inside the
+  ±20% stability test.
+- **Next:** rerun `python -m optev.scenario.project` on Neon (with Shrey's OK) so
+  `scenario_demand` carries the new multipliers; the report quotes the cited table in §3.5.

@@ -28,9 +28,19 @@ MIN_COVERAGE = Assumption(
     "Project assumption: below this, a site's utilisation is unobserved, not measured")
 
 # Stage 3 · growth to 2030
-GROWTH_LOW = Assumption(1.4, "multiplier", "PLACEHOLDER until #28 fits EV registrations")
-GROWTH_BASE = Assumption(1.8, "multiplier", "PLACEHOLDER until #28 fits EV registrations")
-GROWTH_HIGH = Assumption(2.2, "multiplier", "PLACEHOLDER until #28 fits EV registrations")
+# Electric-car fleet at Dec 2030 over the fleet at the collected week, assuming charging demand
+# scales with the fleet. Fitted in spec 027 (specs/027-scenarios/fit/fit.py): logistic EV share
+# of new cars, data.gov.sg "New Registration of Cars by Make" (Jul 2022 to May 2025), times LTA
+# M03 2026 monthly new cars, added to the LTA M09 electric-car population (72,067, 31 Aug 2026).
+GROWTH_LOW = Assumption(
+    3.26, "multiplier",
+    "Fitted, spec 027: share slope at its lower 80% bound, 4,007 new cars a month (2026 low)")
+GROWTH_BASE = Assumption(
+    3.65, "multiplier",
+    "Fitted, spec 027: share slope point fit, 4,581 new cars a month (2026 mean)")
+GROWTH_HIGH = Assumption(
+    3.99, "multiplier",
+    "Fitted, spec 027: share slope at its upper 80% bound, 5,049 new cars a month (2026 high)")
 HORIZON_MONTHS = Assumption(51, "months", "Oct 2026 to Dec 2030")
 
 # Stage 4 · rules and allocation
