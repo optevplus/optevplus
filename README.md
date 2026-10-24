@@ -62,7 +62,7 @@ uv run optev-db migrate       # creates or updates every table; safe to re-run
 uv run streamlit run optev/app/main.py
 ```
 
-Open http://localhost:8501 and choose **Evidence** in the sidebar.
+Open http://localhost:8501: the app opens on **Overview**; the top menu leads to **Site Map**, **Eligibility**, **Allocation**, **Demand** and **Ask Why**.
 
 ### B. Run offline, with no credentials (sample data)
 
@@ -124,7 +124,7 @@ LLM_API_KEY = "…"
 LLM_MODEL = "gpt-4o-mini"
 ```
 
-With no secrets the app runs on the sample; the Evidence page needs the Neo4j and LLM keys.
+With no secrets the app runs on the sample; the **Ask Why** page needs the Neo4j and LLM keys.
 
 ### Try it
 
