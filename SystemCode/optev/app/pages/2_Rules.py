@@ -7,7 +7,7 @@ optev.app.rules_view only arranges them.
 import pandas as pd
 import streamlit as st
 
-from optev.app.data import AppData, load
+from optev.app.data import shared
 from optev.app.rules_view import (
     decision_table,
     register_rows,
@@ -20,12 +20,7 @@ from optev.contracts import Outcome
 st.set_page_config(page_title="OptEV+ · Rules", page_icon="⚖️", layout="wide")
 
 
-@st.cache_data(ttl=300, show_spinner="Loading decisions…")
-def _data() -> AppData:
-    return load()
-
-
-data = _data()
+data = shared()  # one copy for every page and visitor (data.shared)
 st.title("Rules and eligibility")
 st.caption("Every candidate site is screened by every rule. A rule that fails gives its outcome; "
            "a rule that can't be evaluated for missing data defers the site, never rejects it.")

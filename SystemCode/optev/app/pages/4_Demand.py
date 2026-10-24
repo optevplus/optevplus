@@ -7,7 +7,7 @@ optev.app.data, and optev.app.demand_view only arranges them.
 import pandas as pd
 import streamlit as st
 
-from optev.app.data import AppData, load
+from optev.app.data import shared
 from optev.app.demand_view import demand_table, figure, pattern_rows, profile, supply_counts
 from optev.assumptions import RELIABLE_UP_TO
 
@@ -20,12 +20,7 @@ NO_PROFILE = {
 st.set_page_config(page_title="OptEV+ · Demand", page_icon="📈", layout="wide")
 
 
-@st.cache_data(ttl=300, show_spinner="Loading indicators and demand…")
-def _data() -> AppData:
-    return load()
-
-
-data = _data()
+data = shared()  # one copy for every page and visitor (data.shared)
 st.title("Demand at each site")
 st.caption("OBSERVED: what the charger feed showed over the collected week. INFERRED: arrivals "
            "per hour from the queueing model (sites with chargers) or the regression (sites "
