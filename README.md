@@ -105,6 +105,27 @@ uv run python -m optev.sample.seed_db                 # the sample, as if collec
 uv run python -m optev.pipeline run --scenario base --points 12
 ```
 
+### D. Deploy on Streamlit Community Cloud
+
+`requirements.txt` at the repo root installs the `optev` package. On share.streamlit.io:
+**Create app** → repository `optevplus/optevplus`, branch `main`, main file
+`SystemCode/optev/app/main.py`; under **Advanced settings** pick Python 3.12 and paste the
+secrets as TOML, one line per `.env` key (top-level keys reach the app as environment
+variables):
+
+```toml
+DATABASE_URL = "postgresql://…"   # Neon, direct connection
+NEO4J_URI = "neo4j+s://…"
+NEO4J_USER = "…"
+NEO4J_PASSWORD = "…"
+LLM_PROVIDER = "openai_compatible"
+LLM_BASE_URL = "https://api.openai.com/v1"
+LLM_API_KEY = "…"
+LLM_MODEL = "gpt-4o-mini"
+```
+
+With no secrets the app runs on the sample; the Evidence page needs the Neo4j and LLM keys.
+
 ### Try it
 
 On the **Evidence** page, ask in plain words or pick a question:

@@ -78,3 +78,15 @@ def test_the_page_visibly_refuses_a_site_with_no_path(monkeypatch):
     at.button[0].click().run()
     assert not at.exception
     assert any("No evidence" in e.value for e in at.error)
+
+
+def test_examples_name_sites_that_exist_in_the_data_shown():
+    from optev.app.evidence import examples
+    from optev.sample import load
+
+    sample_ids = {s.site_id for s in load().sites}
+    shown, defaults = examples(real=False)
+    assert all(any(i in q for i in sample_ids) for q in shown[:3])
+    assert defaults["site_id"] in sample_ids
+    real_shown, real_defaults = examples(real=True)
+    assert not any("SYN-" in q for q in real_shown) and "SYN-" not in real_defaults["site_id"]

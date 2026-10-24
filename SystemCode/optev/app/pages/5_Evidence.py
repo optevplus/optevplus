@@ -4,13 +4,14 @@ No logic here: questions go to optev.graph (explain / retrieve), and optev.app.e
 arranges what comes back. Works without a language model: the evidence is still shown.
 """
 
+import os
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from optev.app.evidence import EXAMPLES, LAYER_HELP, QUESTIONS, sections
+from optev.app.evidence import LAYER_HELP, QUESTIONS, examples, sections
 from optev.graph.explain import classify, explain
 from optev.graph.llm import LLMNotConfigured
 from optev.graph.retrieve import retrieve
@@ -22,20 +23,20 @@ st.title("Evidence")
 st.caption("Ask why a site was chosen or not. Every answer shows the evidence it rests on; "
            "with no evidence, the system says so instead of guessing.")
 
+shown, defaults = examples(real=bool(os.environ.get("DATABASE_URL")))
 mode = st.radio("Ask", ["In my own words", "Pick a question"], horizontal=True)
 
 question_type: str | None = None
 params: dict[str, str] = {}
 question = ""
 if mode == "In my own words":
-    question = st.text_input("Question", placeholder=EXAMPLES[0])
-    st.caption("Try: " + " · ".join(EXAMPLES))
+    question = st.text_input("Question", placeholder=shown[0])
+    st.caption("Try: " + " · ".join(shown))
 else:
     question_type = st.selectbox("Question", list(QUESTIONS),
                                  format_func=lambda k: QUESTIONS[k][0])
     for name in QUESTIONS[question_type][1]:
-        default = {"scenario_id": "base", "planning_area": "PR", "rule_id": "R03",
-                   "site_a": "SYN-S-04", "site_b": "SYN-S-13"}.get(name, "SYN-S-13")
+        default = {"scenario_id": "base", "rule_id": "R03", **defaults}.get(name, "")
         params[name] = st.text_input(name.replace("_", " "), value=default).strip()
 
 if not st.button("Show evidence", type="primary"):
