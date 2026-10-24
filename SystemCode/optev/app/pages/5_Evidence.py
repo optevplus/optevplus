@@ -10,8 +10,9 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
+from neo4j.exceptions import DriverError, Neo4jError
 
-from optev.app.evidence import LAYER_HELP, QUESTIONS, examples, sections
+from optev.app.evidence import LAYER_HELP, QUESTIONS, examples, missing_graph_settings, sections
 from optev.app.ui import page_header
 from optev.graph.explain import classify, explain
 from optev.graph.llm import LLMNotConfigured
@@ -22,6 +23,13 @@ load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 page_header("Ask", "Why", "Ask why a site was chosen or not. Every answer shows the evidence it "
             "rests on from the knowledge graph; with no evidence, the system says so instead "
             "of guessing.", kicker="Explain")
+
+missing = missing_graph_settings()
+if missing:
+    st.warning("The knowledge graph is not configured on this deployment, so questions cannot "
+               "be answered here. Missing settings: " + ", ".join(missing) + ". Every other page "
+               "works without it; see the README, section 5, to add them.")
+    st.stop()
 
 shown, defaults = examples(real=bool(os.environ.get("DATABASE_URL")))
 mode = st.radio("Ask", ["In My Own Words", "Pick a Question"], horizontal=True)
@@ -42,13 +50,26 @@ else:
 if not st.button("Show Evidence", type="primary"):
     st.stop()
 
+
+
+def from_graph(call, *args, **kwargs):  # type: ignore[no-untyped-def]
+    """Run a graph call; if the graph cannot be reached, say so instead of a traceback."""
+    try:
+        return call(*args, **kwargs)
+    except (DriverError, Neo4jError, OSError) as e:
+        st.error("Could not reach the knowledge graph (" + type(e).__name__ + "). If it is "
+                 "Neo4j Aura Free, it pauses after three days without a write: resume it at "
+                 "console.neo4j.io and try again.")
+        st.stop()
+
+
 answer = None
 if mode == "In My Own Words":
     if not question.strip():
         st.warning("Type a question first.")
         st.stop()
     try:
-        answer = explain(question)
+        answer = from_graph(explain, question)
         question_type, params, rows = answer.question_type, answer.params, answer.evidence
     except LLMNotConfigured:
         found = classify(question)
@@ -57,12 +78,12 @@ if mode == "In My Own Words":
                      "and assumptions in the OptEV+ knowledge graph.")
             st.stop()
         question_type, params = found
-        rows = retrieve(question_type, **params)
+        rows = from_graph(retrieve, question_type, **params)
         st.info("No language model is configured, so here is the evidence without a "
                 "written answer.")
 else:
     assert question_type is not None
-    rows = retrieve(question_type, **params)
+    rows = from_graph(retrieve, question_type, **params)
 
 if answer is not None:
     if answer.refused:

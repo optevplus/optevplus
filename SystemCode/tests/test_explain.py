@@ -164,3 +164,10 @@ def test_the_scorer_accepts_the_same_fact_in_other_words():
     for q in questions(REAL):  # the real answer key classifies as written
         expected = (q["type"], q["params"]) if "type" in q else None
         assert classify(q["question"]) == expected, q["question"]
+
+
+def test_the_scope_refusal_names_no_sample_site():
+    # It is shown on the real data too, where SYN- ids do not exist.
+    from optev.graph.explain import REFUSE_SCOPE
+
+    assert "SYN-" not in REFUSE_SCOPE
