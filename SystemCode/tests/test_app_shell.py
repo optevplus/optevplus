@@ -268,3 +268,22 @@ def test_a_read_only_deployment_offers_no_way_to_write(monkeypatch, tmp_path):
     assert not at.exception
     assert any("read-only" in i.value for i in at.info)
     assert not [b for b in at.button if b.label in ("Select Site", "Clear Selection")]
+
+
+def test_an_unreachable_database_shows_a_message_not_a_traceback(monkeypatch, tmp_path):
+    from streamlit.testing.v1 import AppTest
+
+    import optev.app.ui as ui
+
+    def down(url):
+        raise OSError("connection refused")
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://unreachable.example/optev")
+    monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
+    monkeypatch.setattr(ui, "from_postgres", down)
+    ui.clear_data()
+    page = Path(D.__file__).with_name("pages") / "2_Rules.py"
+    at = AppTest.from_file(str(page), default_timeout=60).run()
+    assert not at.exception
+    assert any("data is unavailable" in e.value for e in at.error)
+    ui.clear_data()

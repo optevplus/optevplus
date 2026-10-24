@@ -13,7 +13,15 @@ from dotenv import load_dotenv
 from neo4j.exceptions import DriverError, Neo4jError
 
 from optev.app import labels as L
-from optev.app.evidence import LAYER_HELP, QUESTIONS, examples, missing_graph_settings, sections
+from optev.app.evidence import (
+    LAYER_HELP,
+    QUESTION_LIMIT,
+    QUESTIONS,
+    examples,
+    missing_graph_settings,
+    sections,
+    spend_question,
+)
 from optev.app.ui import app_data, page_header
 from optev.graph.explain import classify, explain
 from optev.graph.llm import LLMNotConfigured
@@ -86,6 +94,11 @@ answer = None
 if mode == "In My Own Words":
     if not question.strip():
         st.warning("Type a question first.")
+        st.stop()
+    limit = int(os.environ.get("OPTEV_QUESTION_LIMIT", QUESTION_LIMIT))
+    if not spend_question(st.session_state, limit):
+        st.warning(f"You've used the {limit} written answers this demo allows per visit. "
+                   "**Pick a Question** still shows the evidence for any site.")
         st.stop()
     try:
         answer = from_graph(explain, L.resolve_names(question, data))

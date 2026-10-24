@@ -1,4 +1,4 @@
-/* OptEV+ look: teal #0097B2 to green #7ED957, Inter. Works on the light and the dark theme:
+/* OptEV+ look: teal #0097B2 to green #2FA35A, Inter. Works on the light and the dark theme:
    colours come from the theme (config.toml) and these rules only add translucent layers, so
    nothing here is white-on-white or black-on-black. Loaded by optev.app.ui.apply_theme. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -9,7 +9,7 @@ html, body, .stApp *:not([data-testid="stIconMaterial"]):not(code) {
 h1, h2, h3 { letter-spacing: -0.02em; }
 
 /* Brand */
-.ox-grad { background: linear-gradient(110deg, #0097B2 0%, #7ED957 100%);
+.ox-grad { background: linear-gradient(110deg, #0097B2 0%, #2FA35A 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .ox-kicker { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
   color: #1BA7BF; margin-bottom: 0.4rem; }
@@ -36,7 +36,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .ox-card p { margin: 0; opacity: 0.78; font-size: 0.96rem; line-height: 1.55; }
 .ox-icon { display: inline-flex; align-items: center; justify-content: center; width: 2.4rem;
   height: 2.4rem; border-radius: 12px; color: #fff; font-weight: 800; font-size: 0.95rem;
-  background: linear-gradient(135deg, #0097B2 0%, #7ED957 100%); }
+  background: linear-gradient(135deg, #0097B2 0%, #2FA35A 100%); }
 .ox-stat { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
 .ox-stat-label { opacity: 0.78; font-size: 0.95rem; margin-top: 0.35rem; line-height: 1.45; }
 .ox-section { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; margin: 2.8rem 0 0.25rem; }
@@ -45,7 +45,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
   border-radius: 10px; font-size: 0.9rem; font-weight: 600;
   border: 1px solid rgba(127,127,127,0.22); background: rgba(127,127,127,0.05); }
 .ox-band { margin-top: 3rem; padding: 2.4rem 2.6rem; border-radius: 24px; color: #fff;
-  background: linear-gradient(110deg, #007E95 0%, #0097B2 40%, #5CC56A 100%); }
+  background: linear-gradient(110deg, #007E95 0%, #0097B2 40%, #2FA35A 100%); }
 .ox-band h3 { color: #fff; font-size: 1.9rem; font-weight: 800; margin: 0 0 0.4rem; }
 .ox-band p { color: rgba(255,255,255,0.92); margin: 0; font-size: 1.05rem; }
 .ox-foot { opacity: 0.7; font-size: 0.85rem; border-top: 1px solid rgba(127,127,127,0.2);
@@ -58,14 +58,14 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 [data-testid="stMetricValue"] { font-weight: 800; letter-spacing: -0.02em; }
 [data-testid="stSidebar"] { border-right: 1px solid rgba(127,127,127,0.16); }
 .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {
-  background: linear-gradient(110deg, #0097B2 0%, #7ED957 100%); border: 0; color: #fff;
+  background: linear-gradient(110deg, #0097B2 0%, #2FA35A 100%); border: 0; color: #fff;
   font-weight: 650; }
 [data-testid="stPageLink"] a { border: 1px solid rgba(127,127,127,0.22); border-radius: 12px;
   padding: 0.6rem 1rem; font-weight: 600; }
 [data-testid="stPageLink"] a:hover { border-color: #0097B2; }
 /* calls to action: page links inside a container keyed "cta-..." */
 [class*="st-key-cta-primary"] [data-testid="stPageLink"] a {
-  background: linear-gradient(110deg, #0097B2 0%, #7ED957 100%); border: 0; }
+  background: linear-gradient(110deg, #0097B2 0%, #2FA35A 100%); border: 0; }
 [class*="st-key-cta-primary"] [data-testid="stPageLink"] a * { color: #fff !important; }
 [class*="st-key-cta"] [data-testid="stPageLink"] a { padding: 0.8rem 1.3rem; font-size: 1.02rem; }
 [data-testid="stDataFrame"] { border: 1px solid rgba(127,127,127,0.18); border-radius: 12px; }

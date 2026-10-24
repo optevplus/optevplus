@@ -5,6 +5,7 @@ Casing: navigation, page titles, section headings, metric labels and buttons use
 body text and captions use sentence case.
 """
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,8 @@ import streamlit as st
 
 from optev.app.data import AppData, from_postgres, from_sample
 from optev.app.shell import Request
+
+log = logging.getLogger(__name__)
 
 TEAL = "#0097B2"
 GREEN = "#7ED957"
@@ -40,7 +43,14 @@ def app_data() -> AppData:
     from optev.app import data
 
     load_dotenv(data.ENV_FILE)  # as data.load(): never overrides a variable already set
-    return _bundle(os.environ.get("DATABASE_URL") or "")
+    try:
+        return _bundle(os.environ.get("DATABASE_URL") or "")
+    except Exception as e:  # the database is down or unreachable: say so, never a traceback
+        log.warning("data unavailable: %s: %s", type(e).__name__, e)
+        st.error("**The planning data is unavailable right now.** OptEV+ could not reach its "
+                 "database. Please try again in a minute; if it persists, the database may be "
+                 "paused or the network may block it.")
+        st.stop()
 
 
 def clear_data() -> None:
@@ -53,8 +63,14 @@ def read_only() -> bool:
     return os.environ.get("OPTEV_READ_ONLY", "").strip().lower() in ("1", "true", "yes")
 
 
+# On the dark background the brand's bright green reads best (10.6:1); on white it would not
+# (1.8:1), so the stylesheet's default is the darker green and dark mode lifts it.
+DARK_CSS = (".ox-grad { background: linear-gradient(110deg, #1FB5CC 0%, #7ED957 100%);"
+            " -webkit-background-clip: text; background-clip: text; }")
+
+
 def apply_theme() -> None:
-    st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
+    st.markdown(f"<style>{CSS}{DARK_CSS if is_dark() else ''}</style>", unsafe_allow_html=True)
 
 
 def page_header(lead: str, highlight: str, subtitle: str, kicker: str | None = None) -> None:

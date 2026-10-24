@@ -133,3 +133,12 @@ def test_the_page_explains_an_unreachable_graph_instead_of_crashing(monkeypatch)
     at.button[0].click().run()
     assert not at.exception
     assert any("Could not reach the knowledge graph" in e.value for e in at.error)
+
+
+def test_written_answers_are_limited_per_visit():
+    from optev.app.evidence import spend_question
+
+    session: dict = {}
+    assert [spend_question(session, limit=3) for _ in range(5)] == [True, True, True, False,
+                                                                   False]
+    assert session["questions_asked"] == 3

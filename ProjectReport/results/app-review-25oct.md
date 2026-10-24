@@ -10,13 +10,14 @@ video, **P2** before submission, **P3** nice to have.
 
 | # | Pri | Where | Issue | Fix |
 |---|---|---|---|---|
-| G1 | P1 | Ask Why | Comparing two sites is refused: the model cites `[A76]` instead of `[hdb:A76]`, and the check rejects it. Other site questions are refused now and then for the same reason. | In `graph/explain.py`, accept a citation that matches an evidence id once its prefix (`hdb:`, `ura:`, `cc:`, `hawker:`) is restored. |
-| G2 | P1 | Ask Why | "Which areas are near saturation?" answers with "0.6818181818181818" and lists sources as "PG · SE"; the table repeats the area in capitals. | Round shares in the evidence (2 dp or %), map area codes in sources to names, drop the duplicate name column. |
-| G3 | P1 | All pages | Slow first loads: Eligibility 18.6 s, Demand 20 s, Ask Why ~60 s with the answer, phone ~30 s. Each page loads the whole dataset into its own cache. | One shared cached loader for all pages; Ask Why reads only site names, not the full bundle. |
-| G4 | P2 | Website | Light-mode gradient headline: green #7ED957 on white is 1.76:1, below the 3:1 minimum for large text. | End the text gradient on #2FA35A (3.2:1) in light mode; keep dark mode as is. |
-| G5 | P2 | Website | If Neon is unreachable, every page shows a Python traceback. | Catch it in `app/data.py`: a short "data is unavailable" message on every page. |
-| G6 | P2 | Ask Why | The public site spends the OpenAI key with no limit. | Cap questions per session (e.g. 15) and say so on the page. |
+| G1 ✅ #104 | P1 | Ask Why | Comparing two sites is refused: the model cites `[A76]` instead of `[hdb:A76]`, and the check rejects it. Other site questions are refused now and then for the same reason. | In `graph/explain.py`, accept a citation that matches an evidence id once its prefix (`hdb:`, `ura:`, `cc:`, `hawker:`) is restored. |
+| G2 ✅ #104 | P1 | Ask Why | "Which areas are near saturation?" answers with "0.6818181818181818" and lists sources as "PG · SE"; the table repeats the area in capitals. | Round shares in the evidence (2 dp or %), map area codes in sources to names, drop the duplicate name column. |
+| G3 ✅ #104 | P1 | All pages | Slow first loads: Eligibility 18.6 s, Demand 20 s, Ask Why ~60 s with the answer, phone ~30 s. Each page loads the whole dataset into its own cache. | One shared cached loader for all pages; Ask Why reads only site names, not the full bundle. |
+| G4 ✅ #105 | P2 | Website | Light-mode gradient headline: green #7ED957 on white is 1.76:1, below the 3:1 minimum for large text. | End the text gradient on #2FA35A (3.2:1) in light mode; keep dark mode as is. |
+| G5 ✅ #105 | P2 | Website | If Neon is unreachable, every page shows a Python traceback. | Catch it in `app/data.py`: a short "data is unavailable" message on every page. |
+| G6 ✅ #105 | P2 | Ask Why | The public site spends the OpenAI key with no limit. | Cap questions per session (e.g. 15) and say so on the page. |
 | G7 | P3 | Ask Why | "Why can't a request be met?" in Pick a Question returns "No evidence": its default area has no stored impossible request. | Default to an area with a stored report, or explain that none is stored. |
+| G9 ✅ #105 | P2 | Tests | The graph tests that load the sample into Aura replaced the real plan's links (the sample's plan has the same id), dropping evidence recall to 0.88 until the graph was reloaded. | They now run only with `OPTEV_GRAPH_TESTS_MAY_WRITE=1`. |
 | G8 | P2 | Report, deck | Figures and slides show the old app. | Re-take after #103 merges. |
 
 ## Shrey (allocation, checker, deployment)
@@ -24,7 +25,7 @@ video, **P2** before submission, **P3** nice to have.
 | # | Pri | Where | Issue | Fix |
 |---|---|---|---|---|
 | S1 | P1 | Deployment | Ask Why on optevplus.streamlit.app cannot answer: the secrets hold only `DATABASE_URL`. | Add `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (README §5 D). |
-| S2 | P1 | Deployment | Anyone on the public site can write to the shared database: Select Site / Clear Selection change `planned_capacity` in Neon. | Give the deployed app a read-only Neon role, and add a `OPTEV_READ_ONLY=1` secret that hides the two buttons (Ghanashyam adds the flag to the page). |
+| S2 | P1 | Deployment | (Switch added in #104.) Anyone on the public site can write to the shared database: Select Site / Clear Selection change `planned_capacity` in Neon. | Give the deployed app a read-only Neon role, and add a `OPTEV_READ_ONLY=1` secret that hides the two buttons (Ghanashyam adds the flag to the page). |
 | S3 | P1 | Deployment | `pyproject.toml` says `streamlit>=1.39`, but the app now needs ≥ 1.64 (top menu, session-kept widgets). | Raise the floor to `streamlit>=1.64`; after #103 merges, check the Cloud build log and click every page once. |
 | S4 | P2 | Deployment | The light/dark toggle writes the theme to browser storage; Streamlit Cloud may block it in its frame. | After merge, click the toggle on the live site; if it does nothing, ⋮ → Settings still works; tell Ghanashyam. |
 | S5 | P3 | Allocation | The checker cannot see planned capacity (known limitation in the report). | Leave for future work. |
