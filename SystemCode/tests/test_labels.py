@@ -57,3 +57,32 @@ def test_an_answer_reads_without_ids(data):
     assert "Room for Another Point" in text
     assert any("factsheet" in s for s in sources) and not any(ID.search(s) for s in sources)
     assert "12-point plan island-wide" in " ".join(sources)
+
+
+def test_area_codes_read_as_names_and_are_not_shown_twice(data):
+    assert L.words(data, "TM") == "Tampines"
+    _, sources = L.readable_answer("Tampines is busiest [TM] [PR].", data)
+    assert sources == ["Tampines", "Pasir Ris"]
+    rows = L.table([{"planning_area": "TM", "name": "TAMPINES", "sites_with_chargers": 3}], data)
+    assert rows == [{"Planning Area": "Tampines", "Sites with Chargers": 3}]
+
+
+def test_shared_addresses_get_distinct_labels_and_both_sites_resolve():
+    from optev.app.data import AppData, unique_names
+    from optev.contracts import CandidateSite, Coordinate, SiteKind
+
+    def site(sid, lots):
+        return CandidateSite(site_id=sid, kind=SiteKind.HDB_CAR_PARK, total_lots=lots,
+                             coord=Coordinate(lat=1.3, lon=103.8))
+
+    sites = [site("hdb:JS3L", 2010), site("hdb:JM12", 468), site("hdb:A76", 632)]
+    names = unique_names({"hdb:JS3L": "Blk 624A Jurong West Street 61",
+                          "hdb:JM12": "Blk 624A Jurong West Street 61",
+                          "hdb:A76": "Blk 613A Ang Mo Kio Avenue 4"}, sites)
+    assert names["hdb:JS3L"] == "Blk 624A Jurong West Street 61 (2,010 lots)"
+    assert names["hdb:JM12"] == "Blk 624A Jurong West Street 61 (468 lots)"
+    data = AppData("sample", [], sites, [], [], [], [], [], {}, [], site_names=names)
+    q = "Compare Blk 613A Ang Mo Kio Avenue 4 and Blk 624A Jurong West Street 61."
+    assert L.resolve_names(q, data) == "Compare hdb:A76 and hdb:JS3L."
+    assert L.resolve_names("Why was Blk 624A Jurong West Street 61 (468 lots) rejected?",
+                           data) == "Why was hdb:JM12 rejected?"

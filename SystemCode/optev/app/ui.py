@@ -5,12 +5,13 @@ Casing: navigation, page titles, section headings, metric labels and buttons use
 body text and captions use sentence case.
 """
 
+import os
 from pathlib import Path
 from typing import Any
 
 import streamlit as st
 
-from optev.app.data import AppData
+from optev.app.data import AppData, from_postgres, from_sample
 from optev.app.shell import Request
 
 TEAL = "#0097B2"
@@ -22,6 +23,34 @@ LINE = "#E2E8EB"
 GRADIENT = f"linear-gradient(110deg, {TEAL} 0%, {GREEN} 100%)"
 
 CSS = Path(__file__).with_name("theme.css").read_text(encoding="utf-8")
+
+
+@st.cache_resource(ttl=900, show_spinner="Loading sites, decisions and demand…")
+def _bundle(database_url: str) -> AppData:
+    # keyed on the database, so the sample and the real data are never mixed up
+    return from_postgres(database_url) if database_url else from_sample()
+
+
+def app_data() -> AppData:
+    """The data bundle, loaded once and shared by every page and visitor. A resource cache, not
+    st.cache_data: the bundle is read-only, and copying 140,000 hourly estimates on every page
+    view made each first visit take 18–20 s. Call clear_data() after a write."""
+    from dotenv import load_dotenv
+
+    from optev.app import data
+
+    load_dotenv(data.ENV_FILE)  # as data.load(): never overrides a variable already set
+    return _bundle(os.environ.get("DATABASE_URL") or "")
+
+
+def clear_data() -> None:
+    _bundle.clear()
+
+
+def read_only() -> bool:
+    """True on a public deployment (OPTEV_READ_ONLY=1 in its secrets): nothing on the page may
+    write to the shared database."""
+    return os.environ.get("OPTEV_READ_ONLY", "").strip().lower() in ("1", "true", "yes")
 
 
 def apply_theme() -> None:

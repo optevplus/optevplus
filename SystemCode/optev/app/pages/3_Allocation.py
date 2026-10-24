@@ -10,18 +10,11 @@ import streamlit as st
 
 from optev.app import labels as L
 from optev.app.allocation_view import assumption_rows, infeasible, plan_rows, summary
-from optev.app.data import AppData, load
 from optev.app.shell import plan
-from optev.app.ui import page_header, request_controls, section, source_note
+from optev.app.ui import app_data, page_header, request_controls, section, source_note
 from optev.contracts import Allocation, InfeasibilityReport
 
-
-@st.cache_data(ttl=300, show_spinner="Loading sites, decisions and demand…")
-def _data() -> AppData:
-    return load()
-
-
-data = _data()
+data = app_data()
 page_header("Allocation", "Plan", "How many new charging points go to each site, what they "
             "cost, and whether an independent checker agrees every limit holds.",
             kicker="Optimise")

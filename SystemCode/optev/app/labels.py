@@ -53,7 +53,8 @@ HEADERS = {
     "arrivals per hour": "Arrivals per Hour", "total_lots": "Car Lots",
     "existing_connectors": "Existing Points", "connectors": "Points",
 }
-SMALL = {"a", "an", "and", "as", "at", "for", "in", "of", "on", "per", "the", "to"}
+SMALL = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "per", "the",
+         "to", "with"}
 # columns that only identify or draw a row; the name column replaces the ids
 HIDDEN = {"lat", "lon", "colour", "radius", "lower_bound", "cluster", "day", "hour",
           "estimate_id", "allocation_id", "indicator_ids", "based_on", "dataset_id", "doc_id",
@@ -156,6 +157,8 @@ def words(data: AppData, value: str) -> str:
     """Any id the system uses, as words; other text unchanged."""
     if value in RULE_NAMES:
         return rule(value)
+    if value in _index(data)[1]:
+        return area(data, value)
     if value.endswith("@all") or "@" in value:
         sid, _, bin_ = value.partition("@")
         return f"{time_bin(bin_)} demand at {site(data, sid, with_area=False)}"
@@ -181,6 +184,8 @@ def table(rows: Iterable[Mapping[str, Any]], data: AppData) -> list[dict[str, An
                 new["Site" if key in ("site_id", "site") else title(key)] = site(data, row[key])
         for key, value in row.items():
             if key in SITE_KEYS or key in HIDDEN or key == "rank":
+                continue
+            if key == "name" and "planning_area" in row:  # the area's name, already shown
                 continue
             if key in ("planning_area", "area"):
                 new["Planning Area"] = area(data, value)
@@ -213,17 +218,30 @@ def table(rows: Iterable[Mapping[str, Any]], data: AppData) -> list[dict[str, An
     return out
 
 
+def _aliases(data: AppData) -> dict[str, str]:
+    """Lower-case name -> site id. A shared address ("... (2,010 lots)") is also reachable by the
+    bare address, which then means the larger car park."""
+    lots = {s.site_id: s.total_lots or 0 for s in data.sites}
+    out: dict[str, str] = {}
+    for sid, name in sorted(data.site_names.items(), key=lambda kv: lots.get(kv[0], 0)):
+        out[name.lower()] = sid
+        out[re.sub(r" \([\d,]+ lots\)$| \(\d+\)$", "", name).lower()] = sid  # larger wins
+    return out
+
+
 def resolve_names(question: str, data: AppData) -> str:
-    """Let people ask by place: the longest known site name in the question becomes its id, so
-    the fixed question patterns (which match ids) still apply. Id questions are unchanged."""
-    low = question.lower()
-    found = sorted(((name.lower(), sid) for sid, name in data.site_names.items()
-                    if len(name) > 6 and name.lower() in low), key=lambda x: -len(x[0]))
-    for name, sid in found[:2]:  # a comparison names two sites
+    """Let people ask by place: known site names in the question become their ids (longest
+    first, at most two for a comparison), so the fixed question patterns, which match ids,
+    still apply. Questions that already use ids are unchanged."""
+    aliases = _aliases(data)
+    for _ in range(2):
+        low = question.lower()
+        hits = [(name, sid) for name, sid in aliases.items() if len(name) > 6 and name in low]
+        if not hits:
+            break
+        name, sid = max(hits, key=lambda h: len(h[0]))
         start = low.find(name)
-        if start >= 0:
-            question = question[:start] + sid + question[start + len(name):]
-            low = question.lower()
+        question = question[:start] + sid + question[start + len(name):]
     return question
 
 

@@ -9,7 +9,6 @@ import pydeck as pdk
 import streamlit as st
 
 from optev.app import labels as L
-from optev.app.data import AppData, load
 from optev.app.shell import (
     OUTCOME_COLOURS,
     demand_hexes,
@@ -18,16 +17,19 @@ from optev.app.shell import (
     ranking,
     site_rows,
 )
-from optev.app.ui import is_dark, page_header, request_controls, section, source_note
+from optev.app.ui import (
+    app_data,
+    clear_data,
+    is_dark,
+    page_header,
+    read_only,
+    request_controls,
+    section,
+    source_note,
+)
 from optev.contracts import Allocation, InfeasibilityReport
 
-
-@st.cache_data(ttl=300, show_spinner="Loading sites, decisions and demand…")
-def _data() -> AppData:
-    return load()
-
-
-data = _data()
+data = app_data()
 
 # The planner's request (§1), shared with the Allocation page ---------------------------------
 request = request_controls(data)
@@ -108,19 +110,22 @@ eligible_ids = [r["site_id"] for r in rows if r["outcome"] in ("accept", "condit
 pick = st.selectbox("Site", eligible_ids, format_func=lambda i: L.site(data, i))
 n = st.number_input("Points to Plan There", min_value=1, value=2, step=1)
 left, right = st.columns(2)
-if data.source != "postgres":
+if read_only():
+    st.info("This public demo is read-only: selections are switched off so the shared data stays "
+            "as published. Run OptEV+ with your own database to record planned capacity.")
+elif data.source != "postgres":
     st.caption("Selections need the database (set `DATABASE_URL`); the sample is read-only.")
 elif left.button("Select Site", type="primary", disabled=pick is None):
     from optev.scenario.planned import select_site
 
     select_site(scenario, pick, int(n), selected_by="app")
-    st.cache_data.clear()
+    clear_data()
     st.rerun()
 elif right.button("Clear Selection", disabled=pick is None):
     from optev.scenario.planned import clear_selection
 
     clear_selection(scenario, pick)
-    st.cache_data.clear()
+    clear_data()
     st.rerun()
 
 picked = next((s.planned for s in data.scenarios if s.scenario_id == scenario), [])

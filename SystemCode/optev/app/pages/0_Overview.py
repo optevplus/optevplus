@@ -6,14 +6,8 @@ Live figures come from optev.app.data; the proof points are the results on the c
 
 import streamlit as st
 
-from optev.app.data import AppData, load
 from optev.app.shell import funnel
-from optev.app.ui import section, source_note
-
-
-@st.cache_data(ttl=300, show_spinner="Loading sites, decisions and demand…")
-def _data() -> AppData:
-    return load()
+from optev.app.ui import app_data, section, source_note
 
 
 def cta(page: str, label: str, icon: str, primary: bool, key: str) -> None:
@@ -21,7 +15,7 @@ def cta(page: str, label: str, icon: str, primary: bool, key: str) -> None:
         st.page_link(page, label=label, icon=icon)
 
 
-data = _data()
+data = app_data()
 counts = funnel(data, {s.site_id for s in data.sites})
 existing = sum(s.existing_connectors for s in data.sites)
 areas = len({s.planning_area for s in data.sites if s.planning_area})

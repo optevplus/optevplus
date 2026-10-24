@@ -255,3 +255,16 @@ def test_postgres_names_read_as_words_not_capitals(monkeypatch):
     monkeypatch.setattr(psycopg, "connect", lambda url, row_factory=None: FakeCursor())
     pg = D.from_postgres("postgresql://fake")
     assert pg.site_names and all(not n.isupper() for n in pg.site_names.values())
+
+
+def test_a_read_only_deployment_offers_no_way_to_write(monkeypatch, tmp_path):
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
+    monkeypatch.setenv("OPTEV_READ_ONLY", "1")
+    page = Path(D.__file__).with_name("pages") / "1_Map.py"
+    at = AppTest.from_file(str(page), default_timeout=60).run()
+    assert not at.exception
+    assert any("read-only" in i.value for i in at.info)
+    assert not [b for b in at.button if b.label in ("Select Site", "Clear Selection")]

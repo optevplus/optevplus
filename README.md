@@ -122,7 +122,11 @@ LLM_PROVIDER = "openai_compatible"
 LLM_BASE_URL = "https://api.openai.com/v1"
 LLM_API_KEY = "…"
 LLM_MODEL = "gpt-4o-mini"
+OPTEV_READ_ONLY = "1"             # public demo: hides Select Site / Clear Selection
 ```
+
+On a public deployment, also connect with a read-only database role, so nothing on the page
+can change the shared data.
 
 With no secrets the app runs on the sample; the **Ask Why** page needs the Neo4j and LLM keys.
 

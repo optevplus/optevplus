@@ -13,9 +13,8 @@ from dotenv import load_dotenv
 from neo4j.exceptions import DriverError, Neo4jError
 
 from optev.app import labels as L
-from optev.app.data import AppData, load
 from optev.app.evidence import LAYER_HELP, QUESTIONS, examples, missing_graph_settings, sections
-from optev.app.ui import page_header
+from optev.app.ui import app_data, page_header
 from optev.graph.explain import classify, explain
 from optev.graph.llm import LLMNotConfigured
 from optev.graph.retrieve import retrieve
@@ -35,12 +34,8 @@ if missing:
 
 
 
-@st.cache_data(ttl=300, show_spinner="Loading sites…")
-def _data() -> AppData:
-    return load()
 
-
-data = _data()
+data = app_data()
 ids, defaults = examples(real=bool(os.environ.get("DATABASE_URL")))
 shown = [L.text(q, data) for q in ids]  # the same questions, asked by place name
 mode = st.radio("Ask", ["In My Own Words", "Pick a Question"], horizontal=True)

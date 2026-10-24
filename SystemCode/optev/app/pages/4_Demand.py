@@ -8,9 +8,8 @@ import pandas as pd
 import streamlit as st
 
 from optev.app import labels as L
-from optev.app.data import AppData, load
 from optev.app.demand_view import demand_table, figure, pattern_rows, profile, supply_counts
-from optev.app.ui import page_header, section
+from optev.app.ui import app_data, page_header, section
 from optev.assumptions import RELIABLE_UP_TO
 
 NO_PROFILE = {
@@ -21,12 +20,8 @@ NO_PROFILE = {
 
 
 
-@st.cache_data(ttl=300, show_spinner="Loading indicators and demand…")
-def _data() -> AppData:
-    return load()
 
-
-data = _data()
+data = app_data()
 page_header("Demand", "Insights", "How busy every site is, and how many drivers arrive each "
             "hour, including the ones turned away by full chargers.", kicker="Measure")
 st.caption("OBSERVED: what the charger feed showed over the collected week. INFERRED: arrivals "

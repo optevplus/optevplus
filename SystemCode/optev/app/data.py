@@ -111,7 +111,7 @@ def from_sample() -> AppData:
     return AppData("sample", s.planning_areas, s.sites, s.car_parks, s.indicators,
                    [e for e in s.estimates if e.time_bin == "all"], decisions, rules, on_fail,
                    s.scenarios, [s.allocation], _references(s.references),
-                   profiles, patterns, labels, names)
+                   profiles, patterns, labels, unique_names(names, s.sites))
 
 
 # Postgres ---------------------------------------------------------------------------------
@@ -166,6 +166,23 @@ def _models[M: BaseModel](model: type[M], rows: Iterable[Mapping[str, Any]]) -> 
     return out
 
 
+def unique_names(names: dict[str, str], sites: Iterable[CandidateSite]) -> dict[str, str]:
+    """HDB lists several car parks under one block, so 42 sites share an address. Where a name
+    is shared, add the lot count ("Blk 624A Jurong West Street 61 (2,010 lots)") so every
+    label names one place."""
+    lots = {s.site_id: s.total_lots for s in sites}
+    seen: dict[str, list[str]] = {}
+    for sid, name in names.items():
+        seen.setdefault(name, []).append(sid)
+    out = dict(names)
+    for name, ids in seen.items():
+        if len(ids) > 1:
+            for n, sid in enumerate(sorted(ids, key=lambda i: -(lots.get(i) or 0)), 1):
+                out[sid] = (f"{name} ({lots[sid]:,} lots)" if lots.get(sid) is not None
+                            else f"{name} ({n})")
+    return out
+
+
 def _place(name: str) -> str:
     """HDB writes addresses in capitals ("BLK 613A ANG MO KIO AVENUE 4"); show them as words."""
     return name.title() if name.isupper() else name
@@ -200,12 +217,13 @@ def from_postgres(url: str) -> AppData:
         allocations = [Allocation(**{k: v for k, v in h.items() if k != "allocation_id"},
                                   items=items.get(h["allocation_id"], [])) for h in heads]
         rules, on_fail = load_register()
+        sites = _models(CandidateSite, q("sites"))
         patterns = q("patterns")
         names = {r["site_id"]: _place(r["name"]) for r in q("car_park_names")}
         if any(r["ok"] for r in q("has_amenities")):
             names |= {r["site_id"]: r["name"] for r in q("amenity_names")}
         return AppData(
-            "postgres", _models(PlanningArea, q("areas")), _models(CandidateSite, q("sites")),
+            "postgres", _models(PlanningArea, q("areas")), sites,
             _models(CarPark, q("car_parks")), _models(SiteIndicators, q("indicators")),
             _models(DemandEstimate, q("estimates")), decisions, rules, on_fail, scenarios,
             allocations,
@@ -213,7 +231,8 @@ def from_postgres(url: str) -> AppData:
             _references(load_sample().references),
             _models(DemandEstimate, q("profiles")),
             {p["site_id"]: p["cluster"] for p in patterns},
-            {p["cluster"]: p["label"] for p in patterns if p["label"]}, names)
+            {p["cluster"]: p["label"] for p in patterns if p["label"]},
+            unique_names(names, sites))
 
 
 def load() -> AppData:

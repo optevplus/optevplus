@@ -8,7 +8,6 @@ import pandas as pd
 import streamlit as st
 
 from optev.app import labels as L
-from optev.app.data import AppData, load
 from optev.app.rules_view import (
     decision_table,
     register_rows,
@@ -16,16 +15,10 @@ from optev.app.rules_view import (
     waivers,
 )
 from optev.app.shell import funnel
-from optev.app.ui import page_header, section
+from optev.app.ui import app_data, page_header, section
 from optev.contracts import Outcome
 
-
-@st.cache_data(ttl=300, show_spinner="Loading decisions…")
-def _data() -> AppData:
-    return load()
-
-
-data = _data()
+data = app_data()
 page_header("Eligibility", "Rules", "Every candidate site is screened by six cited rules. A rule "
             "that fails gives its outcome; a rule that can't be judged for missing data defers "
             "the site, never rejects it.", kicker="Decide")

@@ -171,3 +171,16 @@ def test_the_scope_refusal_names_no_sample_site():
     from optev.graph.explain import REFUSE_SCOPE
 
     assert "SYN-" not in REFUSE_SCOPE
+
+
+def test_a_site_cited_without_its_prefix_is_accepted_and_nothing_else_is_loosened():
+    # The model often writes [A76] for hdb:A76; that used to refuse every comparison.
+    from optev.graph.explain import check
+
+    rows = [{"site_id": "hdb:A76", "decision_id": "observed:hdb:A76", "total_lots": 632}]
+    assert check("A76 has 632 lots [A76].", rows) == ([], ["hdb:A76"])
+    assert check("A76 has 632 lots [hdb:A76].", rows) == ([], ["hdb:A76"])
+    problems, _ = check("Made up [hdb:ZZZ].", rows)
+    assert problems == ["cites 'hdb:ZZZ', which is not in the evidence"]
+    problems, _ = check("A76 has 999 lots [A76].", rows)
+    assert problems == ["the number 999 is not in the evidence"]
