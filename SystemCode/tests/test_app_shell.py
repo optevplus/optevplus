@@ -81,6 +81,9 @@ class FakeCursor:
             D.SQL["profiles"]: [x.model_dump(mode="json") for x in s.profiles],
             D.SQL["patterns"]: [{"site_id": k, "cluster": c, "label": s.pattern_labels[c]}
                                 for k, c in s.patterns.items()],
+            D.SQL["car_park_names"]: [{"site_id": k, "name": v.upper()}
+                                      for k, v in s.site_names.items()],
+            D.SQL["has_amenities"]: [{"ok": False}],
         }
 
     def __enter__(self): return self
@@ -171,7 +174,7 @@ def test_map_page_renders_on_the_sample(monkeypatch, tmp_path):
     page = Path(D.__file__).with_name("pages") / "1_Map.py"
     at = AppTest.from_file(str(page), default_timeout=60).run()
     assert not at.exception
-    assert any("synthetic sample" in i.value for i in at.info)
+    assert any("demo dataset" in i.value for i in at.info)
     assert [m.label for m in at.metric][:2] == ["Candidate Sites", "Accept"]
     assert at.dataframe  # the ranking
 
@@ -226,7 +229,7 @@ def test_the_app_opens_on_the_overview_with_the_top_menu(monkeypatch, tmp_path):
     at = AppTest.from_file(str(Path(D.__file__).with_name("main.py")), default_timeout=60).run()
     assert not at.exception
     assert [m.label for m in at.metric] == ["Sites Screened", "Eligible Sites",
-                                            "Points Observed", "Planning Areas"]
+                                            "Charging Points Tracked", "Planning Areas"]
     assert at.metric[0].value == "30"  # the sample's sites
 
 
@@ -244,3 +247,11 @@ def test_the_request_carries_from_one_page_to_the_next(monkeypatch, tmp_path):
     assert not at.exception
     assert at.sidebar.selectbox(key="req_area").value == "TM"
     assert at.sidebar.number_input(key="req_points").value == 5
+
+
+def test_postgres_names_read_as_words_not_capitals(monkeypatch):
+    import psycopg
+
+    monkeypatch.setattr(psycopg, "connect", lambda url, row_factory=None: FakeCursor())
+    pg = D.from_postgres("postgresql://fake")
+    assert pg.site_names and all(not n.isupper() for n in pg.site_names.values())

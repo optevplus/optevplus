@@ -63,7 +63,7 @@ def test_the_page_shows_a_rejection_with_its_rule():
     at.button[0].click().run()
     assert not at.exception
     assert any("Rules not passed" in h.value for h in at.subheader)
-    assert "R03" in at.dataframe[1].value["rule"].tolist()
+    assert "Room for Another Point" in at.dataframe[1].value["Rule"].tolist()
 
 
 @live

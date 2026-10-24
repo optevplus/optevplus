@@ -41,11 +41,10 @@ def section(title: str) -> None:
 
 def source_note(data: AppData) -> None:
     if data.source == "sample":
-        st.info("Showing the **synthetic sample** (Tampines and Pasir Ris, ids `SYN-…`). Set "
-                "`DATABASE_URL` to show the real data.")
+        st.info("Showing a **demo dataset** of Tampines and Pasir Ris. Connect the database "
+                "(`DATABASE_URL`) to plan with live data.")
     else:
-        st.caption("Data: the collected week, 7–14 Oct 2026, with every pipeline output, "
-                   "from PostgreSQL.")
+        st.caption("Live data: Singapore's charger and car park feeds, 7–14 Oct 2026.")
 
 
 def request_controls(data: AppData) -> Request:
@@ -70,3 +69,47 @@ def request_controls(data: AppData) -> Request:
                                 index=scenario_ids.index("base") if "base" in scenario_ids else 0,
                                 format_func=lambda s: s.title(), **keep)
     return Request(scenario, area, int(points) or None, float(budget) if use_budget else None)
+
+
+PAGE_SLUGS = ("site-map", "eligibility", "allocation", "demand", "ask-why")
+
+# Streamlit keeps the viewer's theme in localStorage["stActiveTheme-<path>-v2"] and has no Python
+# API to change it, so the toggle writes that value for every page and reloads. If the browser
+# blocks it (e.g. the app is embedded), the ⋮ → Settings menu still switches the theme.
+SWITCH_JS = """<script>
+(function () {
+  try {
+    const w = window.parent;
+    const slugs = %(slugs)s;
+    let base = w.location.pathname;
+    for (const s of slugs) { if (base.endsWith("/" + s) || base.endsWith("/" + s + "/")) {
+      base = base.slice(0, base.lastIndexOf("/" + s)); } }
+    base = base.replace(/\\/+$/, "");
+    const paths = [base + "/", base, ...slugs.map(s => base + "/" + s),
+                   ...slugs.map(s => base + "/" + s + "/")];
+    for (const p of paths) {
+      w.localStorage.setItem("stActiveTheme-" + (p || "/") + "-v2", JSON.stringify(%(mode)s));
+    }
+    w.location.reload();
+  } catch (e) { console.warn("theme switch unavailable", e); }
+})();
+</script>"""
+
+
+def is_dark() -> bool:
+    return getattr(st.context.theme, "type", None) == "dark"
+
+
+def theme_toggle() -> None:
+    """A visible Light/Dark switch at the top right of every page."""
+    import json
+
+    import streamlit.components.v1 as components
+
+    dark = is_dark()
+    _, right = st.columns([4, 1])
+    if right.button("Light Mode" if dark else "Dark Mode", key="theme_toggle",
+                    icon=":material/light_mode:" if dark else ":material/dark_mode:",
+                    width="stretch"):
+        components.html(SWITCH_JS % {"slugs": json.dumps(list(PAGE_SLUGS)),
+                                     "mode": json.dumps("Light" if dark else "Dark")}, height=0)

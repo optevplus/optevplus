@@ -12,6 +12,8 @@ import streamlit as st
 from dotenv import load_dotenv
 from neo4j.exceptions import DriverError, Neo4jError
 
+from optev.app import labels as L
+from optev.app.data import AppData, load
 from optev.app.evidence import LAYER_HELP, QUESTIONS, examples, missing_graph_settings, sections
 from optev.app.ui import page_header
 from optev.graph.explain import classify, explain
@@ -31,7 +33,16 @@ if missing:
                "works without it; see the README, section 5, to add them.")
     st.stop()
 
-shown, defaults = examples(real=bool(os.environ.get("DATABASE_URL")))
+
+
+@st.cache_data(ttl=300, show_spinner="Loading sites…")
+def _data() -> AppData:
+    return load()
+
+
+data = _data()
+ids, defaults = examples(real=bool(os.environ.get("DATABASE_URL")))
+shown = [L.text(q, data) for q in ids]  # the same questions, asked by place name
 mode = st.radio("Ask", ["In My Own Words", "Pick a Question"], horizontal=True)
 
 question_type: str | None = None
@@ -43,9 +54,22 @@ if mode == "In My Own Words":
 else:
     question_type = st.selectbox("Question", list(QUESTIONS),
                                  format_func=lambda k: QUESTIONS[k][0])
+    site_ids = sorted(data.site_names, key=lambda i: data.site_names[i])
+    areas = sorted({s.planning_area for s in data.sites if s.planning_area})
+    choices = {"site_id": site_ids, "site_a": site_ids, "site_b": site_ids,
+               "rule_id": sorted(L.RULE_NAMES), "planning_area": areas,
+               "scenario_id": [s.scenario_id for s in data.scenarios]}
+    shows = {"rule_id": L.rule, "planning_area": lambda a: L.area(data, a),
+             "scenario_id": str.title}
+    names = {"site_id": "Site", "site_a": "First Site", "site_b": "Second Site",
+             "rule_id": "Rule", "planning_area": "Planning Area", "scenario_id": "Scenario"}
     for name in QUESTIONS[question_type][1]:
-        default = {"scenario_id": "base", "rule_id": "R03", **defaults}.get(name, "")
-        params[name] = st.text_input(name.replace("_", " "), value=default).strip()
+        options = choices.get(name, [])
+        default = {"scenario_id": "base", "rule_id": "R03", **defaults}.get(name)
+        params[name] = st.selectbox(
+            names.get(name, L.title(name)), options,
+            index=options.index(default) if default in options else 0,
+            format_func=shows.get(name, lambda i: L.site(data, i)))
 
 if not st.button("Show Evidence", type="primary"):
     st.stop()
@@ -69,10 +93,10 @@ if mode == "In My Own Words":
         st.warning("Type a question first.")
         st.stop()
     try:
-        answer = from_graph(explain, question)
+        answer = from_graph(explain, L.resolve_names(question, data))
         question_type, params, rows = answer.question_type, answer.params, answer.evidence
     except LLMNotConfigured:
-        found = classify(question)
+        found = classify(L.resolve_names(question, data))
         if found is None:
             st.error("Out of scope: I can only answer about the sites, rules, demand, plans "
                      "and assumptions in the OptEV+ knowledge graph.")
@@ -87,25 +111,23 @@ else:
 
 if answer is not None:
     if answer.refused:
-        st.error("**Refused.** " + answer.text)
+        st.error("**Refused.** " + L.text(answer.text, data))
         if answer.problems:
             st.caption("Failed checks: " + "; ".join(answer.problems))
     else:
-        st.success(answer.text)
-        st.caption("Cites: " + ", ".join(answer.cited))
-
-if question_type:
-    st.caption(f"Question type `{question_type}` · " +
-               ", ".join(f"{k} = {v}" for k, v in params.items()))
+        text, sources = L.readable_answer(answer.text, data)
+        st.success(text)
+        if sources:
+            st.caption("Sources: " + " · ".join(sources))
 if not rows:
     st.error("**No evidence** in the knowledge graph for this question. Nothing is recorded, "
              "so nothing is claimed.")
     st.stop()
 
 for sec in sections(question_type, rows):
-    st.subheader(sec.title)
+    st.subheader(L.text(sec.title, data))
     st.caption(f"**{sec.layer.upper()}**: {LAYER_HELP[sec.layer]}" +
                (f" {sec.note}" if sec.note else ""))
     if sec.rows:
-        st.dataframe(pd.DataFrame(sec.rows), hide_index=True, use_container_width=True,
-                     column_config={"link": st.column_config.LinkColumn("link")})
+        st.dataframe(pd.DataFrame(L.table(sec.rows, data)), hide_index=True, width="stretch",
+                     column_config={"Link": st.column_config.LinkColumn("Link")})

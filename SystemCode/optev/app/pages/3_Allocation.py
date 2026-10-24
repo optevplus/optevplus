@@ -8,6 +8,7 @@ optev.reasoning.checker (#22); optev.app.allocation_view only arranges them.
 import pandas as pd
 import streamlit as st
 
+from optev.app import labels as L
 from optev.app.allocation_view import assumption_rows, infeasible, plan_rows, summary
 from optev.app.data import AppData, load
 from optev.app.shell import plan
@@ -77,8 +78,9 @@ section("The Plan")
 st.caption("Most points first. **To confirm first** lists the rules a conditional site must "
            "still satisfy (e.g. electrical capacity, fire safety) before building.")
 scenario = next(x for x in data.scenarios if x.scenario_id == scenario_id)
-st.dataframe(pd.DataFrame(plan_rows(data, result, scenario)), hide_index=True, width="stretch")
+st.dataframe(pd.DataFrame(L.table(plan_rows(data, result, scenario), data)), hide_index=True,
+             width="stretch")
 
 section("Declared Values Behind These Numbers")
 st.caption("DECLARED: values we chose and cite; change one and every plan follows.")
-st.dataframe(pd.DataFrame(assumption_rows()), hide_index=True, width="stretch")
+st.dataframe(pd.DataFrame(L.table(assumption_rows(), data)), hide_index=True, width="stretch")

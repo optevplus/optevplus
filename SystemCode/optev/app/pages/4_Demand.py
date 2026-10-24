@@ -7,6 +7,7 @@ optev.app.data, and optev.app.demand_view only arranges them.
 import pandas as pd
 import streamlit as st
 
+from optev.app import labels as L
 from optev.app.data import AppData, load
 from optev.app.demand_view import demand_table, figure, pattern_rows, profile, supply_counts
 from optev.app.ui import page_header, section
@@ -33,7 +34,7 @@ st.caption("OBSERVED: what the charger feed showed over the collected week. INFE
            f"without). Where occupancy reached {RELIABLE_UP_TO.value:.0%} or more, drivers were "
            "turned away unseen, so the figure is a lower bound and reads **at least**.")
 if data.source == "sample":
-    st.info("Showing the **synthetic sample** (ids `SYN-…`). Its daily figures are the sample's "
+    st.info("Showing a **demo dataset** of Tampines and Pasir Ris. Its daily figures are the "
             "stand-in estimates; the hourly profiles are inferred from its two weekdays of "
             "readings.")
 
@@ -41,21 +42,19 @@ if data.source == "sample":
 counts = supply_counts(data)
 cols = st.columns(4)
 for col, (state, n) in zip(cols, counts.items(), strict=True):
-    col.metric(state.replace("_", " ").title(), f"{n:,}")
+    col.metric(L.SUPPLY.get(state, L.title(state)), f"{n:,}")
 st.caption("Utilisation is left blank, never 0, where there is no supply or too little "
            "observation: zero would read as nobody wanting to charge there.")
 
 # Every site ---------------------------------------------------------------------------------
 areas = sorted({s.planning_area for s in data.sites if s.planning_area})
 area = st.selectbox("Planning Area", [None, *areas],
-                    format_func=lambda a: "Island-Wide" if a is None else a)
+                    format_func=lambda a: "Island-Wide" if a is None else L.area(data, a))
 table = demand_table(data, area)
-st.dataframe(pd.DataFrame(table), hide_index=True, width="stretch",
-             column_config={
-                 "utilisation (observed)": st.column_config.NumberColumn(format="%.2f"),
-                 "saturated_share (observed)": st.column_config.NumberColumn(format="%.2f"),
-                 "coverage (observed)": st.column_config.NumberColumn(format="%.2f"),
-             })
+share = st.column_config.NumberColumn(format="percent")
+st.dataframe(pd.DataFrame(L.table(table, data)), hide_index=True, width="stretch",
+             column_config={"Utilisation · Observed": share, "Time Full · Observed": share,
+                            "Observation Coverage · Observed": share})
 
 # Usage patterns (inferred) ------------------------------------------------------------------
 section("Usage Patterns")
@@ -64,7 +63,7 @@ st.caption("INFERRED: k-means on each served site's 48-hour occupancy profile (w
            "no profile and no pattern.")
 patterns = pattern_rows(data)
 if patterns:
-    st.dataframe(pd.DataFrame(patterns), hide_index=True, width="stretch")
+    st.dataframe(pd.DataFrame(L.table(patterns, data)), hide_index=True, width="stretch")
 else:
     st.warning("No patterns found yet.")
 
@@ -74,7 +73,8 @@ measured = [r for r in table if r["utilisation (observed)"] is not None]
 busiest = max(measured, key=lambda r: r["utilisation (observed)"])["site_id"] if measured else None
 site_ids = [r["site_id"] for r in table]
 site_id = st.selectbox("Site", site_ids,  # opens on the busiest measured site
-                       index=site_ids.index(busiest) if busiest in site_ids else 0)
+                       index=site_ids.index(busiest) if busiest in site_ids else 0,
+                       format_func=lambda i: L.site(data, i))
 row = next((r for r in table if r["site_id"] == site_id), None)
 if row is None:
     st.stop()
@@ -84,7 +84,7 @@ left.metric("Demand per Hour, Daily Average (Inferred)", figure(estimate) or "�
 right.metric("Utilisation (Observed)", "—" if row["utilisation (observed)"] is None
              else f"{row['utilisation (observed)']:.0%}")
 if estimate and estimate.note:
-    st.caption(f"Method: {estimate.note}")
+    st.caption(f"Method: {L.detail(estimate.note)}")
 
 hours = profile(data, site_id)
 if not hours:
@@ -92,10 +92,12 @@ if not hours:
                                                       "no hourly estimates are stored for it."))
     st.stop()
 frame = pd.DataFrame(hours)
-st.line_chart(frame, x="hour", y="arrivals_per_h (inferred)", color="day")
+chart = frame.rename(columns={"hour": "Hour", "arrivals_per_h (inferred)": "Arrivals per Hour",
+                              "day": "Day"}).assign(Day=lambda f: f["Day"].str.title())
+st.line_chart(chart, x="Hour", y="Arrivals per Hour", color="Day")
 bounded = [h for h in hours if h["lower_bound"]]
 if bounded:
     st.warning(f"Occupancy was {RELIABLE_UP_TO.value:.0%} or more in "
-               + ", ".join(h["time_bin"] for h in bounded)
+               + ", ".join(L.time_bin(h["time_bin"]) for h in bounded)
                + ": demand in those hours is **at least** the figure shown.")
-st.dataframe(frame.drop(columns=["lower_bound"]), hide_index=True, width="stretch")
+st.dataframe(pd.DataFrame(L.table(hours, data)), hide_index=True, width="stretch")

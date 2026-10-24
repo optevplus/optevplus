@@ -9,14 +9,15 @@ from pathlib import Path
 
 import streamlit as st
 
-from optev.app.ui import apply_theme
+from optev.app.ui import apply_theme, is_dark, theme_toggle
 
 PAGES = Path(__file__).with_name("pages")
 
 st.set_page_config(page_title="OptEV+", page_icon=":material/ev_station:", layout="wide",
                    initial_sidebar_state="expanded")
 apply_theme()
-st.logo(str(Path(__file__).with_name("logo.svg")), size="large")
+st.logo(str(Path(__file__).with_name("logo-dark.svg" if is_dark() else "logo.svg")), size="large")
+theme_toggle()
 
 nav = st.navigation([
     st.Page(PAGES / "0_Overview.py", title="Overview", icon=":material/home:", default=True),
