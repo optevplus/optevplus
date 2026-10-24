@@ -12,24 +12,24 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from optev.app.evidence import LAYER_HELP, QUESTIONS, examples, sections
+from optev.app.ui import page_header
 from optev.graph.explain import classify, explain
 from optev.graph.llm import LLMNotConfigured
 from optev.graph.retrieve import retrieve
 
 load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
-st.set_page_config(page_title="OptEV+ · Evidence", page_icon="🔎", layout="wide")
-st.title("Evidence")
-st.caption("Ask why a site was chosen or not. Every answer shows the evidence it rests on; "
-           "with no evidence, the system says so instead of guessing.")
+page_header("Ask", "Why", "Ask why a site was chosen or not. Every answer shows the evidence it "
+            "rests on from the knowledge graph; with no evidence, the system says so instead "
+            "of guessing.", kicker="Explain")
 
 shown, defaults = examples(real=bool(os.environ.get("DATABASE_URL")))
-mode = st.radio("Ask", ["In my own words", "Pick a question"], horizontal=True)
+mode = st.radio("Ask", ["In My Own Words", "Pick a Question"], horizontal=True)
 
 question_type: str | None = None
 params: dict[str, str] = {}
 question = ""
-if mode == "In my own words":
+if mode == "In My Own Words":
     question = st.text_input("Question", placeholder=shown[0])
     st.caption("Try: " + " · ".join(shown))
 else:
@@ -39,11 +39,11 @@ else:
         default = {"scenario_id": "base", "rule_id": "R03", **defaults}.get(name, "")
         params[name] = st.text_input(name.replace("_", " "), value=default).strip()
 
-if not st.button("Show evidence", type="primary"):
+if not st.button("Show Evidence", type="primary"):
     st.stop()
 
 answer = None
-if mode == "In my own words":
+if mode == "In My Own Words":
     if not question.strip():
         st.warning("Type a question first.")
         st.stop()

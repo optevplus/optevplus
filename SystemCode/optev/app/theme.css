@@ -1,0 +1,47 @@
+/* OptEV+ theme: the proposal deck's palette (teal #0097B2 to green #7ED957) and Inter.
+   Loaded by optev.app.ui.apply_theme. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+html, body, .stApp *:not([data-testid="stIconMaterial"]):not(code) {
+  font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+}
+.stApp { background: #FFFFFF; color: #202020; }
+.block-container { padding-top: 4.6rem; max-width: 1280px; }
+h1, h2, h3 { color: #202020; letter-spacing: -0.02em; }
+h2 { font-weight: 700; } h3 { font-weight: 650; }
+.ox-grad { background: linear-gradient(110deg, #0097B2 0%, #7ED957 100%); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; }
+.ox-kicker { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: #0097B2; margin-bottom: 0.35rem; }
+.ox-title { font-size: 2.9rem; font-weight: 800; line-height: 1.08; letter-spacing: -0.035em;
+  margin: 0 0 0.6rem 0; color: #202020; }
+.ox-sub { font-size: 1.12rem; color: #4A5560; max-width: 62rem; line-height: 1.55; margin-bottom: 1.4rem; }
+.ox-hero { padding: 2.6rem 2.6rem 2.2rem; border-radius: 22px; margin-bottom: 1.6rem;
+  background: radial-gradient(1200px 400px at 0% 0%, rgba(0,151,178,0.10), transparent 60%),
+              radial-gradient(900px 380px at 100% 100%, rgba(126,217,87,0.14), transparent 60%), #F4F7F8;
+  border: 1px solid #E2E8EB; }
+.ox-hero .ox-title { font-size: 3.6rem; }
+.ox-pill { display: inline-block; padding: 0.28rem 0.8rem; border-radius: 999px; font-size: 0.8rem;
+  font-weight: 600; color: #fff; background: linear-gradient(110deg, #0097B2 0%, #7ED957 100%); margin: 0 0.4rem 0.4rem 0; }
+.ox-card { background: #fff; border: 1px solid #E2E8EB; border-radius: 16px; padding: 1.25rem 1.3rem;
+  height: 100%; box-shadow: 0 6px 22px rgba(16, 40, 48, 0.05); }
+.ox-card h4 { margin: 0.55rem 0 0.35rem; font-size: 1.08rem; font-weight: 700; color: #202020; }
+.ox-card p { margin: 0; color: #4A5560; font-size: 0.95rem; line-height: 1.5; }
+.ox-num { display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem;
+  border-radius: 999px; background: linear-gradient(110deg, #0097B2 0%, #7ED957 100%); color: #fff; font-weight: 700; font-size: 0.9rem; }
+.ox-tag { display: inline-block; margin-top: 0.7rem; font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: #0097B2; }
+.ox-stat { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.ox-stat-label { color: #4A5560; font-size: 0.92rem; margin-top: 0.25rem; }
+.ox-section { font-size: 1.7rem; font-weight: 750; letter-spacing: -0.025em; margin: 2.2rem 0 0.2rem; }
+.ox-foot { color: #4A5560; font-size: 0.85rem; border-top: 1px solid #E2E8EB; padding-top: 1rem; margin-top: 2.5rem; }
+[data-testid="stMetric"] { background: #F4F7F8; border: 1px solid #E2E8EB; border-radius: 14px;
+  padding: 0.85rem 1rem; }
+[data-testid="stMetricLabel"] p { color: #4A5560; font-weight: 600; font-size: 0.9rem; }
+[data-testid="stMetricValue"] { font-weight: 800; letter-spacing: -0.02em; }
+[data-testid="stSidebar"] { background: #F4F7F8; border-right: 1px solid #E2E8EB; }
+.stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"] {
+  background: linear-gradient(110deg, #0097B2 0%, #7ED957 100%); border: 0; font-weight: 650; }
+[data-testid="stPageLink"] a { border: 1px solid #E2E8EB; border-radius: 12px; padding: 0.55rem 0.9rem;
+  background: #fff; font-weight: 600; }
+[data-testid="stPageLink"] a:hover { border-color: #0097B2; }
+[data-testid="stDataFrame"] { border: 1px solid #E2E8EB; border-radius: 12px; }

@@ -9,6 +9,7 @@ import streamlit as st
 
 from optev.app.data import AppData, load
 from optev.app.demand_view import demand_table, figure, pattern_rows, profile, supply_counts
+from optev.app.ui import page_header, section
 from optev.assumptions import RELIABLE_UP_TO
 
 NO_PROFILE = {
@@ -17,7 +18,6 @@ NO_PROFILE = {
     None: "this site has not been measured yet.",
 }
 
-st.set_page_config(page_title="OptEV+ · Demand", page_icon="📈", layout="wide")
 
 
 @st.cache_data(ttl=300, show_spinner="Loading indicators and demand…")
@@ -26,7 +26,8 @@ def _data() -> AppData:
 
 
 data = _data()
-st.title("Demand at each site")
+page_header("Demand", "Insights", "How busy every site is, and how many drivers arrive each "
+            "hour, including the ones turned away by full chargers.", kicker="Measure")
 st.caption("OBSERVED: what the charger feed showed over the collected week. INFERRED: arrivals "
            "per hour from the queueing model (sites with chargers) or the regression (sites "
            f"without). Where occupancy reached {RELIABLE_UP_TO.value:.0%} or more, drivers were "
@@ -34,20 +35,20 @@ st.caption("OBSERVED: what the charger feed showed over the collected week. INFE
 if data.source == "sample":
     st.info("Showing the **synthetic sample** (ids `SYN-…`). Its daily figures are the sample's "
             "stand-in estimates; the hourly profiles are inferred from its two weekdays of "
-            "readings.", icon="🧪")
+            "readings.")
 
 # Supply states (observed) -------------------------------------------------------------------
 counts = supply_counts(data)
 cols = st.columns(4)
 for col, (state, n) in zip(cols, counts.items(), strict=True):
-    col.metric(state.replace("_", " ").capitalize(), n)
+    col.metric(state.replace("_", " ").title(), f"{n:,}")
 st.caption("Utilisation is left blank, never 0, where there is no supply or too little "
            "observation: zero would read as nobody wanting to charge there.")
 
 # Every site ---------------------------------------------------------------------------------
 areas = sorted({s.planning_area for s in data.sites if s.planning_area})
-area = st.selectbox("Planning area", [None, *areas],
-                    format_func=lambda a: "Island-wide" if a is None else a)
+area = st.selectbox("Planning Area", [None, *areas],
+                    format_func=lambda a: "Island-Wide" if a is None else a)
 table = demand_table(data, area)
 st.dataframe(pd.DataFrame(table), hide_index=True, width="stretch",
              column_config={
@@ -57,7 +58,7 @@ st.dataframe(pd.DataFrame(table), hide_index=True, width="stretch",
              })
 
 # Usage patterns (inferred) ------------------------------------------------------------------
-st.subheader("Usage patterns")
+section("Usage Patterns")
 st.caption("INFERRED: k-means on each served site's 48-hour occupancy profile (weekday and "
            "weekend hours), labelled by when the cluster peaks. Sites without chargers have "
            "no profile and no pattern.")
@@ -68,15 +69,19 @@ else:
     st.warning("No patterns found yet.")
 
 # One site's day -----------------------------------------------------------------------------
-st.subheader("One site through the day")
-site_id = st.selectbox("Site", [r["site_id"] for r in table])
+section("One Site Through the Day")
+measured = [r for r in table if r["utilisation (observed)"] is not None]
+busiest = max(measured, key=lambda r: r["utilisation (observed)"])["site_id"] if measured else None
+site_ids = [r["site_id"] for r in table]
+site_id = st.selectbox("Site", site_ids,  # opens on the busiest measured site
+                       index=site_ids.index(busiest) if busiest in site_ids else 0)
 row = next((r for r in table if r["site_id"] == site_id), None)
 if row is None:
     st.stop()
 estimate = next((e for e in data.estimates if e.site_id == site_id), None)
 left, right = st.columns(2)
-left.metric("Demand per hour, daily average (inferred)", figure(estimate) or "—")
-right.metric("Utilisation (observed)", "—" if row["utilisation (observed)"] is None
+left.metric("Demand per Hour, Daily Average (Inferred)", figure(estimate) or "—")
+right.metric("Utilisation (Observed)", "—" if row["utilisation (observed)"] is None
              else f"{row['utilisation (observed)']:.0%}")
 if estimate and estimate.note:
     st.caption(f"Method: {estimate.note}")

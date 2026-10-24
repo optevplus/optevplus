@@ -10,10 +10,9 @@ import streamlit as st
 
 from optev.app.allocation_view import assumption_rows, infeasible, plan_rows, summary
 from optev.app.data import AppData, load
-from optev.app.shell import Request, plan
+from optev.app.shell import plan
+from optev.app.ui import page_header, request_controls, section, source_note
 from optev.contracts import Allocation, InfeasibilityReport
-
-st.set_page_config(page_title="OptEV+ · Allocation", page_icon="📍", layout="wide")
 
 
 @st.cache_data(ttl=300, show_spinner="Loading sites, decisions and demand…")
@@ -22,34 +21,22 @@ def _data() -> AppData:
 
 
 data = _data()
-st.title("Allocation")
-st.caption("How many new charging points go to each site, what they cost, and whether an "
-           "independent checker agrees every limit holds. "
-           f"Data: **{data.source}**.")
+page_header("Allocation", "Plan", "How many new charging points go to each site, what they "
+            "cost, and whether an independent checker agrees every limit holds.",
+            kicker="Optimise")
+source_note(data)
 
-# The request (§1): area, points, optional budget, scenario -------------------------------
-with st.sidebar:
-    st.header("Request")
-    areas = {a.code: a.name.title() for a in data.planning_areas}
-    area = st.selectbox("Planning area", [None, *sorted(areas)], key="alloc_area",
-                        format_func=lambda c: "Island-wide" if c is None
-                        else f"{areas[c]} ({c})")
-    points = int(st.number_input("New charging points", min_value=1, value=12, step=1,
-                                 key="alloc_points"))
-    budget = (float(st.number_input("Budget (SGD)", min_value=0, value=150_000, step=10_000,
-                                    key="alloc_budget"))
-              if st.checkbox("Cap by budget", key="alloc_use_budget") else None)
-    scenario_ids = [s.scenario_id for s in data.scenarios]
-    scenario_id = st.selectbox("Scenario", scenario_ids, key="alloc_scenario",
-                               index=scenario_ids.index("base") if "base" in scenario_ids else 0)
+# The request (§1), shared with the Site Map page -----------------------------------------
+request = request_controls(data)
+scenario_id = request.scenario_id
 
-result, source = plan(data, Request(scenario_id, area, points, budget))
-st.caption(f"Plan from: {source}.")
+result, source = plan(data, request)
+st.caption(f"Solved by {source}.")
 
 if isinstance(result, InfeasibilityReport):
     why = infeasible(result)
-    st.error(f"**This request cannot be met.** {why['requested']} points were asked for; at "
-             f"most **{why['max_feasible']}** fit (short by {why['short_by']}).")
+    st.error(f"**This request cannot be met.** {why['requested']:,} points were asked for; at "
+             f"most **{why['max_feasible']:,}** fit (short by {why['short_by']:,}).")
     for reason in why["reasons"]:
         st.markdown(f"- {reason}")
     if why["areas"]:
@@ -69,15 +56,14 @@ except ImportError:
 
 s = summary(result)
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Points placed", f"{s.placed}" + (f" of {s.requested}" if s.requested else ""))
+c1.metric("Points Placed", f"{s.placed}" + (f" of {s.requested}" if s.requested else ""))
 c2.metric("Sites", s.sites)
-c3.metric("Estimated cost (SGD)", f"{s.cost_sgd:,.0f}",
+c3.metric("Estimated Cost (SGD)", f"{s.cost_sgd:,.0f}",
           delta=(f"{s.budget_sgd - s.cost_sgd:,.0f} under budget" if s.budget_sgd is not None
                  else None))
 c4.metric("Checker", s.verdict)
-st.caption(f"Drivers rescued per hour by this plan: **{s.rescued_per_h}** "
-           "(drivers who would otherwise find every charger full). RECOMMENDED: a plan, "
-           "not built.")
+st.caption(f"Drivers rescued per hour by this plan: **{s.rescued_per_h}**, drivers who would "
+           "otherwise find every charger full. RECOMMENDED: a plan, not yet built.")
 
 if s.violations:
     st.error("The checker found broken limits:")
@@ -87,12 +73,12 @@ else:
     st.success("The independent checker re-tested every limit (eligibility, area, room per "
                "site, cost, points requested, budget) and found none broken.")
 
-st.subheader("The plan")
+section("The Plan")
 st.caption("Most points first. **To confirm first** lists the rules a conditional site must "
            "still satisfy (e.g. electrical capacity, fire safety) before building.")
 scenario = next(x for x in data.scenarios if x.scenario_id == scenario_id)
 st.dataframe(pd.DataFrame(plan_rows(data, result, scenario)), hide_index=True, width="stretch")
 
-st.subheader("Declared values behind these numbers")
+section("Declared Values Behind These Numbers")
 st.caption("DECLARED: values we chose and cite; change one and every plan follows.")
 st.dataframe(pd.DataFrame(assumption_rows()), hide_index=True, width="stretch")

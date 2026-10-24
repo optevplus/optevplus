@@ -15,9 +15,8 @@ from optev.app.rules_view import (
     waivers,
 )
 from optev.app.shell import funnel
+from optev.app.ui import page_header, section
 from optev.contracts import Outcome
-
-st.set_page_config(page_title="OptEV+ · Rules", page_icon="⚖️", layout="wide")
 
 
 @st.cache_data(ttl=300, show_spinner="Loading decisions…")
@@ -26,14 +25,14 @@ def _data() -> AppData:
 
 
 data = _data()
-st.title("Rules and eligibility")
-st.caption("Every candidate site is screened by every rule. A rule that fails gives its outcome; "
-           "a rule that can't be evaluated for missing data defers the site, never rejects it.")
+page_header("Eligibility", "Rules", "Every candidate site is screened by six cited rules. A rule "
+            "that fails gives its outcome; a rule that can't be judged for missing data defers "
+            "the site, never rejects it.", kicker="Decide")
 if data.source == "sample":
-    st.info("Showing the **synthetic sample** (ids `SYN-…`).", icon="🧪")
+    st.info("Showing the **synthetic sample** (ids `SYN-…`).")
 
 # The register -------------------------------------------------------------------------------
-with st.expander(f"The rule register ({len(data.rules)} rules)", expanded=False):
+with st.expander(f"The Rule Register ({len(data.rules)} Rules)", expanded=False):
     st.caption("RULE layer: each rule cites the dataset, policy or declared assumption behind it.")
     st.dataframe(pd.DataFrame(register_rows(data)), hide_index=True, width="stretch",
                  column_config={"link": st.column_config.LinkColumn("link")})
@@ -43,22 +42,25 @@ counts = funnel(data)
 cols = st.columns(4)
 for col, o in zip(cols, (Outcome.ACCEPT, Outcome.CONDITIONAL, Outcome.DEFER, Outcome.REJECT),
                   strict=True):
-    col.metric(o.value.title(), counts[o.value])
+    col.metric(o.value.title(), f"{counts[o.value]:,}")
 
 # All decisions ------------------------------------------------------------------------------
 left, right = st.columns(2)
 choice = left.selectbox("Outcome", [None, *(o.value for o in Outcome)],
-                        format_func=lambda o: "All outcomes" if o is None else o)
+                        format_func=lambda o: "All Outcomes" if o is None else o.title())
 areas = sorted({s.planning_area for s in data.sites if s.planning_area})
-area = right.selectbox("Planning area", [None, *areas],
-                       format_func=lambda a: "Island-wide" if a is None else a)
+area = right.selectbox("Planning Area", [None, *areas],
+                       format_func=lambda a: "Island-Wide" if a is None else a)
 table = decision_table(data, choice, area)
 st.dataframe(pd.DataFrame(table), hide_index=True, width="stretch")
 
 # One site -----------------------------------------------------------------------------------
-st.subheader("Why this outcome?")
+section("Why This Outcome?")
 ids = [r["site_id"] for r in table]
-site_id = st.selectbox("Site", ids)
+# open on a car park, not the community clubs that sort first and mostly lack lot counts
+first_car_park = next(
+    (i for i, r in enumerate(table) if str(r.get("kind")).endswith("car_park")), 0)
+site_id = st.selectbox("Site", ids, index=first_car_park if ids else None)
 decision = next((d for d in data.decisions if d.site_id == site_id), None)
 if decision is None:
     st.stop()

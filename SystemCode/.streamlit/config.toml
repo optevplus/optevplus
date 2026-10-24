@@ -1,0 +1,14 @@
+# OptEV+ theme: the proposal deck's palette. Read from the working directory, so the same file
+# is at the repo root (Streamlit Cloud) and in SystemCode/ (local runs).
+[theme]
+base = "light"
+primaryColor = "#0097B2"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F7F8"
+textColor = "#202020"
+linkColor = "#0097B2"
+borderColor = "#E2E8EB"
+baseRadius = "medium"
+
+[client]
+toolbarMode = "viewer"

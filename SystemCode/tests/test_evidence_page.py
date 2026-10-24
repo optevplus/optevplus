@@ -58,7 +58,7 @@ def test_the_page_shows_a_rejection_with_its_rule():
 
     at = AppTest.from_file(str(PAGE), default_timeout=60)
     at.run()
-    at.radio[0].set_value("Pick a question").run()
+    at.radio[0].set_value("Pick a Question").run()
     at.selectbox[0].set_value("why_not_site").run()
     at.button[0].click().run()
     assert not at.exception
