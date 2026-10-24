@@ -47,3 +47,11 @@ When both columns are filled:
 ```bash
 uv run python -m optev.evaluation.rules_check score ../ProjectReport/results/rules-check-sheet.csv --out ../ProjectReport/results/rules-check.md
 ```
+
+## Who rated
+
+- **rater_a:** an AI assistant (Claude), applying this guide to the sheet by hand. It helped
+  build the system, so it is not independent: its agreement checks that the guide, the
+  register and the engine say the same thing.
+- **rater_b:** a team member who did not write the rules, rating `rules-check-rater-b-blank.csv`
+  without seeing rater_a or the app.
