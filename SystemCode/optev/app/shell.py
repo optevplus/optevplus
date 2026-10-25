@@ -56,10 +56,16 @@ def plan(data: AppData, request: Request) -> tuple[Allocation | InfeasibilityRep
     from optev.scenario.project import project
 
     scenario = next(s for s in data.scenarios if s.scenario_id == request.scenario_id)
-    # Plan for the scenario's demand (§4.3): observed rates × its growth, lower bounds kept.
-    result = allocate(data.decisions, data.sites, project(data.estimates, scenario), scenario,
+    # Plan for the scenario's demand (§4.3): observed rates × its growth, lower bounds kept,
+    # every time bin as the pipeline does (Erlang B per bin, §4.2), not the daily mean alone.
+    demand = project([*data.estimates, *data.profiles], scenario)
+    result = allocate(data.decisions, data.sites, demand, scenario,
                       planning_area=request.planning_area,
                       requested_connectors=request.points, budget=request.budget)
+    if isinstance(result, Allocation):  # §4.4: only checked allocations are shown
+        from optev.reasoning.checker import check
+
+        result = check(result, data.decisions, data.sites)
     return result, "allocator (CP-SAT)"
 
 

@@ -46,7 +46,7 @@ _Business case and system design videos — to be added._
 
 ## SECTION 5 : USER GUIDE
 
-**Live system:** _deployment URL to be added._
+**Live system:** https://optevplus.streamlit.app (Streamlit Community Cloud, `main`, reading Neon).
 
 You need **Python 3.12+**, **[uv](https://docs.astral.sh/uv/)** and **git**. Everything else
 is installed by uv. Pick one of the two paths below.
@@ -62,7 +62,7 @@ uv run optev-db migrate       # creates or updates every table; safe to re-run
 uv run streamlit run optev/app/main.py
 ```
 
-Open http://localhost:8501 and choose **Evidence** in the sidebar.
+Open http://localhost:8501: the app opens on **Overview**; the top menu leads to **Site Map**, **Eligibility**, **Allocation**, **Demand** and **Ask Why**.
 
 ### B. Run offline, with no credentials (sample data)
 
@@ -104,6 +104,31 @@ uv run optev-db migrate
 uv run python -m optev.sample.seed_db                 # the sample, as if collected
 uv run python -m optev.pipeline run --scenario base --points 12
 ```
+
+### D. Deploy on Streamlit Community Cloud
+
+`requirements.txt` at the repo root installs the `optev` package. On share.streamlit.io:
+**Create app** → repository `optevplus/optevplus`, branch `main`, main file
+`SystemCode/optev/app/main.py`; under **Advanced settings** pick Python 3.12 and paste the
+secrets as TOML, one line per `.env` key (top-level keys reach the app as environment
+variables):
+
+```toml
+DATABASE_URL = "postgresql://…"   # Neon, direct connection
+NEO4J_URI = "neo4j+s://…"
+NEO4J_USER = "…"
+NEO4J_PASSWORD = "…"
+LLM_PROVIDER = "openai_compatible"
+LLM_BASE_URL = "https://api.openai.com/v1"
+LLM_API_KEY = "…"
+LLM_MODEL = "gpt-4o-mini"
+OPTEV_READ_ONLY = "1"             # public demo: hides Select Site / Clear Selection
+```
+
+On a public deployment, also connect with a read-only database role, so nothing on the page
+can change the shared data.
+
+With no secrets the app runs on the sample; the **Ask Why** page needs the Neo4j and LLM keys.
 
 ### Try it
 

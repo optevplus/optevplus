@@ -11,8 +11,19 @@ a projection for something that was measured (invariant 1, app/CLAUDE.md):
     planned      a planner's own selection
 """
 
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
+
+GRAPH_SETTINGS = ("NEO4J_URI", "NEO4J_USER", "NEO4J_PASSWORD")
+
+
+def missing_graph_settings(env: Mapping[str, str] = os.environ) -> list[str]:
+    """The Neo4j settings this deployment lacks (unset or empty). The page checks before it
+    queries, so a missing secret shows a message instead of a traceback."""
+    return [name for name in GRAPH_SETTINGS if not env.get(name)]
+
 
 # The questions a planner can pick without typing, with the parameters each needs.
 QUESTIONS: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -32,6 +43,21 @@ EXAMPLES = (
     "Compare SYN-S-04 and SYN-S-13.",
     "Why was SYN-S-99 rejected?",
 )
+REAL_EXAMPLES = (  # sites from the real answer key (evaluation/explain_questions_real.toml)
+    "Why was hdb:A76 chosen?",
+    "Why was hdb:A33 rejected?",
+    "Why is hdb:ACB only conditional?",
+    "Compare hdb:A76 and hdb:A33.",
+)
+SAMPLE_DEFAULTS = {"site_id": "SYN-S-13", "site_a": "SYN-S-04", "site_b": "SYN-S-13",
+                   "planning_area": "PR"}
+REAL_DEFAULTS = {"site_id": "hdb:A33", "site_a": "hdb:A76", "site_b": "hdb:A33",
+                 "planning_area": "TM"}
+
+
+def examples(real: bool) -> tuple[tuple[str, ...], dict[str, str]]:
+    """Example questions and form defaults for the data the app shows: ids that exist."""
+    return (REAL_EXAMPLES, REAL_DEFAULTS) if real else (EXAMPLES, SAMPLE_DEFAULTS)
 
 LAYER_HELP = {
     "observed": "Measured from a government feed.",
@@ -109,3 +135,16 @@ def sections(question_type: str | None, rows: list[dict[str, Any]]) -> list[Sect
                        [{k: v for k, v in r.items() if k != "indicator_ids"} for r in rows],
                        "Share of half-hours when every charger at a site was in use.")]
     return out
+
+
+QUESTION_LIMIT = 15  # written answers per visit on a public deployment (OPTEV_QUESTION_LIMIT)
+
+
+def spend_question(session: Any, limit: int = QUESTION_LIMIT) -> bool:  # st.session_state
+    """Count one written answer against the visit's allowance; False once it is used up. Only
+    written answers call the language model, so only they are counted."""
+    used = int(session.get("questions_asked", 0))
+    if used >= limit:
+        return False
+    session["questions_asked"] = used + 1
+    return True

@@ -1,99 +1,91 @@
-"""Rules check (§6 Stage 4): blind sheets, Cohen's kappa, agreement with the system."""
-
-import csv
+"""Stage 4 rules check (optev.evaluation.rules_check) on the synthetic sample."""
 
 import pytest
 
-from optev.contracts import Decision, Outcome
-from optev.evaluation import rules_check as C
-
-DECISIONS, FACTS = C.sample_facts()
-
-
-def _decisions(counts: dict[Outcome, int]) -> list[Decision]:
-    out, i = [], 0
-    for o, n in counts.items():
-        for _ in range(n):
-            out.append(Decision(site_id=f"S{i:03d}", outcome=o))
-            i += 1
-    return out
-
-
-def test_pick_meets_the_quota_and_hides_the_outcome_in_the_order():
-    pool = _decisions({o: 20 for o in Outcome})
-    ids, short = C.pick(pool)
-    assert len(ids) == 30 and short == {}
-    outcome = {d.site_id: d.outcome for d in pool}
-    assert {o: sum(outcome[i] is o for i in ids) for o in Outcome} == {
-        Outcome.ACCEPT: 8, Outcome.CONDITIONAL: 8, Outcome.DEFER: 7, Outcome.REJECT: 7}
-    assert ids != sorted(ids, key=lambda i: list(Outcome).index(outcome[i]))  # shuffled
-    assert C.pick(pool) == C.pick(pool)  # seeded
+from optev.contracts import Outcome
+from optev.evaluation.rules_check import (
+    FACT_COLUMNS,
+    RATERS,
+    kappa,
+    markdown,
+    pick,
+    reason_coded,
+    score,
+    screened,
+    sheet_rows,
+)
+from optev.reasoning.rules import load_register
+from optev.sample import load
 
 
-def test_pick_reports_a_shortfall_instead_of_inventing_sites():
-    ids, short = C.pick(DECISIONS)  # the sample has 3 defer and 2 reject sites
-    assert short == {Outcome.DEFER: 4, Outcome.REJECT: 5} and len(ids) == 21
+@pytest.fixture(scope="module")
+def found():
+    s = load()
+    rules, on_fail = load_register()
+    return screened(s.sites, s.car_parks, s.indicators, {}, rules, on_fail)
 
 
-def test_evidence_rows_carry_no_verdict():
-    rows = C.evidence(["SYN-S-13", "SYN-S-27"], FACTS)
-    assert set(rows[0]) == set(C.EVIDENCE)
-    assert not {"outcome", "verdict", "failing_rules", "results"} & set(rows[0])
-    assert "total_lots" in rows[1]["missing"]  # hawker centre: no lot count
+def test_pick_is_stratified_capped_and_repeatable(found):
+    ids = pick(found.decisions, seed=3)
+    assert ids == pick(found.decisions, seed=3)
+    assert len(ids) == len(set(ids))
+    have = {o: sum(d.outcome is o for d in found.decisions.values()) for o in Outcome}
+    got = {o: sum(found.decisions[i].outcome is o for i in ids) for o in Outcome}
+    quota = {Outcome.ACCEPT: 8, Outcome.CONDITIONAL: 8, Outcome.DEFER: 7, Outcome.REJECT: 7}
+    assert got == {o: min(quota[o], have[o]) for o in Outcome}
 
 
-@pytest.mark.parametrize(("a", "b", "want"), [
-    (["accept", "reject"] * 5, ["accept", "reject"] * 5, 1.0),
-    (["accept", "reject"] * 5, ["reject", "accept"] * 5, -1.0),
-    # the standard worked example: 50 items, 20 both yes, 15 both no, 5 yes/no, 10 no/yes;
-    # p_o = 0.70, p_e = 0.5 x 0.6 + 0.5 x 0.4 = 0.50, so kappa = 0.40
-    (["yes"] * 20 + ["no"] * 15 + ["yes"] * 5 + ["no"] * 10,
-     ["yes"] * 20 + ["no"] * 15 + ["no"] * 5 + ["yes"] * 10, 0.40),
-])
-def test_kappa(a, b, want):
-    assert C.kappa(a, b) == pytest.approx(want, abs=1e-3)
+def test_the_sheet_is_blind_and_leaves_missing_facts_blank(found):
+    rows = sheet_rows(pick(found.decisions), found.facts)
+    assert set(rows[0]) == {"site_id", *FACT_COLUMNS, *RATERS}  # no verdict column
+    assert all(r[k] == "" for r in rows for k in RATERS)
+    assert all(r["utilisation"] != 0 or found.facts[r["site_id"]].get("utilisation") == 0
+               for r in rows)
 
 
-def test_score_compares_both_raters_with_each_other_and_the_system():
-    system = {"A": {"verdict": "accept", "why": ""}, "B": {"verdict": "reject", "why": "R03"},
-              "C": {"verdict": "defer", "why": "R01"}}
-    ratings = {
-        "gurneet": {"A": {"verdict": "accept", "reason": ""},
-                    "B": {"verdict": "reject", "reason": ""},
-                    "C": {"verdict": "defer", "reason": ""}},
-        "shrey": {"A": {"verdict": "accept", "reason": ""},
-                  "B": {"verdict": "conditional", "reason": "could add one"},
-                  "C": {"verdict": "defer", "reason": ""}},
-    }
-    summary, per_site, disagreements = C.score(ratings, system)
-    assert [r["comparison"] for r in summary] == [
-        "gurneet vs shrey", "gurneet vs system", "shrey vs system"]
-    assert summary[1]["agreement"] == 1.0 and summary[2]["agreement"] == pytest.approx(2 / 3)
-    assert [d["site_id"] for d in disagreements] == ["B"]
-    assert disagreements[0]["shrey_reason"] == "could add one" and len(per_site) == 3
+def test_kappa_matches_textbook_values():
+    assert kappa(list("aabb"), list("aabb")) == 1.0
+    assert kappa(list("abab"), list("baba")) == -1.0
+    # 20 items: 15 agree; marginals a 10/10, b 10/10 -> p_e 0.5, κ 0.5
+    a = ["y"] * 10 + ["n"] * 10
+    b = ["y"] * 8 + ["n"] * 2 + ["y"] * 2 + ["n"] * 8
+    assert kappa(a, b) == pytest.approx((0.8 - 0.5) / 0.5)
+    assert kappa(["x", "x"], ["x", "x"]) is None
+    with pytest.raises(ValueError):
+        kappa(["x"], [])
 
 
-def test_score_refuses_incomplete_or_invalid_sheets():
-    system = {"A": {"verdict": "accept"}}
-    with pytest.raises(ValueError, match="no verdict"):
-        C.score({"gurneet": {"A": {"verdict": "accept"}}, "shrey": {"A": {"verdict": ""}}},
-                system)
-    with pytest.raises(ValueError, match="must be one of"):
-        C.score({"gurneet": {"A": {"verdict": "accept"}}, "shrey": {"A": {"verdict": "ok"}}},
-                system)
+def test_raters_who_copy_the_system_score_perfectly(found):
+    rows = [{**r, "rater_a": found.decisions[r["site_id"]].outcome.value,
+             "rater_b": found.decisions[r["site_id"]].outcome.value.upper()}
+            for r in sheet_rows(pick(found.decisions), found.facts)]
+    result = score(rows, found.decisions)
+    assert result["kappa_raters"] == 1.0
+    assert result["agreement_a"] == result["agreement_b"] == 1.0
+    assert result["agreement_consensus"] == 1.0
+    assert result["reason_codes"] == 1.0
+    assert result["disagreements"] == []
+    assert "κ between raters | 1.00" in markdown(result)
 
 
-def test_pick_then_score_round_trip(tmp_path):
-    short = C.write_sheets(DECISIONS, FACTS, tmp_path)
-    assert short  # the sample is short of defer and reject sites
-    key = C._read(tmp_path / "system_key.csv")
-    for r in C.RATERS:  # a stand-in rater that copies the key, to exercise the files only
-        path = tmp_path / f"rating_{r}.csv"
-        rows = list(csv.DictReader(path.open(encoding="utf-8")))
-        assert all(row["verdict"] == "" for row in rows)  # blank for the rater
-        for row in rows:
-            row["verdict"] = key[row["site_id"]]["verdict"]
-        C._write(path, rows, list(rows[0]))
-    summary = C.write_scores(tmp_path)
-    assert all(r["agreement"] == 1.0 for r in summary)
-    assert (tmp_path / "summary.md").read_text(encoding="utf-8").startswith("| Comparison |")
+def test_a_disagreement_is_listed_and_lowers_agreement(found):
+    rows = [{**r, "rater_a": found.decisions[r["site_id"]].outcome.value,
+             "rater_b": found.decisions[r["site_id"]].outcome.value}
+            for r in sheet_rows(pick(found.decisions), found.facts)]
+    first = rows[0]["site_id"]
+    wrong = next(o.value for o in Outcome if o is not found.decisions[first].outcome)
+    rows[0]["rater_b"] = wrong
+    result = score(rows, found.decisions)
+    assert result["agreement_b"] == pytest.approx(1 - 1 / len(rows))
+    assert result["disagreements"][0]["site_id"] == first
+    assert "| " + first in markdown(result)
+
+
+def test_a_half_rated_sheet_is_refused(found):
+    rows = sheet_rows(pick(found.decisions), found.facts)
+    with pytest.raises(ValueError):
+        score(rows, found.decisions)
+
+
+def test_every_non_accept_verdict_has_a_reason_code(found):
+    assert all(reason_coded(d) for d in found.decisions.values())

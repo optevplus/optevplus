@@ -58,12 +58,12 @@ def test_the_page_shows_a_rejection_with_its_rule():
 
     at = AppTest.from_file(str(PAGE), default_timeout=60)
     at.run()
-    at.radio[0].set_value("Pick a question").run()
+    at.radio[0].set_value("Pick a Question").run()
     at.selectbox[0].set_value("why_not_site").run()
     at.button[0].click().run()
     assert not at.exception
     assert any("Rules not passed" in h.value for h in at.subheader)
-    assert "R03" in at.dataframe[1].value["rule"].tolist()
+    assert "Room for Another Point" in at.dataframe[1].value["Rule"].tolist()
 
 
 @live
@@ -78,3 +78,67 @@ def test_the_page_visibly_refuses_a_site_with_no_path(monkeypatch):
     at.button[0].click().run()
     assert not at.exception
     assert any("No evidence" in e.value for e in at.error)
+
+
+def test_examples_name_sites_that_exist_in_the_data_shown():
+    from optev.app.evidence import examples
+    from optev.sample import load
+
+    sample_ids = {s.site_id for s in load().sites}
+    shown, defaults = examples(real=False)
+    assert all(any(i in q for i in sample_ids) for q in shown[:3])
+    assert defaults["site_id"] in sample_ids
+    real_shown, real_defaults = examples(real=True)
+    assert not any("SYN-" in q for q in real_shown) and "SYN-" not in real_defaults["site_id"]
+
+
+def test_missing_graph_settings_are_named_and_empty_counts_as_missing():
+    from optev.app.evidence import missing_graph_settings
+
+    full = {"NEO4J_URI": "neo4j+s://x", "NEO4J_USER": "u", "NEO4J_PASSWORD": "p"}
+    assert missing_graph_settings(full) == []
+    assert missing_graph_settings({**full, "NEO4J_PASSWORD": ""}) == ["NEO4J_PASSWORD"]
+    assert missing_graph_settings({}) == ["NEO4J_URI", "NEO4J_USER", "NEO4J_PASSWORD"]
+
+
+def test_the_page_explains_a_missing_graph_instead_of_crashing(monkeypatch):
+    # As on a deployment whose secrets hold only DATABASE_URL: no traceback, a clear message.
+    from streamlit.testing.v1 import AppTest
+
+    for name in ("NEO4J_URI", "NEO4J_USER", "NEO4J_PASSWORD"):
+        monkeypatch.setenv(name, "")  # set but empty, so load_dotenv cannot refill it
+    at = AppTest.from_file(str(PAGE), default_timeout=60)
+    at.run()
+    assert not at.exception
+    assert any("not configured" in w.value and "NEO4J_URI" in w.value for w in at.warning)
+    assert not at.button  # nothing to ask until the graph is there
+
+
+def test_the_page_explains_an_unreachable_graph_instead_of_crashing(monkeypatch):
+    from neo4j.exceptions import ServiceUnavailable
+    from streamlit.testing.v1 import AppTest
+
+    import optev.graph.retrieve as R
+
+    def down(*args, **kwargs):
+        raise ServiceUnavailable("Aura is paused")
+
+    monkeypatch.setenv("NEO4J_URI", "neo4j+s://paused.example")
+    monkeypatch.setenv("NEO4J_USER", "u")
+    monkeypatch.setenv("NEO4J_PASSWORD", "p")
+    monkeypatch.setattr(R, "retrieve", down)
+    at = AppTest.from_file(str(PAGE), default_timeout=60)
+    at.run()
+    at.radio[0].set_value("Pick a Question").run()
+    at.button[0].click().run()
+    assert not at.exception
+    assert any("Could not reach the knowledge graph" in e.value for e in at.error)
+
+
+def test_written_answers_are_limited_per_visit():
+    from optev.app.evidence import spend_question
+
+    session: dict = {}
+    assert [spend_question(session, limit=3) for _ in range(5)] == [True, True, True, False,
+                                                                   False]
+    assert session["questions_asked"] == 3

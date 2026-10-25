@@ -65,9 +65,9 @@ def test_the_page_renders_a_plan_and_an_impossible_request(monkeypatch, tmp_path
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
     at = AppTest.from_file(str(PAGE), default_timeout=90).run()
     assert not at.exception
-    assert {m.label for m in at.metric} >= {"Points placed", "Checker"}
+    assert {m.label for m in at.metric} >= {"Points Placed", "Checker"}
     assert any("found none broken" in s.value for s in at.success)
-    at.sidebar.number_input(key="alloc_points").set_value(5000).run()
+    at.sidebar.number_input(key="req_points").set_value(5000).run()
     assert not at.exception
     assert any("cannot be met" in e.value for e in at.error)
 

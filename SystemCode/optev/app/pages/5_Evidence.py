@@ -4,86 +4,138 @@ No logic here: questions go to optev.graph (explain / retrieve), and optev.app.e
 arranges what comes back. Works without a language model: the evidence is still shown.
 """
 
+import os
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
+from neo4j.exceptions import DriverError, Neo4jError
 
-from optev.app.evidence import EXAMPLES, LAYER_HELP, QUESTIONS, sections
+from optev.app import labels as L
+from optev.app.evidence import (
+    LAYER_HELP,
+    QUESTION_LIMIT,
+    QUESTIONS,
+    examples,
+    missing_graph_settings,
+    sections,
+    spend_question,
+)
+from optev.app.ui import app_data, page_header
 from optev.graph.explain import classify, explain
 from optev.graph.llm import LLMNotConfigured
 from optev.graph.retrieve import retrieve
 
 load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
-st.set_page_config(page_title="OptEV+ · Evidence", page_icon="🔎", layout="wide")
-st.title("Evidence")
-st.caption("Ask why a site was chosen or not. Every answer shows the evidence it rests on; "
-           "with no evidence, the system says so instead of guessing.")
+page_header("Ask", "Why", "Ask why a site was chosen or not. Every answer shows the evidence it "
+            "rests on from the knowledge graph; with no evidence, the system says so instead "
+            "of guessing.", kicker="Explain")
 
-mode = st.radio("Ask", ["In my own words", "Pick a question"], horizontal=True)
+missing = missing_graph_settings()
+if missing:
+    st.warning("The knowledge graph is not configured on this deployment, so questions cannot "
+               "be answered here. Missing settings: " + ", ".join(missing) + ". Every other page "
+               "works without it; see the README, section 5, to add them.")
+    st.stop()
+
+
+
+
+data = app_data()
+ids, defaults = examples(real=bool(os.environ.get("DATABASE_URL")))
+shown = [L.text(q, data) for q in ids]  # the same questions, asked by place name
+mode = st.radio("Ask", ["In My Own Words", "Pick a Question"], horizontal=True)
 
 question_type: str | None = None
 params: dict[str, str] = {}
 question = ""
-if mode == "In my own words":
-    question = st.text_input("Question", placeholder=EXAMPLES[0])
-    st.caption("Try: " + " · ".join(EXAMPLES))
+if mode == "In My Own Words":
+    question = st.text_input("Question", placeholder=shown[0])
+    st.caption("Try: " + " · ".join(shown))
 else:
     question_type = st.selectbox("Question", list(QUESTIONS),
                                  format_func=lambda k: QUESTIONS[k][0])
+    site_ids = sorted(data.site_names, key=lambda i: data.site_names[i])
+    areas = sorted({s.planning_area for s in data.sites if s.planning_area})
+    choices = {"site_id": site_ids, "site_a": site_ids, "site_b": site_ids,
+               "rule_id": sorted(L.RULE_NAMES), "planning_area": areas,
+               "scenario_id": [s.scenario_id for s in data.scenarios]}
+    shows = {"rule_id": L.rule, "planning_area": lambda a: L.area(data, a),
+             "scenario_id": str.title}
+    names = {"site_id": "Site", "site_a": "First Site", "site_b": "Second Site",
+             "rule_id": "Rule", "planning_area": "Planning Area", "scenario_id": "Scenario"}
     for name in QUESTIONS[question_type][1]:
-        default = {"scenario_id": "base", "planning_area": "PR", "rule_id": "R03",
-                   "site_a": "SYN-S-04", "site_b": "SYN-S-13"}.get(name, "SYN-S-13")
-        params[name] = st.text_input(name.replace("_", " "), value=default).strip()
+        options = choices.get(name, [])
+        default = {"scenario_id": "base", "rule_id": "R03", **defaults}.get(name)
+        params[name] = st.selectbox(
+            names.get(name, L.title(name)), options,
+            index=options.index(default) if default in options else 0,
+            format_func=shows.get(name, lambda i: L.site(data, i)))
 
-if not st.button("Show evidence", type="primary"):
+if not st.button("Show Evidence", type="primary"):
     st.stop()
 
+
+
+def from_graph(call, *args, **kwargs):  # type: ignore[no-untyped-def]
+    """Run a graph call; if the graph cannot be reached, say so instead of a traceback."""
+    try:
+        return call(*args, **kwargs)
+    except (DriverError, Neo4jError, OSError) as e:
+        st.error("Could not reach the knowledge graph (" + type(e).__name__ + "). If it is "
+                 "Neo4j Aura Free, it pauses after three days without a write: resume it at "
+                 "console.neo4j.io and try again.")
+        st.stop()
+
+
 answer = None
-if mode == "In my own words":
+if mode == "In My Own Words":
     if not question.strip():
         st.warning("Type a question first.")
         st.stop()
+    limit = int(os.environ.get("OPTEV_QUESTION_LIMIT", QUESTION_LIMIT))
+    if not spend_question(st.session_state, limit):
+        st.warning(f"You've used the {limit} written answers this demo allows per visit. "
+                   "**Pick a Question** still shows the evidence for any site.")
+        st.stop()
     try:
-        answer = explain(question)
+        answer = from_graph(explain, L.resolve_names(question, data))
         question_type, params, rows = answer.question_type, answer.params, answer.evidence
     except LLMNotConfigured:
-        found = classify(question)
+        found = classify(L.resolve_names(question, data))
         if found is None:
             st.error("Out of scope: I can only answer about the sites, rules, demand, plans "
                      "and assumptions in the OptEV+ knowledge graph.")
             st.stop()
         question_type, params = found
-        rows = retrieve(question_type, **params)
+        rows = from_graph(retrieve, question_type, **params)
         st.info("No language model is configured, so here is the evidence without a "
                 "written answer.")
 else:
     assert question_type is not None
-    rows = retrieve(question_type, **params)
+    rows = from_graph(retrieve, question_type, **params)
 
 if answer is not None:
     if answer.refused:
-        st.error("**Refused.** " + answer.text)
+        st.error("**Refused.** " + L.text(answer.text, data))
         if answer.problems:
             st.caption("Failed checks: " + "; ".join(answer.problems))
     else:
-        st.success(answer.text)
-        st.caption("Cites: " + ", ".join(answer.cited))
-
-if question_type:
-    st.caption(f"Question type `{question_type}` · " +
-               ", ".join(f"{k} = {v}" for k, v in params.items()))
+        text, sources = L.readable_answer(answer.text, data)
+        st.success(text)
+        if sources:
+            st.caption("Sources: " + " · ".join(sources))
 if not rows:
     st.error("**No evidence** in the knowledge graph for this question. Nothing is recorded, "
              "so nothing is claimed.")
     st.stop()
 
 for sec in sections(question_type, rows):
-    st.subheader(sec.title)
+    st.subheader(L.text(sec.title, data))
     st.caption(f"**{sec.layer.upper()}**: {LAYER_HELP[sec.layer]}" +
                (f" {sec.note}" if sec.note else ""))
     if sec.rows:
-        st.dataframe(pd.DataFrame(sec.rows), hide_index=True, use_container_width=True,
-                     column_config={"link": st.column_config.LinkColumn("link")})
+        st.dataframe(pd.DataFrame(L.table(sec.rows, data)), hide_index=True, width="stretch",
+                     column_config={"Link": st.column_config.LinkColumn("Link")})

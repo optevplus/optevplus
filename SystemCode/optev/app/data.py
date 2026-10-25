@@ -58,6 +58,8 @@ class AppData:
     """The hourly bins (`wd-`, `we-`) behind `estimates`, for the Demand page."""
     patterns: dict[str, int] = field(default_factory=dict)  # site_id -> cluster
     pattern_labels: dict[int, str] = field(default_factory=dict)  # cluster -> label
+    site_names: dict[str, str] = field(default_factory=dict)
+    """A place name per site (car park address or amenity name), so the screen never shows an id."""
 
     def site(self, site_id: str) -> CandidateSite | None:
         return next((s for s in self.sites if s.site_id == site_id), None)
@@ -103,10 +105,13 @@ def from_sample() -> AppData:
     rules, on_fail = load_register()
     decisions, _ = screen(s.sites, s.car_parks, s.indicators, {}, rules, on_fail)
     profiles, patterns, labels = _sample_bins(s)
+    car_park = {cp.car_park_id: cp.name for cp in s.car_parks}
+    names = {site.site_id: car_park[site.car_park_id] for site in s.sites
+             if site.car_park_id in car_park}
     return AppData("sample", s.planning_areas, s.sites, s.car_parks, s.indicators,
                    [e for e in s.estimates if e.time_bin == "all"], decisions, rules, on_fail,
                    s.scenarios, [s.allocation], _references(s.references),
-                   profiles, patterns, labels)
+                   profiles, patterns, labels, unique_names(names, s.sites))
 
 
 # Postgres ---------------------------------------------------------------------------------
@@ -125,6 +130,11 @@ SQL = {
     "profiles": """SELECT site_id, time_bin, arrivals_per_hour, kind, note
         FROM demand_estimate WHERE time_bin <> 'all' ORDER BY site_id, time_bin""",
     "patterns": "SELECT site_id, cluster, label FROM site_pattern ORDER BY site_id",
+    "car_park_names": """SELECT s.site_id, cp.name FROM candidate_site s
+        JOIN car_park cp ON cp.car_park_id = s.car_park_id WHERE cp.name <> ''""",
+    "has_amenities": "SELECT to_regclass('stg_amenity') IS NOT NULL AS ok",
+    "amenity_names": """SELECT s.site_id, a.name FROM candidate_site s
+        JOIN stg_amenity a ON a.amenity_id = s.site_id WHERE a.name <> ''""",
     "decisions": "SELECT site_id, outcome FROM decision WHERE scenario_id = %s",
     "results": """SELECT site_id, rule_id, passed, detail FROM rule_result
         WHERE scenario_id = %s ORDER BY site_id, rule_id""",
@@ -156,6 +166,28 @@ def _models[M: BaseModel](model: type[M], rows: Iterable[Mapping[str, Any]]) -> 
     return out
 
 
+def unique_names(names: dict[str, str], sites: Iterable[CandidateSite]) -> dict[str, str]:
+    """HDB lists several car parks under one block, so 42 sites share an address. Where a name
+    is shared, add the lot count ("Blk 624A Jurong West Street 61 (2,010 lots)") so every
+    label names one place."""
+    lots = {s.site_id: s.total_lots for s in sites}
+    seen: dict[str, list[str]] = {}
+    for sid, name in names.items():
+        seen.setdefault(name, []).append(sid)
+    out = dict(names)
+    for name, ids in seen.items():
+        if len(ids) > 1:
+            for n, sid in enumerate(sorted(ids, key=lambda i: -(lots.get(i) or 0)), 1):
+                out[sid] = (f"{name} ({lots[sid]:,} lots)" if lots.get(sid) is not None
+                            else f"{name} ({n})")
+    return out
+
+
+def _place(name: str) -> str:
+    """HDB writes addresses in capitals ("BLK 613A ANG MO KIO AVENUE 4"); show them as words."""
+    return name.title() if name.isupper() else name
+
+
 def from_postgres(url: str) -> AppData:
     import psycopg
     from psycopg.rows import dict_row
@@ -185,9 +217,13 @@ def from_postgres(url: str) -> AppData:
         allocations = [Allocation(**{k: v for k, v in h.items() if k != "allocation_id"},
                                   items=items.get(h["allocation_id"], [])) for h in heads]
         rules, on_fail = load_register()
+        sites = _models(CandidateSite, q("sites"))
         patterns = q("patterns")
+        names = {r["site_id"]: _place(r["name"]) for r in q("car_park_names")}
+        if any(r["ok"] for r in q("has_amenities")):
+            names |= {r["site_id"]: r["name"] for r in q("amenity_names")}
         return AppData(
-            "postgres", _models(PlanningArea, q("areas")), _models(CandidateSite, q("sites")),
+            "postgres", _models(PlanningArea, q("areas")), sites,
             _models(CarPark, q("car_parks")), _models(SiteIndicators, q("indicators")),
             _models(DemandEstimate, q("estimates")), decisions, rules, on_fail, scenarios,
             allocations,
@@ -195,7 +231,8 @@ def from_postgres(url: str) -> AppData:
             _references(load_sample().references),
             _models(DemandEstimate, q("profiles")),
             {p["site_id"]: p["cluster"] for p in patterns},
-            {p["cluster"]: p["label"] for p in patterns if p["label"]})
+            {p["cluster"]: p["label"] for p in patterns if p["label"]},
+            unique_names(names, sites))
 
 
 def load() -> AppData:
