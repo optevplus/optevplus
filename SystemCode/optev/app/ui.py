@@ -33,8 +33,9 @@ def _bundle(database_url: str) -> AppData:
 
 def app_data() -> AppData:
     """The data bundle, loaded once and shared by every page and visitor. A resource cache, not
-    st.cache_data: the bundle is read-only, and copying 140,000 hourly estimates on every page
-    view made each first visit take 18–20 s. Call clear_data() after a write."""
+    st.cache_data: the bundle is read-only, and a copy per page view made first visits take
+    18–20 s and ran the 1 GB Community Cloud container out of memory on 24 Oct (Shrey's
+    diagnosis in #101). Call clear_data() after a write."""
     from dotenv import load_dotenv
 
     from optev.app import data
