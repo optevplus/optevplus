@@ -34,15 +34,11 @@
 
 ---
 
-## SECTION 1 : PROJECT TITLE
-
 **OptEV+ | Intelligent EV Charging Infrastructure Planner**
 
 NUS-ISS Intelligent Reasoning Systems · Practice Module · Group 25
 
 ---
-
-## SECTION 2 : EXECUTIVE SUMMARY / PAPER ABSTRACT
 
 Singapore aims to deploy 60,000 EV charging points by 2030. With more than half already in
 place and most HDB car parks served, the planning question has shifted: not *which car park
@@ -115,9 +111,7 @@ number) · **Neo4j** Aura (evidence and reasoning links) · **OR-Tools CP-SAT** 
 
 ---
 
-## SECTION 3 : CREDITS / PROJECT CONTRIBUTION
-
-| Official Full Name | Student ID | Work Items (Who Did What) | Email |
+| Full Name | Student ID | Work Items (Who Did What) | Email |
 | :--- | :---: | :--- | :--- |
 | Ghanashyam Ramia Kasthurirangan Pandurengan | A0357701E | Team lead. Knowledge graph and explanation layer (cognitive techniques); coverage and freshness reporting; evidence view; installation guide | ghanashyam@u.nus.edu |
 | Gurneet Kaur Bhuller | A0354164E | EV charging point collector and data conforming; rules engine and eligibility screening (decision automation); app shell and planned capacity | gurneetbhuller@u.nus.edu |
@@ -129,13 +123,9 @@ integration, report sections and the two videos.
 
 ---
 
-## SECTION 4 : VIDEO OF SYSTEM MODELLING & USE CASE DEMO
-
 _Business case and system design videos: to be added._
 
 ---
-
-## SECTION 5 : USER GUIDE
 
 ### Quickstart
 
@@ -321,14 +311,10 @@ optevplus/
 
 ---
 
-## SECTION 6 : PROJECT REPORT / PAPER
-
 See [`ProjectReport/`](ProjectReport/): report sections, figures, and the results behind every
 number above (`ProjectReport/results/`).
 
 ---
-
-## SECTION 7 : MISCELLANEOUS
 
 See [`Miscellaneous/`](Miscellaneous/): the submitted proposal, the presentation deck, and the
 script that collected the observed week.
