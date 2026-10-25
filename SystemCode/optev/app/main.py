@@ -2,7 +2,7 @@
 
     uv run streamlit run optev/app/main.py
 
-Each page lives in pages/ and only arranges what optev.app.data and the other packages give it.
+Each page lives in views/ and only arranges what optev.app.data and the other packages give it.
 """
 
 from pathlib import Path
@@ -11,7 +11,9 @@ import streamlit as st
 
 from optev.app.ui import apply_theme, is_dark, theme_toggle
 
-PAGES = Path(__file__).with_name("pages")
+# Not "pages/": Streamlit auto-registers a folder of that name at startup, and its registry
+# answered the first deep link after a cold start (e.g. /ask-why) with "Page not found".
+PAGES = Path(__file__).with_name("views")
 
 st.set_page_config(page_title="OptEV+", page_icon=":material/ev_station:", layout="wide",
                    initial_sidebar_state="expanded")

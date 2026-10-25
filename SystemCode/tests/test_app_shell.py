@@ -171,7 +171,7 @@ def test_map_page_renders_on_the_sample(monkeypatch, tmp_path):
 
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
-    page = Path(D.__file__).with_name("pages") / "1_Map.py"
+    page = Path(D.__file__).with_name("views") / "1_Map.py"
     at = AppTest.from_file(str(page), default_timeout=60).run()
     assert not at.exception
     assert any("demo dataset" in i.value for i in at.info)
@@ -240,10 +240,10 @@ def test_the_request_carries_from_one_page_to_the_next(monkeypatch, tmp_path):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
     at = AppTest.from_file(str(Path(D.__file__).with_name("main.py")), default_timeout=90).run()
-    at.switch_page("pages/1_Map.py").run()
+    at.switch_page("views/1_Map.py").run()
     at.sidebar.selectbox(key="req_area").set_value("TM").run()
     at.sidebar.number_input(key="req_points").set_value(5).run()
-    at.switch_page("pages/3_Allocation.py").run()
+    at.switch_page("views/3_Allocation.py").run()
     assert not at.exception
     assert at.sidebar.selectbox(key="req_area").value == "TM"
     assert at.sidebar.number_input(key="req_points").value == 5
@@ -263,7 +263,7 @@ def test_a_read_only_deployment_offers_no_way_to_write(monkeypatch, tmp_path):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
     monkeypatch.setenv("OPTEV_READ_ONLY", "1")
-    page = Path(D.__file__).with_name("pages") / "1_Map.py"
+    page = Path(D.__file__).with_name("views") / "1_Map.py"
     at = AppTest.from_file(str(page), default_timeout=60).run()
     assert not at.exception
     assert any("read-only" in i.value for i in at.info)
@@ -282,7 +282,7 @@ def test_an_unreachable_database_shows_a_message_not_a_traceback(monkeypatch, tm
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
     monkeypatch.setattr(ui, "from_postgres", down)
     ui.clear_data()
-    page = Path(D.__file__).with_name("pages") / "2_Rules.py"
+    page = Path(D.__file__).with_name("views") / "2_Rules.py"
     at = AppTest.from_file(str(page), default_timeout=60).run()
     assert not at.exception
     assert any("data is unavailable" in e.value for e in at.error)

@@ -124,6 +124,10 @@ def time_bin(code: str) -> str:
 def detail(text: Any) -> Any:
     if not isinstance(text, str):
         return text
+    from optev.assumptions import IDLE_BELOW, MAX_SHARE_OF_LOTS
+
+    text = text.replace("MAX_SHARE_OF_LOTS", f"{MAX_SHARE_OF_LOTS.value:.0%}").replace(
+        "IDLE_BELOW", f"{IDLE_BELOW.value:.0%}")
     for fact, words in FACTS.items():
         text = re.sub(rf"\b{fact}\b", words, text)
     return text
@@ -206,7 +210,7 @@ def table(rows: Iterable[Mapping[str, Any]], data: AppData) -> list[dict[str, An
             elif key == "site_ids":
                 ids = [i for i in re.split(r",\s*", str(value)) if i][:3]
                 new["Example Sites"] = "; ".join(site(data, i, with_area=False) for i in ids)
-            elif key in ("detail", "result", "source type", "method"):
+            elif key in ("detail", "result", "source type", "method", "condition"):
                 new[header(key)] = title(detail(value)) if key == "source type" else detail(value)
             elif isinstance(value, str) and (value in RULE_NAMES or "@" in value
                                              or value.startswith(("ds-", "doc-", "asm-"))

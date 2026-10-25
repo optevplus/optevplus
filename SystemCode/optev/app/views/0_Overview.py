@@ -30,9 +30,9 @@ st.markdown(
     'charging points, how many each, and why.</div></div>', unsafe_allow_html=True)
 a, b, _ = st.columns([1.45, 1.75, 1.3])
 with a:
-    cta("pages/1_Map.py", "Plan Charging Points", ":material/arrow_forward:", True, "hero")
+    cta("views/1_Map.py", "Plan Charging Points", ":material/arrow_forward:", True, "hero")
 with b:
-    cta("pages/5_Evidence.py", "Ask Why a Site Was Chosen", ":material/forum:", False, "hero")
+    cta("views/5_Evidence.py", "Ask Why a Site Was Chosen", ":material/forum:", False, "hero")
 source_note(data)
 
 c1, c2, c3, c4 = st.columns(4)
@@ -107,9 +107,9 @@ st.markdown('<div class="ox-band"><h3>Ready to Plan the Next 1,000 Points?</h3>'
 st.write("")
 a, b, _ = st.columns([1.45, 1.45, 1.6])
 with a:
-    cta("pages/1_Map.py", "Open the Site Map", ":material/map:", True, "band")
+    cta("views/1_Map.py", "Open the Site Map", ":material/map:", True, "band")
 with b:
-    cta("pages/3_Allocation.py", "See a Sample Plan", ":material/ev_station:", False, "band")
+    cta("views/3_Allocation.py", "See a Sample Plan", ":material/ev_station:", False, "band")
 
 st.markdown('<div class="ox-foot">OptEV+ · Planning aid for public EV charging in Singapore. '
             'Recommended sites are candidates; electrical capacity and land access are checked '

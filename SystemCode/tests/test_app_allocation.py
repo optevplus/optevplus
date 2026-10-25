@@ -12,7 +12,7 @@ from optev.assumptions import COST_PER_POINT_SGD
 from optev.contracts import Allocation, InfeasibilityReport
 from optev.reasoning.checker import check
 
-PAGE = Path(__file__).resolve().parents[1] / "optev/app/pages/3_Allocation.py"
+PAGE = Path(__file__).resolve().parents[1] / "optev/app/views/3_Allocation.py"
 
 
 @pytest.fixture
