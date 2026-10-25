@@ -174,6 +174,9 @@ def words(data: AppData, value: str) -> str:
         return f"Decision for {site(data, value.split(':', 1)[1], with_area=False)}"
     if value in _index(data)[0]:
         return site(data, value, with_area=False)
+    short = [sid for sid in _index(data)[0] if sid.rsplit(":", 1)[-1] == value]
+    if len(short) == 1:  # the model cited "A76" for hdb:A76, as the evidence check allows
+        return site(data, short[0], with_area=False)
     return value
 
 
@@ -249,11 +252,35 @@ def resolve_names(question: str, data: AppData) -> str:
     return question
 
 
+MONEY = re.compile(r"\b(costs?|costing|budget|price|priced)(\s+(?:of|at|is|was|about|around))?"
+                   r"\s+(?:S\$\s?|SGD\s?|\$)?(\d+(?:,\d{3})*(?:\.\d+)?)", re.I)
+TRAILING_ZERO = re.compile(r"(?<![\w.])(\d+)\.0+(?![\d])")
+COUNTED = re.compile(r"\s+(?:car\s+|parking\s+|new\s+|charging\s+)*(?:lots?|sites?|points?|"
+                     r"connectors?|chargers?|drivers?|arrivals?|readings?|spaces?)\b", re.I)
+BIG = re.compile(r"(?<![\w.,$/:-])(\d{4,})(?![\w,.%/:-]|\.\d)")
+
+
+def tidy_numbers(text: str) -> str:
+    """The model copies numbers as stored ("a cost of 46250.0", "2010 lots"). Show them as a
+    person would: money as S$46,250, no trailing .0, thousands with commas. Years (1900-2100)
+    stay as written unless a count follows ("2010 parking lots"). Display only: the evidence
+    check runs on the model's own text."""
+    text = MONEY.sub(lambda m: f"{m[1]}{m[2] or ''} S${float(m[3].replace(',', '')):,.0f}",
+                     text)
+    text = TRAILING_ZERO.sub(r"\1", text)
+    def group(m: re.Match[str]) -> str:
+        n = int(m[1])
+        counted = COUNTED.match(m.string, m.end())  # "2010 lots" is a count, not a year
+        return m[1] if 1900 <= n <= 2100 and not counted else f"{n:,}"
+
+    return BIG.sub(group, text)
+
+
 def readable_answer(text: str, data: AppData) -> tuple[str, list[str]]:
     """An answer with its [id] citations taken out and every id written as words; the cited
     sources come back as a list of names to show under it."""
     cited = list(dict.fromkeys(re.findall(r"\[([^\]]+)\]", text)))
-    clean = re.sub(r"\s*\[[^\]]+\]", "", text)
+    clean = tidy_numbers(re.sub(r"\s*\[[^\]]+\]", "", text))  # before ids become names
     ids = sorted({sid for sid in _index(data)[0] if sid in clean}, key=len, reverse=True)
     for sid in ids:
         clean = re.sub(rf"(?<![\w:]){re.escape(sid)}(?![\w])",
