@@ -9,6 +9,7 @@ from pathlib import Path
 
 import streamlit as st
 
+from optev.app.auth import require_login
 from optev.app.ui import apply_theme, is_dark, theme_toggle
 
 # Not "pages/": Streamlit auto-registers a folder of that name at startup, and its registry
@@ -20,6 +21,7 @@ st.set_page_config(page_title="OptEV+", page_icon=":material/ev_station:", layou
 apply_theme()
 st.logo(str(Path(__file__).with_name("logo-dark.svg" if is_dark() else "logo.svg")), size="large")
 theme_toggle()
+require_login()  # before navigation, so no page (or deep link) renders signed out
 
 nav = st.navigation([
     st.Page(PAGES / "0_Overview.py", title="Overview", icon=":material/home:", default=True),
