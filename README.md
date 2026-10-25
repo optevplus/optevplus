@@ -14,6 +14,8 @@
 
 <p align="center">
   <a href="https://optevplus.streamlit.app"><img alt="Open the live app" src="https://img.shields.io/badge/Live%20app-optevplus.streamlit.app-0097B2?style=for-the-badge&logo=streamlit&logoColor=white"></a>
+  <a href="https://youtu.be/2atUOPq3n2Q"><img alt="Watch video 1" src="https://img.shields.io/badge/Video%201-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white"></a>
+  <a href="https://youtu.be/7wgoAPGlWjc"><img alt="Watch video 2" src="https://img.shields.io/badge/Video%202-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white"></a>
 </p>
 
 <p align="center">
@@ -49,6 +51,13 @@ OptEV+ collects live government feeds, infers charging demand from observed occu
 reporting how reliable each estimate is, applies cited eligibility rules, allocates charging
 points under budget and capacity limits, and keeps the evidence behind every decision, so a
 planner can ask *why* and get an answer that cites its sources.
+
+### Videos
+
+| Video | Link |
+|---|---|
+| Video 1 | https://youtu.be/2atUOPq3n2Q |
+| Video 2 | https://youtu.be/7wgoAPGlWjc |
 
 ### The problem
 
