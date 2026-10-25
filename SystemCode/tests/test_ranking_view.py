@@ -56,7 +56,7 @@ def test_the_site_map_shows_tiles_and_keeps_the_table(monkeypatch, tmp_path):
 
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
-    page = Path(D.__file__).with_name("pages") / "1_Map.py"
+    page = Path(D.__file__).with_name("views") / "1_Map.py"
     at = AppTest.from_file(str(page), default_timeout=60).run()
     assert not at.exception
     tiles = "".join(m.value for m in at.markdown)
@@ -72,7 +72,7 @@ def test_show_more_adds_a_page_of_tiles(monkeypatch, tmp_path):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
     monkeypatch.setattr(RV, "PAGE", 10)
-    page = Path(D.__file__).with_name("pages") / "1_Map.py"
+    page = Path(D.__file__).with_name("views") / "1_Map.py"
     at = AppTest.from_file(str(page), default_timeout=60).run()
 
     def compact() -> int:

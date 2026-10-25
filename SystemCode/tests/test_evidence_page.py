@@ -9,7 +9,7 @@ import pytest
 from optev.app.evidence import LAYER_HELP, QUESTIONS, sections
 from optev.graph.retrieve import TEMPLATES
 
-PAGE = Path(__file__).resolve().parents[1] / "optev/app/pages/5_Evidence.py"
+PAGE = Path(__file__).resolve().parents[1] / "optev/app/views/5_Evidence.py"
 ROW = {
     "site_id": "SYN-S-04", "kind": "hdb_car_park", "planning_area": "TM", "total_lots": 210,
     "existing_connectors": 2, "outcome": "accept",
