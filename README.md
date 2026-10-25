@@ -46,7 +46,7 @@ _Business case and system design videos — to be added._
 
 ## SECTION 5 : USER GUIDE
 
-**Live system:** _deployment URL to be added._
+**Live system:** https://optevplus.streamlit.app (Streamlit Community Cloud, `main`, reading Neon).
 
 You need **Python 3.12+**, **[uv](https://docs.astral.sh/uv/)** and **git**. Everything else
 is installed by uv. Pick one of the two paths below.

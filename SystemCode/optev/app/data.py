@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import streamlit as st
 from pydantic import BaseModel, ValidationError
 
 from optev.assumptions import SNAPSHOT_MINUTES
@@ -233,6 +234,15 @@ def from_postgres(url: str) -> AppData:
             {p["site_id"]: p["cluster"] for p in patterns},
             {p["cluster"]: p["label"] for p in patterns if p["label"]},
             unique_names(names, sites))
+
+
+@st.cache_resource(ttl=300, show_spinner="Loading sites, decisions and demand…")
+def shared() -> AppData:
+    """`load()` once for every page and visitor. `st.cache_data` gave each page view its own
+    unpickled copy (about 300 MB of demand rows on the real data), which ran the 1 GB
+    Community Cloud container out of memory (#5). Pages only read it; `shared.clear()` after a
+    planner selection makes the next run reload."""
+    return load()
 
 
 def load() -> AppData:
