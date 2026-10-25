@@ -4,6 +4,7 @@ No logic here: questions go to optev.graph (explain / retrieve), and optev.app.e
 arranges what comes back. Works without a language model: the evidence is still shown.
 """
 
+import html
 import os
 from pathlib import Path
 
@@ -12,6 +13,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from neo4j.exceptions import DriverError, Neo4jError
 
+from optev.app import evidence_graph as EG
 from optev.app import labels as L
 from optev.app.evidence import (
     LAYER_HELP,
@@ -22,7 +24,7 @@ from optev.app.evidence import (
     sections,
     spend_question,
 )
-from optev.app.ui import app_data, page_header
+from optev.app.ui import app_data, graph_view, page_header, section
 from optev.graph.explain import classify, explain
 from optev.graph.llm import LLMNotConfigured
 from optev.graph.retrieve import retrieve
@@ -117,25 +119,56 @@ else:
     assert question_type is not None
     rows = from_graph(retrieve, question_type, **params)
 
-if answer is not None:
-    if answer.refused:
-        st.error("**Refused.** " + L.text(answer.text, data))
-        if answer.problems:
-            st.caption("Failed checks: " + "; ".join(answer.problems))
-    else:
-        text, sources = L.readable_answer(answer.text, data)
-        st.success(text)
-        if sources:
-            st.caption("Sources: " + " · ".join(sources))
 if not rows:
     st.error("**No evidence** in the knowledge graph for this question. Nothing is recorded, "
              "so nothing is claimed.")
     st.stop()
 
-for sec in sections(question_type, rows):
-    st.subheader(L.text(sec.title, data))
-    st.caption(f"**{sec.layer.upper()}**: {LAYER_HELP[sec.layer]}" +
-               (f" {sec.note}" if sec.note else ""))
-    if sec.rows:
-        st.dataframe(pd.DataFrame(L.table(sec.rows, data)), hide_index=True, width="stretch",
-                     column_config={"Link": st.column_config.LinkColumn("Link")})
+# The answer: a verdict per site, the reasoning as points, the sources as tags ------------
+OUTCOME_ICON = {"accept": "✓", "conditional": "◐", "defer": "…", "reject": "✕"}
+verdicts = "".join(
+    f'<div class="ox-verdict ox-{outcome}"><span class="ox-verdict-mark">'
+    f'{OUTCOME_ICON.get(outcome, "•")}</span><div>'
+    f'<div class="ox-verdict-place">{html.escape(place)}'
+    f'</div><div class="ox-verdict-what">{outcome.title()} · {html.escape(what)}</div></div></div>'
+    for place, outcome, what in EG.headline(question_type, rows, data))
+if answer is not None and answer.refused:
+    st.markdown(f'<div class="ox-answer">{verdicts}<div class="ox-refused"><b>No written answer.'
+                '</b> The model\'s draft cited something the evidence does not hold, so OptEV+ '
+                'shows the evidence itself instead.</div></div>', unsafe_allow_html=True)
+    if answer.problems:
+        st.caption("Checks that failed: " + "; ".join(answer.problems))
+elif answer is not None:
+    text, sources = L.readable_answer(answer.text, data)
+    bullets = "".join(f"<li>{html.escape(p)}</li>" for p in EG.points(text))
+    chips = "".join(f'<span class="ox-chip">{html.escape(s)}</span>' for s in sources)
+    st.markdown(f'<div class="ox-answer">{verdicts}<div class="ox-answer-h">Why</div>'
+                f'<ul class="ox-points">{bullets}</ul>'
+                + (f'<div class="ox-answer-h">Sources</div><div>{chips}</div>' if chips else "")
+                + "</div>", unsafe_allow_html=True)
+elif verdicts:
+    st.markdown(f'<div class="ox-answer">{verdicts}</div>', unsafe_allow_html=True)
+
+# The part of the knowledge graph the answer used -----------------------------------------
+graph = EG.build(question_type, rows, data)
+if graph.nodes:
+    section("How OptEV+ Got This Answer")
+    st.markdown(f'<div class="ox-lead">The part of the knowledge graph this answer used: '
+                f'{len(graph.nodes)} facts and {len(graph.edges)} links, retrieved by a fixed '
+                'query. Drag a node; hover for detail.</div>', unsafe_allow_html=True)
+    graph_view(list(graph.nodes.values()), graph.edges,  # taller as the slice grows
+               height=min(680, 380 + 16 * len(graph.nodes)))
+    used = {n["group"] for n in graph.nodes.values()}
+    st.markdown("".join(
+        f'<span class="ox-key"><i style="background:{EG.COLOURS[g][0]}"></i>{label}</span>'
+        for g, label in EG.LEGEND if g in used), unsafe_allow_html=True)
+
+with st.expander("See the Evidence as Tables", expanded=answer is None):
+    for sec in sections(question_type, rows):
+        st.subheader(L.text(sec.title, data))
+        st.caption(f"**{sec.layer.upper()}**: {LAYER_HELP[sec.layer]}" +
+                   (f" {sec.note}" if sec.note else ""))
+        if sec.rows:
+            st.dataframe(pd.DataFrame(L.table(sec.rows, data)), hide_index=True,
+                         width="stretch",
+                         column_config={"Link": st.column_config.LinkColumn("Link")})

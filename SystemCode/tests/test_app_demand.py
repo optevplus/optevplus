@@ -84,7 +84,7 @@ def test_demand_page_renders_on_the_sample(monkeypatch, tmp_path):
 
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
-    page = Path(D.__file__).with_name("pages") / "4_Demand.py"
+    page = Path(D.__file__).with_name("views") / "4_Demand.py"
     at = AppTest.from_file(str(page), default_timeout=60).run()
     assert not at.exception
     assert len(at.metric) == 6  # four supply states, then one site's demand and utilisation

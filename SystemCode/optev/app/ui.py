@@ -159,3 +159,48 @@ def theme_toggle() -> None:
                     width="stretch"):
         components.html(SWITCH_JS % {"slugs": json.dumps(list(PAGE_SLUGS)),
                                      "mode": json.dumps("Light" if dark else "Dark")}, height=0)
+
+
+VIS_NETWORK = "https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"
+GRAPH_HTML = """<div id="net" style="height:%(h)dpx;border-radius:16px;
+  background:%(bg)s;border:1px solid rgba(127,127,127,.2)"></div>
+<script src="%(lib)s"></script>
+<script>
+const nodes = new vis.DataSet(%(nodes)s), edges = new vis.DataSet(%(edges)s);
+const net = new vis.Network(document.getElementById("net"), {nodes, edges}, {
+  nodes: {shape: "dot", borderWidth: 2, font: {color: "%(ink)s", size: 16,
+          face: "Inter, Helvetica, Arial", strokeWidth: 3, strokeColor: "%(bg)s"},
+          shadow: {enabled: true, color: "rgba(0,151,178,.35)", size: 14, x: 0, y: 0}},
+  edges: {arrows: {to: {enabled: true, scaleFactor: .5}}, width: 1.6,
+          color: {color: "%(line)s", highlight: "#0097B2"}, smooth: {type: "dynamic"},
+          font: {size: 11, color: "%(muted)s", strokeWidth: 0, align: "middle"}},
+  physics: {barnesHut: {gravitationalConstant: -4200, springLength: 110, damping: .25,
+                        avoidOverlap: .4},
+            stabilization: {iterations: 60}},
+  interaction: {hover: true, tooltipDelay: 120, zoomView: true}
+});
+net.once("stabilizationIterationsDone", () => {
+  net.fit();  // then keep labels readable on a projector: never zoom out past 0.8
+  if (net.getScale() < 0.8) net.moveTo({scale: 0.8, animation: {duration: 700}});
+  else net.fit({animation: {duration: 700}});
+});
+</script>"""
+
+
+def graph_view(nodes: list[dict[str, Any]], edges: list[dict[str, Any]], height: int = 480
+               ) -> None:
+    """Draw a small knowledge-graph slice as an animated, draggable network (vis-network)."""
+    import json
+
+    import streamlit.components.v1 as components
+
+    dark = is_dark()
+
+    def safe(value: object) -> str:  # names come from data: never let them close the script
+        return json.dumps(value).replace("</", "<\\/")
+
+    components.html(GRAPH_HTML % {
+        "h": height, "lib": VIS_NETWORK, "nodes": safe(nodes), "edges": safe(edges),
+        "bg": "#0F1C21" if dark else "#FAFCFC", "ink": "#E6EEF0" if dark else "#202020",
+        "muted": "#8FA3AA" if dark else "#6B7A80", "line": "#3A4E55" if dark else "#C5D0D4",
+    }, height=height + 8)
