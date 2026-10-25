@@ -631,6 +631,10 @@ is ready.
 Sidebar controls: planning area (or island-wide), number of points, optional budget, scenario.
 Selecting a site calls `scenario.planned.select_site` and re-runs allocation. **No business logic in the app.**
 
+Sign-in (`app/auth.py`): every page sits behind one demo account, username `Admin`, password
+from `OPTEV_DEMO_PASSWORD` (`.env` or the app's secrets, never committed). No sign-up, no
+password reset; with no password set, nobody can sign in.
+
 ---
 
 ## 5. Pipeline (#35)
@@ -779,3 +783,6 @@ chargers (#38), population share and random averaged over 100 seeds (in the harn
   and 3.99 in place of the 1.4, 1.8 and 2.2 placeholders. The fit is on the electric share of
   new cars, not on the counts, which outgrow the whole car market; back-cast MAPE 8.3%, and
   Jan to Aug 2026 registrations predicted within 6.3% (spec 027). Every scenario result moves.
+- **1.20 · 25 Oct 2026.** Sign-in (§4.6): every page behind one demo account, `Admin`, with
+  the password from `OPTEV_DEMO_PASSWORD`; no sign-up or reset (spec 031). Community Cloud
+  needs the variable in its secrets.
