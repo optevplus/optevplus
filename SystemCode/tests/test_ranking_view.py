@@ -88,3 +88,14 @@ def test_show_more_adds_a_page_of_rows(monkeypatch, tmp_path):
     assert others() == 10
     next(b for b in at.button if b.label == "Show More Sites").click().run()
     assert not at.exception and others() == 20
+
+
+def test_a_row_expands_to_the_full_name_and_every_figure():
+    c = {**CARDS[0], "place": "Blk 613A Ang Mo Kio Avenue 4 Multi-Storey Car Park"}
+    more = RV.details(c)
+    assert f"<b>{c['place']}</b>" in more  # the whole name, not cut to fit the line
+    assert c["area"] in more and c["type"] in more and c["outcome"] in more
+    for key, label, layer in RV.FIGURES:
+        assert f"{label} <b>{c[key]}</b> <em>({layer})</em>" in more
+    item = RV.row(c)
+    assert 'tabindex="0"' in item and more in item  # click or tap opens it too, no script
