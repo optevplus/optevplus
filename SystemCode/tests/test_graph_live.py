@@ -5,7 +5,14 @@ from dataclasses import replace
 
 import pytest
 
-pytestmark = pytest.mark.skipif(not os.getenv("NEO4J_URI"), reason="no Neo4j credentials")
+# These tests write the sample into the graph. The sample's plan has the same id as the real
+# 12-point plan (base:all:points=12:budget=-), so running them against the deployed Aura
+# replaces the real plan's links until the graph is reloaded. Run them only when asked.
+pytestmark = [
+    pytest.mark.skipif(not os.getenv("NEO4J_URI"), reason="no Neo4j credentials"),
+    pytest.mark.skipif(os.getenv("OPTEV_GRAPH_TESTS_MAY_WRITE") != "1",
+                       reason="writes to the graph; set OPTEV_GRAPH_TESTS_MAY_WRITE=1 to run"),
+]
 
 
 def test_apply_schema_twice_is_the_same_as_once():

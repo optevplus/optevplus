@@ -149,8 +149,8 @@ RETURN i.report_id AS report_id, coalesce(i.planning_area, $island) AS planning_
         """MATCH (a:PlanningArea)<-[:IN_AREA]-(s:CandidateSite)-[:HAS_INDICATOR]->(i:Indicator)
 WHERE i.saturated_fraction IS NOT NULL
 WITH a, count(DISTINCT s) AS sites_with_chargers,
-  avg(i.saturated_fraction) AS mean_saturated_fraction,
-  max(i.saturated_fraction) AS max_saturated_fraction,
+  round(avg(i.saturated_fraction), 3) AS mean_saturated_fraction,
+  round(max(i.saturated_fraction), 3) AS max_saturated_fraction,
   collect(DISTINCT i.indicator_id) AS indicator_ids
 RETURN a.code AS planning_area, a.name AS name, sites_with_chargers,
   mean_saturated_fraction, max_saturated_fraction,

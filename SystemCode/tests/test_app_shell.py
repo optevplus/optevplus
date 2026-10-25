@@ -81,6 +81,9 @@ class FakeCursor:
             D.SQL["profiles"]: [x.model_dump(mode="json") for x in s.profiles],
             D.SQL["patterns"]: [{"site_id": k, "cluster": c, "label": s.pattern_labels[c]}
                                 for k, c in s.patterns.items()],
+            D.SQL["car_park_names"]: [{"site_id": k, "name": v.upper()}
+                                      for k, v in s.site_names.items()],
+            D.SQL["has_amenities"]: [{"ok": False}],
         }
 
     def __enter__(self): return self
@@ -168,11 +171,11 @@ def test_map_page_renders_on_the_sample(monkeypatch, tmp_path):
 
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
-    page = Path(D.__file__).with_name("main.py")
+    page = Path(D.__file__).with_name("pages") / "1_Map.py"
     at = AppTest.from_file(str(page), default_timeout=60).run()
     assert not at.exception
-    assert any("synthetic sample" in i.value for i in at.info)
-    assert [m.label for m in at.metric][:2] == ["Candidate sites", "Accept"]
+    assert any("demo dataset" in i.value for i in at.info)
+    assert [m.label for m in at.metric][:2] == ["Candidate Sites", "Accept"]
     assert at.dataframe  # the ranking
 
 
@@ -216,3 +219,71 @@ def test_the_app_plans_on_every_time_bin_like_the_pipeline(monkeypatch):
     monkeypatch.setattr(A, "allocate", spy)
     plan(D.from_sample(), Request("base", None, 12, None))
     assert "all" in seen["bins"] and any(b.startswith(("wd-", "we-")) for b in seen["bins"])
+
+
+def test_the_app_opens_on_the_overview_with_the_top_menu(monkeypatch, tmp_path):
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
+    at = AppTest.from_file(str(Path(D.__file__).with_name("main.py")), default_timeout=60).run()
+    assert not at.exception
+    assert [m.label for m in at.metric] == ["Sites Screened", "Eligible Sites",
+                                            "Charging Points Tracked", "Planning Areas"]
+    assert at.metric[0].value == "30"  # the sample's sites
+
+
+def test_the_request_carries_from_one_page_to_the_next(monkeypatch, tmp_path):
+    # A planner who picks an area on the Site Map finds it still picked on Allocation.
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
+    at = AppTest.from_file(str(Path(D.__file__).with_name("main.py")), default_timeout=90).run()
+    at.switch_page("pages/1_Map.py").run()
+    at.sidebar.selectbox(key="req_area").set_value("TM").run()
+    at.sidebar.number_input(key="req_points").set_value(5).run()
+    at.switch_page("pages/3_Allocation.py").run()
+    assert not at.exception
+    assert at.sidebar.selectbox(key="req_area").value == "TM"
+    assert at.sidebar.number_input(key="req_points").value == 5
+
+
+def test_postgres_names_read_as_words_not_capitals(monkeypatch):
+    import psycopg
+
+    monkeypatch.setattr(psycopg, "connect", lambda url, row_factory=None: FakeCursor())
+    pg = D.from_postgres("postgresql://fake")
+    assert pg.site_names and all(not n.isupper() for n in pg.site_names.values())
+
+
+def test_a_read_only_deployment_offers_no_way_to_write(monkeypatch, tmp_path):
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
+    monkeypatch.setenv("OPTEV_READ_ONLY", "1")
+    page = Path(D.__file__).with_name("pages") / "1_Map.py"
+    at = AppTest.from_file(str(page), default_timeout=60).run()
+    assert not at.exception
+    assert any("read-only" in i.value for i in at.info)
+    assert not [b for b in at.button if b.label in ("Select Site", "Clear Selection")]
+
+
+def test_an_unreachable_database_shows_a_message_not_a_traceback(monkeypatch, tmp_path):
+    from streamlit.testing.v1 import AppTest
+
+    import optev.app.ui as ui
+
+    def down(url):
+        raise OSError("connection refused")
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://unreachable.example/optev")
+    monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
+    monkeypatch.setattr(ui, "from_postgres", down)
+    ui.clear_data()
+    page = Path(D.__file__).with_name("pages") / "2_Rules.py"
+    at = AppTest.from_file(str(page), default_timeout=60).run()
+    assert not at.exception
+    assert any("data is unavailable" in e.value for e in at.error)
+    ui.clear_data()

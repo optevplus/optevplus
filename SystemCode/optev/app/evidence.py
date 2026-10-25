@@ -135,3 +135,16 @@ def sections(question_type: str | None, rows: list[dict[str, Any]]) -> list[Sect
                        [{k: v for k, v in r.items() if k != "indicator_ids"} for r in rows],
                        "Share of half-hours when every charger at a site was in use.")]
     return out
+
+
+QUESTION_LIMIT = 15  # written answers per visit on a public deployment (OPTEV_QUESTION_LIMIT)
+
+
+def spend_question(session: Any, limit: int = QUESTION_LIMIT) -> bool:  # st.session_state
+    """Count one written answer against the visit's allowance; False once it is used up. Only
+    written answers call the language model, so only they are counted."""
+    used = int(session.get("questions_asked", 0))
+    if used >= limit:
+        return False
+    session["questions_asked"] = used + 1
+    return True

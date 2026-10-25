@@ -142,16 +142,33 @@ def _citation(raw: str) -> str:
     return c.strip().strip("\"'`").strip()
 
 
+def _short(known_id: str) -> str:
+    """The part after the last prefix: `hdb:A76` and `observed:hdb:A76` are both `A76`."""
+    return known_id.rsplit(":", 1)[-1]
+
+
+def _resolve(cited: str, ids: set[str]) -> str:
+    """A citation as the evidence writes it. Models often drop a site's prefix (`A76` for
+    `hdb:A76`); that is accepted only when the short form names one id, taking the shortest
+    (the site itself, not `observed:hdb:A76`). Anything else must match exactly."""
+    if cited in ids:
+        return cited
+    matches = sorted((i for i in ids if ":" in i and _short(i) == cited), key=len)
+    return matches[0] if matches and len(matches[0].split(":")) == 2 else cited
+
+
 def check(text: str, rows: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
     """(problems, citations). An answer passes when problems is empty."""
     ids = evidence_ids(rows)
-    cited = [_citation(c) for group in CITATION.findall(text) for c in group.split(",")]
+    cited = [_resolve(_citation(c), ids)
+             for group in CITATION.findall(text) for c in group.split(",")]
     problems = [f"cites {c!r}, which is not in the evidence" for c in cited if c not in ids]
     if not cited:
         problems.append("cites nothing; every fact needs an [id] from the evidence")
     prose = CITATION.sub(" ", text)
-    for known_id in sorted(ids, key=len, reverse=True):  # ids like SYN-S-13 hold digits
-        prose = prose.replace(known_id, " ")
+    names = ids | {_short(i) for i in ids if ":" in i and re.search(r"[A-Za-z]", _short(i))}
+    for known_id in sorted(names, key=len, reverse=True):  # ids like SYN-S-13 hold digits
+        prose = re.sub(rf"(?<![\w]){re.escape(known_id)}(?![\w])", " ", prose)
     known = evidence_numbers(rows)
     for n in NUMBER.findall(DATE.sub(" ", prose)):
         if not _supported(n, known):

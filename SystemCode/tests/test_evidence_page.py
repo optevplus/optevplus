@@ -58,12 +58,12 @@ def test_the_page_shows_a_rejection_with_its_rule():
 
     at = AppTest.from_file(str(PAGE), default_timeout=60)
     at.run()
-    at.radio[0].set_value("Pick a question").run()
+    at.radio[0].set_value("Pick a Question").run()
     at.selectbox[0].set_value("why_not_site").run()
     at.button[0].click().run()
     assert not at.exception
     assert any("Rules not passed" in h.value for h in at.subheader)
-    assert "R03" in at.dataframe[1].value["rule"].tolist()
+    assert "Room for Another Point" in at.dataframe[1].value["Rule"].tolist()
 
 
 @live
@@ -129,7 +129,16 @@ def test_the_page_explains_an_unreachable_graph_instead_of_crashing(monkeypatch)
     monkeypatch.setattr(R, "retrieve", down)
     at = AppTest.from_file(str(PAGE), default_timeout=60)
     at.run()
-    at.radio[0].set_value("Pick a question").run()
+    at.radio[0].set_value("Pick a Question").run()
     at.button[0].click().run()
     assert not at.exception
     assert any("Could not reach the knowledge graph" in e.value for e in at.error)
+
+
+def test_written_answers_are_limited_per_visit():
+    from optev.app.evidence import spend_question
+
+    session: dict = {}
+    assert [spend_question(session, limit=3) for _ in range(5)] == [True, True, True, False,
+                                                                   False]
+    assert session["questions_asked"] == 3
