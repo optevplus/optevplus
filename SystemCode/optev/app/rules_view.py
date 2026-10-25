@@ -18,6 +18,8 @@ SOURCE_CLASS = {
     "project_assumption": "Our declared assumption",
 }
 VERDICT = {True: "passed", False: "failed", None: "unevaluated (missing data)"}
+# what a planner acts on first: sites ruled out, then those needing a check, then data gaps
+OUTCOME_ORDER = [Outcome.REJECT, Outcome.CONDITIONAL, Outcome.DEFER, Outcome.ACCEPT]
 
 
 def _source(data: AppData, rule: Rule) -> dict[str, Any]:
@@ -42,10 +44,19 @@ def register_rows(data: AppData) -> list[dict[str, Any]]:
 
 def decision_table(data: AppData, outcome_filter: str | None = None,
                    planning_area: str | None = None) -> list[dict[str, Any]]:
-    """One row per screened site: outcome, failed rules, rules that could not be evaluated."""
+    """One row per screened site: outcome, failed rules, rules that could not be evaluated.
+    Car parks come first, then by outcome (reject, conditional, defer, accept), then by place
+    name, so the table opens on the decisions a planner acts on."""
     sites = {s.site_id: s for s in data.sites}
+
+    def order(d: Decision) -> tuple[bool, int, str, str]:
+        site = sites.get(d.site_id)
+        car_park = site is not None and site.kind.value.endswith("car_park")
+        name = data.site_names.get(d.site_id) or d.site_id
+        return (not car_park, OUTCOME_ORDER.index(d.outcome), name.lower(), d.site_id)
+
     rows = []
-    for d in sorted(data.decisions, key=lambda d: d.site_id):
+    for d in sorted(data.decisions, key=order):
         site = sites.get(d.site_id)
         if outcome_filter and d.outcome.value != outcome_filter:
             continue

@@ -23,7 +23,19 @@ def test_register_rows_name_each_rules_source_and_link():
 
 def test_decision_table_filters_by_outcome_and_area():
     every = V.decision_table(DATA)
-    assert len(every) == 30 and every == sorted(every, key=lambda r: r["site_id"])
+    assert len(every) == 30
+    # car parks first, then reject, conditional, defer, accept, then place name
+    car_park = [r["kind"].endswith("car_park") for r in every]
+    assert car_park == sorted(car_park, reverse=True)
+    for group in (True, False):
+        rows = [r for r, cp in zip(every, car_park, strict=True) if cp is group]
+        ranks = [[o.value for o in V.OUTCOME_ORDER].index(r["outcome"]) for r in rows]
+        assert ranks == sorted(ranks)
+        for o in V.OUTCOME_ORDER:
+            names = [(DATA.site_names.get(r["site_id"]) or r["site_id"]).lower()
+                     for r in rows if r["outcome"] == o.value]
+            assert names == sorted(names)
+    assert every[0]["outcome"] == "reject" and every[0]["kind"].endswith("car_park")
     rejected = V.decision_table(DATA, "reject")
     assert {r["site_id"] for r in rejected} == {"SYN-S-13", "SYN-S-14"}
     assert all(r["planning_area"] == "PR" for r in V.decision_table(DATA, None, "PR"))

@@ -50,11 +50,8 @@ st.dataframe(pd.DataFrame(L.table(table, data)), hide_index=True, width="stretch
 
 # One site -----------------------------------------------------------------------------------
 section("Why This Outcome?")
-ids = [r["site_id"] for r in table]
-# open on a car park, not the community clubs that sort first and mostly lack lot counts
-first_car_park = next(
-    (i for i, r in enumerate(table) if str(r.get("kind")).endswith("car_park")), 0)
-site_id = st.selectbox("Site", ids, index=first_car_park if ids else None,
+ids = [r["site_id"] for r in table]  # car parks first, so this opens on one
+site_id = st.selectbox("Site", ids, index=0 if ids else None,
                        format_func=lambda i: L.site(data, i))
 decision = next((d for d in data.decisions if d.site_id == site_id), None)
 if decision is None:
@@ -64,8 +61,9 @@ st.dataframe(pd.DataFrame(L.table(rule_results(data, decision), data)), hide_ind
              width="stretch", column_config={"Link": st.column_config.LinkColumn("Link")})
 alternatives = waivers(data, decision)
 if alternatives:
-    st.caption("If one failed rule were waived: " + "; ".join(
-        f"waive {L.rule(rule)} → {result.value}" for rule, result in alternatives.items()))
+    st.caption(" ".join(
+        f"Without *{L.rule(rule)}* this site would be **{result.value.title()}**."
+        for rule, result in alternatives.items()))
 elif decision.unevaluated_rules:
     st.caption("Deferred for missing data: " + L.rules(decision.unevaluated_rules)
                + ". Filling the data, not a waiver, would settle it.")
