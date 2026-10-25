@@ -29,6 +29,7 @@ def test_signed_out_the_app_shows_only_the_sign_in_form(monkeypatch, tmp_path):
     assert not at.exception
     assert [t.label for t in at.text_input] == ["Username", "Password"]
     assert not at.metric  # no page content before sign-in
+    assert A.LOGO.is_file() and at.get("image")  # the OptEV+ logo, beside the form
 
     at.text_input[0].set_value("Admin")
     at.text_input[1].set_value("s3cret")
