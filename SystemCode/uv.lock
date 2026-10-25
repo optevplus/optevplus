@@ -1215,7 +1215,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7" },
     { name = "scikit-learn", specifier = ">=1.5" },
     { name = "sqlalchemy", specifier = ">=2.0" },
-    { name = "streamlit", specifier = ">=1.39" },
+    { name = "streamlit", specifier = ">=1.64" },
 ]
 provides-extras = ["dev"]
 
