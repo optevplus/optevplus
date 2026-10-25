@@ -103,17 +103,17 @@ st.caption("Eligible sites (accept, conditional) first, then by recommended poin
            "demand. Rejected and deferred sites stay listed with the rules they failed.")
 ranked = ranking(rows)
 cards = [RV.card(r, data) for r in ranked]
-st.markdown(RV.grid(cards[:RV.TOP], top=True), unsafe_allow_html=True)
+st.markdown(RV.rows(cards[:RV.TOP], top=True, head=True), unsafe_allow_html=True)
 rest = cards[RV.TOP:]
 if rest:
-    # A page of tiles at a time: the real data has thousands of sites.
+    # A page of rows at a time: the real data has thousands of sites.
     shown = st.session_state.setdefault("rank_shown", RV.PAGE)
-    # Scroll inside a fixed box only when there are enough tiles to need it.
-    with st.container(height=640 if min(shown, len(rest)) > 12 else "content", border=False):
-        st.markdown(RV.grid(rest[:shown]), unsafe_allow_html=True)
+    # Scroll inside a fixed box only when there are enough rows to need it.
+    with st.container(height=560 if min(shown, len(rest)) > 10 else "content", border=False):
+        st.markdown(RV.rows(rest[:shown]), unsafe_allow_html=True)
     left_n, right_n = st.columns([3, 1])
-    left_n.caption(f"Showing ranks {RV.TOP + 1}–{RV.TOP + min(shown, len(rest))} of "
-                   f"{len(cards)}. Scroll the list above for more.")
+    left_n.caption(f"Showing ranks 1–{RV.TOP + min(shown, len(rest))} of {len(cards)}. Hover "
+                   "a site for the rules behind its outcome; scroll for more.")
     if shown < len(rest) and right_n.button("Show More Sites", width="stretch"):
         st.session_state["rank_shown"] = shown + RV.PAGE
         st.rerun()
