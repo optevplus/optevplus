@@ -7,9 +7,11 @@ password set, nobody can sign in: the gate fails closed.
 
 import hmac
 import os
+from pathlib import Path
 
 import streamlit as st
 
+LOGO = Path(__file__).with_name("logo-signin.png")  # the OptEV+ logo from the final deck
 USERNAME = "Admin"
 PASSWORD_ENV = "OPTEV_DEMO_PASSWORD"
 SESSION_KEY = "signed_in"
@@ -52,8 +54,15 @@ def require_login() -> None:
 
 def _sign_in_form() -> None:
     expected = demo_password()
-    _, middle, _ = st.columns([1, 1.2, 1])
-    with middle:
+    st.markdown('<div style="height: 9vh"></div>', unsafe_allow_html=True)
+    # the brand on the left, the form on the right; they stack on a phone
+    brand, _, form = st.columns([1.25, 0.15, 1], vertical_alignment="center")
+    with brand:
+        st.image(str(LOGO), width="stretch")
+        st.markdown('<div class="ox-lead">Where Singapore\'s next public EV charging points '
+                    'should go, how many at each site, and the evidence behind every one.</div>',
+                    unsafe_allow_html=True)
+    with form:
         st.markdown('<div class="ox-title">Sign <span class="ox-grad">In</span></div>'
                     '<div class="ox-sub">OptEV+ demo access.</div>', unsafe_allow_html=True)
         if expected is None:
