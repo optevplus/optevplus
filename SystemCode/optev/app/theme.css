@@ -163,15 +163,3 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .ox-key { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.4rem 0.9rem 0 0;
   font-size: 0.82rem; opacity: 0.85; }
 .ox-key i { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 999px; }
-
-/* Map legend (Site Map, optev.app.map_view): one line saying what the marks in this view mean */
-.ox-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1.1rem;
-  margin: 0.2rem 0 0.7rem; font-size: 0.88rem; }
-.ox-legend .ox-key { margin: 0; opacity: 0.95; }
-.ox-legend-note { flex-basis: 100%; opacity: 0.65; font-size: 0.82rem; }
-.ox-ramp { display: inline-block; width: 7rem; height: 0.6rem; border-radius: 999px;
-  vertical-align: middle; margin: 0 0.35rem; }
-.ox-badge-mark { display: inline-flex; align-items: center; justify-content: center;
-  min-width: 1.6rem; height: 1.6rem; padding: 0 0.3rem; border-radius: 999px; margin-right: 0.4rem;
-  background: #0097B2; color: #fff; font-weight: 800; font-size: 0.72rem;
-  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,151,178,0.5); }
