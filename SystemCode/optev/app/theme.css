@@ -70,36 +70,46 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 [class*="st-key-cta"] [data-testid="stPageLink"] a { padding: 0.8rem 1.3rem; font-size: 1.02rem; }
 [data-testid="stDataFrame"] { border: 1px solid rgba(127,127,127,0.18); border-radius: 12px; }
 
-/* Ranked sites as tiles (Site Map, optev.app.ranking_view): the top three large and
-   highlighted with the brand gradient, the rest compact. Outcome colour comes in as --c. */
-.ox-rk-grid { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-.ox-rk-grid-top { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.1rem;
-  margin-bottom: 1.2rem; }
-.ox-rk { background: rgba(127,127,127,0.05); border: 1px solid rgba(127,127,127,0.16);
-  border-radius: 16px; padding: 0.95rem 1.05rem; }
-.ox-rk-top { position: relative; overflow: hidden; padding: 1.45rem 1.4rem 1.3rem;
-  border: 1px solid rgba(0,151,178,0.55);
-  background: linear-gradient(135deg, rgba(0,151,178,0.13) 0%, rgba(47,163,90,0.10) 100%);
-  box-shadow: 0 10px 28px -16px rgba(0,151,178,0.6); }
-.ox-rk-top::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(110deg, #0097B2 0%, #2FA35A 100%); }
-.ox-rk-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-.ox-rk-rank { font-weight: 800; font-size: 0.95rem; opacity: 0.75; }
-.ox-rk-top .ox-rk-rank { font-size: 1.55rem; opacity: 1;
-  background: linear-gradient(110deg, #0097B2 0%, #2FA35A 100%);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-.ox-rk-pill { font-size: 0.75rem; font-weight: 700; padding: 0.18rem 0.6rem; border-radius: 999px;
-  color: var(--c); border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
-.ox-rk-place { font-weight: 700; font-size: 1rem; line-height: 1.3; margin-top: 0.45rem; }
-.ox-rk-top .ox-rk-place { font-size: 1.18rem; }
-.ox-rk-meta { opacity: 0.7; font-size: 0.85rem; margin-top: 0.15rem; }
-.ox-rk-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem 0.8rem; margin-top: 0.8rem; }
-.ox-rk-num { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; }
-.ox-rk-top .ox-rk-num { font-size: 1.55rem; }
-.ox-rk-stat:first-child .ox-rk-num { color: #1BA7BF; }
-.ox-rk-lbl { opacity: 0.68; font-size: 0.74rem; line-height: 1.3; }
-.ox-rk-why { margin-top: 0.7rem; font-size: 0.8rem; opacity: 0.8; line-height: 1.4;
-  border-top: 1px solid rgba(127,127,127,0.16); padding-top: 0.55rem; }
+/* Ranked sites as a list (Site Map, optev.app.ranking_view): one line per site, columns
+   shared by every row, the top pick highlighted, and a row lifts under the cursor and shows
+   its reason. Neutral, translucent layers only, so it reads on the light and dark theme. */
+.ox-rl { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.35rem 0.5rem; }
+.ox-rl-row { display: grid; align-items: center; column-gap: 1rem;
+  grid-template-columns: 2.2rem minmax(0, 1fr) 7.2rem repeat(4, 5.6rem); }
+.ox-rl-head { padding: 0 1rem 0.35rem; font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.6;
+  border-bottom: 1px solid rgba(127,127,127,0.18); }
+.ox-rl-head em { display: block; font-style: normal; font-weight: 500; text-transform: none;
+  letter-spacing: 0; opacity: 0.85; }
+.ox-rl-item { position: relative; padding: 0.7rem 1rem; border-radius: 12px;
+  border: 1px solid rgba(127,127,127,0.12); background: rgba(127,127,127,0.035);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease,
+              border-color 160ms ease; }
+.ox-rl-item:hover { transform: scale(1.018); z-index: 2; background: rgba(127,127,127,0.08);
+  border-color: rgba(0,151,178,0.45); box-shadow: 0 12px 28px -14px rgba(0,0,0,0.45); }
+.ox-rl-top { background: rgba(0,151,178,0.09); border-color: rgba(0,151,178,0.4);
+  box-shadow: inset 3px 0 0 #0097B2; }
+.ox-rl-top:hover { background: rgba(0,151,178,0.13); }
+.ox-rl-rank { font-variant-numeric: tabular-nums; font-weight: 600; opacity: 0.55; }
+.ox-rl-top .ox-rl-rank { color: #1BA7BF; opacity: 1; }
+.ox-rl-site { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ox-rl-site b { font-weight: 650; }
+.ox-rl-meta { opacity: 0.6; font-size: 0.86rem; margin-left: 0.6rem; }
+.ox-rl-pick { margin-left: 0.6rem; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: #1BA7BF; border: 1px solid rgba(0,151,178,0.5);
+  border-radius: 6px; padding: 0.1rem 0.4rem; vertical-align: 1px; }
+.ox-rl-out { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.9rem; }
+.ox-rl-out i { width: 0.55rem; height: 0.55rem; border-radius: 999px; flex: none; }
+.ox-rl-num { text-align: right; font-variant-numeric: tabular-nums; }
+.ox-rl-item .ox-rl-num:nth-child(4) { font-weight: 700; color: #1BA7BF; }
+.ox-rl-why { max-height: 0; overflow: hidden; opacity: 0; font-size: 0.82rem;
+  padding-left: 3.2rem; transition: max-height 200ms ease, opacity 200ms ease, margin 200ms ease; }
+.ox-rl-item:hover .ox-rl-why { max-height: 3rem; opacity: 0.8; margin-top: 0.35rem; }
+@media (max-width: 760px) {
+  .ox-rl-row { grid-template-columns: 2rem minmax(0, 1fr) 6.4rem repeat(2, 4.8rem); }
+  .ox-rl-row > :nth-child(6), .ox-rl-row > :nth-child(7) { display: none; }
+  .ox-rl-meta { display: none; }
+}
 
 /* Ask Why answer card */
 .ox-answer { border: 1px solid rgba(127,127,127,0.18); border-radius: 18px; padding: 1.2rem 1.4rem;
