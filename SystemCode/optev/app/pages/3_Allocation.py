@@ -9,19 +9,14 @@ import pandas as pd
 import streamlit as st
 
 from optev.app.allocation_view import assumption_rows, infeasible, plan_rows, summary
-from optev.app.data import AppData, load
+from optev.app.data import shared
 from optev.app.shell import Request, plan
 from optev.contracts import Allocation, InfeasibilityReport
 
 st.set_page_config(page_title="OptEV+ · Allocation", page_icon="📍", layout="wide")
 
 
-@st.cache_data(ttl=300, show_spinner="Loading sites, decisions and demand…")
-def _data() -> AppData:
-    return load()
-
-
-data = _data()
+data = shared()  # one copy for every page and visitor (data.shared)
 st.title("Allocation")
 st.caption("How many new charging points go to each site, what they cost, and whether an "
            "independent checker agrees every limit holds. "

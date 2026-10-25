@@ -8,7 +8,7 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
-from optev.app.data import AppData, load
+from optev.app.data import shared
 from optev.app.shell import (
     OUTCOME_COLOURS,
     Request,
@@ -23,12 +23,7 @@ from optev.contracts import Allocation, InfeasibilityReport
 st.set_page_config(page_title="OptEV+ · Map", page_icon="⚡", layout="wide")
 
 
-@st.cache_data(ttl=300, show_spinner="Loading sites, decisions and demand…")
-def _data() -> AppData:
-    return load()
-
-
-data = _data()
+data = shared()  # one copy for every page and visitor (data.shared)
 
 # Sidebar: the planner's request (§1) -------------------------------------------------------
 st.sidebar.header("Request")
@@ -123,13 +118,13 @@ elif left.button("Select site", type="primary", disabled=pick is None):
     from optev.scenario.planned import select_site
 
     select_site(scenario, pick, int(n), selected_by="app")
-    st.cache_data.clear()
+    shared.clear()
     st.rerun()
 elif right.button("Clear selection", disabled=pick is None):
     from optev.scenario.planned import clear_selection
 
     clear_selection(scenario, pick)
-    st.cache_data.clear()
+    shared.clear()
     st.rerun()
 
 picked = next((s.planned for s in data.scenarios if s.scenario_id == scenario), [])
