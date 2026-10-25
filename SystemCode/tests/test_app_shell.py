@@ -254,6 +254,24 @@ def test_the_request_carries_from_one_page_to_the_next(monkeypatch, tmp_path):
     assert at.sidebar.number_input(key="req_points").value == 5
 
 
+def test_island_wide_stays_chosen_across_pages(monkeypatch, tmp_path):
+    # Island-wide is a real option: kept as None it read as "nothing chosen" on the next page.
+    from streamlit.testing.v1 import AppTest
+
+    from optev.app.ui import ISLAND_WIDE
+
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setattr(D, "ENV_FILE", tmp_path / ".env")
+    at = AppTest.from_file(str(Path(D.__file__).with_name("main.py")), default_timeout=90)
+    at.session_state[SESSION_KEY] = True
+    at.run()
+    at.switch_page("views/1_Map.py").run()
+    assert at.sidebar.selectbox(key="req_area").value == ISLAND_WIDE
+    at.switch_page("views/3_Allocation.py").run()
+    assert not at.exception
+    assert at.sidebar.selectbox(key="req_area").value == ISLAND_WIDE
+
+
 def test_postgres_names_read_as_words_not_capitals(monkeypatch):
     import psycopg
 

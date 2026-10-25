@@ -93,6 +93,9 @@ def source_note(data: AppData) -> None:
         st.caption("Live data: Singapore's charger and car park feeds, 7–14 Oct 2026.")
 
 
+ISLAND_WIDE = "all"
+
+
 def request_controls(data: AppData) -> Request:
     """The planner's request in the sidebar, with the same keys on Site Map and Allocation and
     kept for the whole session, so a choice made on one page is still there on the next."""
@@ -102,8 +105,10 @@ def request_controls(data: AppData) -> Request:
     with st.sidebar:
         st.markdown("### Your Request")
         st.caption("Where, how many, and under which growth scenario.")
-        area = st.selectbox("Planning Area", [None, *sorted(areas)], key="req_area",
-                            format_func=lambda c: "Island-Wide" if c is None
+        # Island-wide is a real option, not None: a kept None reads as "nothing chosen" and the
+        # box shows a placeholder on the next page
+        area = st.selectbox("Planning Area", [ISLAND_WIDE, *sorted(areas)], key="req_area",
+                            format_func=lambda c: "Island-Wide" if c == ISLAND_WIDE
                             else f"{areas.get(c, c)} ({c})", **keep)
         points = st.number_input("New Charging Points", min_value=0, value=12, step=1,
                                  key="req_points", **keep,
@@ -114,7 +119,8 @@ def request_controls(data: AppData) -> Request:
         scenario = st.selectbox("Growth Scenario", scenario_ids, key="req_scenario",
                                 index=scenario_ids.index("base") if "base" in scenario_ids else 0,
                                 format_func=lambda s: s.title(), **keep)
-    return Request(scenario, area, int(points) or None, float(budget) if use_budget else None)
+    return Request(scenario, None if area == ISLAND_WIDE else area, int(points) or None,
+                   float(budget) if use_budget else None)
 
 
 PAGE_SLUGS = ("site-map", "eligibility", "allocation", "demand", "ask-why")

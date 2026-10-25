@@ -113,24 +113,27 @@ st.caption("A selection is recorded as PLANNED capacity for this scenario only. 
 eligible_ids = [r["site_id"] for r in rows if r["outcome"] in ("accept", "conditional")]
 pick = st.selectbox("Site", eligible_ids, format_func=lambda i: L.site(data, i))
 n = st.number_input("Points to Plan There", min_value=1, value=2, step=1)
-left, right = st.columns(2)
 if read_only():
     st.info("This public demo is read-only: selections are switched off so the shared data stays "
             "as published. Run OptEV+ with your own database to record planned capacity.")
 elif data.source != "postgres":
     st.caption("Selections need the database (set `DATABASE_URL`); the sample is read-only.")
-elif left.button("Select Site", type="primary", disabled=pick is None):
-    from optev.scenario.planned import select_site
+else:
+    with st.container(horizontal=True, gap="small"):  # the two buttons side by side, no gap
+        selected = st.button("Select Site", type="primary", disabled=pick is None)
+        cleared = st.button("Clear Selection", disabled=pick is None)
+    if selected:
+        from optev.scenario.planned import select_site
 
-    select_site(scenario, pick, int(n), selected_by="app")
-    clear_data()
-    st.rerun()
-elif right.button("Clear Selection", disabled=pick is None):
-    from optev.scenario.planned import clear_selection
+        select_site(scenario, pick, int(n), selected_by="app")
+        clear_data()
+        st.rerun()
+    elif cleared:
+        from optev.scenario.planned import clear_selection
 
-    clear_selection(scenario, pick)
-    clear_data()
-    st.rerun()
+        clear_selection(scenario, pick)
+        clear_data()
+        st.rerun()
 
 picked = next((s.planned for s in data.scenarios if s.scenario_id == scenario), [])
 if picked:

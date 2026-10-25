@@ -54,7 +54,7 @@ question_type: str | None = None
 params: dict[str, str] = {}
 question = ""
 if mode == "In My Own Words":
-    question = st.text_input("Question", placeholder=shown[0])
+    question = st.text_input("Question", value=shown[0])  # a real example, ready to ask
     st.caption("Try: " + " · ".join(shown))
 else:
     question_type = st.selectbox("Question", list(QUESTIONS),
