@@ -42,9 +42,9 @@ video, **P2** before submission, **P3** nice to have.
 
 | # | Pri | Where | Issue | Fix |
 |---|---|---|---|---|
-| R1 | P1 | Eligibility | The rule register's Condition column shows internal names: "within MAX_SHARE_OF_LOTS of the car lots", "used under IDLE_BELOW of the time". | Write the values in words in `register.toml` conditions ("15% of the car lots", "5% of the time"), keeping the `optev.assumptions` names in a separate field or comment. |
-| R2 | P2 | Eligibility | The decision table opens on community clubs (sorted by id), most of them deferred for missing data. | Sort car parks first, then by outcome (reject, conditional, defer, accept) and place name. |
-| R3 | P3 | Eligibility | "If one failed rule were waived: waive Power Capacity Confirmed → defer" reads like code. | "Without *Power Capacity Confirmed* this site would be **Defer**." |
+| R1 ✅ | P1 | Eligibility | The rule register's Condition column shows internal names: "within MAX_SHARE_OF_LOTS of the car lots", "used under IDLE_BELOW of the time". | Write the values in words in `register.toml` conditions ("15% of the car lots", "5% of the time"), keeping the `optev.assumptions` names in a separate field or comment. |
+| R2 ✅ #111 | P2 | Eligibility | The decision table opens on community clubs (sorted by id), most of them deferred for missing data. | Sort car parks first, then by outcome (reject, conditional, defer, accept) and place name. |
+| R3 ✅ #111 | P3 | Eligibility | "If one failed rule were waived: waive Power Capacity Confirmed → defer" reads like code. | "Without *Power Capacity Confirmed* this site would be **Defer**." |
 
 ## Architecture and website, at a standard level
 
