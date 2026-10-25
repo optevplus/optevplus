@@ -177,7 +177,8 @@ Write 2 to 5 plain sentences for a government planner."""
 
 REFUSE_SCOPE = (
     "I can only answer questions about the sites, rules, demand, plans and assumptions in "
-    "the OptEV+ knowledge graph. Try: why was SYN-S-13 rejected?"
+    "the OptEV+ knowledge graph. Name a site by its id, for example: why was <site id> "
+    "rejected?"
 )
 
 

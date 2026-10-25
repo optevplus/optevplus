@@ -11,8 +11,19 @@ a projection for something that was measured (invariant 1, app/CLAUDE.md):
     planned      a planner's own selection
 """
 
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
+
+GRAPH_SETTINGS = ("NEO4J_URI", "NEO4J_USER", "NEO4J_PASSWORD")
+
+
+def missing_graph_settings(env: Mapping[str, str] = os.environ) -> list[str]:
+    """The Neo4j settings this deployment lacks (unset or empty). The page checks before it
+    queries, so a missing secret shows a message instead of a traceback."""
+    return [name for name in GRAPH_SETTINGS if not env.get(name)]
+
 
 # The questions a planner can pick without typing, with the parameters each needs.
 QUESTIONS: dict[str, tuple[str, tuple[str, ...]]] = {
