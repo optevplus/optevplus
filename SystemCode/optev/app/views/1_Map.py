@@ -9,9 +9,9 @@ import pydeck as pdk
 import streamlit as st
 
 from optev.app import labels as L
+from optev.app import map_view as MV
 from optev.app import ranking_view as RV
 from optev.app.shell import (
-    OUTCOME_COLOURS,
     demand_hexes,
     funnel,
     plan,
@@ -36,9 +36,9 @@ data = app_data()
 request = request_controls(data)
 area, scenario = request.planning_area, request.scenario_id
 
-page_header("Site", "Map", "Every candidate site, coloured by its eligibility and sized by the "
-            "new points the optimiser recommends. Change the request on the left and the plan "
-            "re-solves.", kicker="Plan")
+page_header("Site", "Map", "Where the new charging points go. Switch the map between the "
+            "recommended plan, each site's eligibility and inferred demand. Change the request "
+            "on the left and the plan re-solves.", kicker="Plan")
 source_note(data)
 
 allocation, origin = plan(data, request)
@@ -65,37 +65,23 @@ else:
                + ("an independent checker found no broken limit." if allocation.checked
                   else "not yet checked."))
 
-# Map ------------------------------------------------------------------------------------------
+# Map: one question at a time (optev.app.map_view) -----------------------------------------
 hexes = demand_hexes(rows)
 for r in rows:  # what the tooltip shows: words, not ids
     r["place"] = L.site(data, r["site_id"])
     r["type"] = L.KINDS.get(r["kind"], r["kind"])
     r["verdict"] = (r["outcome"] or "unscreened").title()
     r["why"] = f"({L.rules(r['failing_rules'])})" if r["failing_rules"] else ""
-centre = (sum(r["lat"] for r in rows) / len(rows), sum(r["lon"] for r in rows) / len(rows)) \
-    if rows else (1.3521, 103.8198)
+view = st.segmented_control("Show on the Map", MV.VIEWS, default=MV.PLAN,
+                            key="map_view") or MV.PLAN
+st.markdown(MV.legend(view, rows, hexes, counts), unsafe_allow_html=True)
+map_layers, tooltip = MV.layers(view, rows, hexes)
 st.pydeck_chart(pdk.Deck(
     map_style="dark" if is_dark() else "light",
-    initial_view_state=pdk.ViewState(latitude=centre[0], longitude=centre[1],
-                                     zoom=12.5 if area else 10.8),
-    layers=[
-        pdk.Layer("H3HexagonLayer", data=hexes, get_hexagon="hex", get_fill_color="shade",
-                  extruded=False, pickable=True, opacity=0.5),
-        pdk.Layer("ScatterplotLayer", data=rows, get_position="[lon, lat]",
-                  get_radius="radius", get_fill_color="colour", pickable=True,
-                  stroked=True, get_line_color=[255, 255, 255], line_width_min_pixels=1),
-    ],
-    tooltip={"html": "<b>{place}</b><br/>{type} · {verdict} {why}<br/>"
-                     "New points (recommended): {new_points (recommended)}<br/>"
-                     "Existing points (observed): {existing_points (observed)}<br/>"
-                     "Demand per hour (inferred): {demand_per_h (inferred)}"},
+    initial_view_state=MV.view_state(rows),
+    layers=map_layers,
+    tooltip={"html": tooltip},
 ))
-st.caption("Dot colour shows the eligibility outcome: " + " · ".join(
-    f"<span style='color:rgb({c[0]},{c[1]},{c[2]})'>●</span> {name}"
-    for name, c in OUTCOME_COLOURS.items() if name != "unscreened")
-    + ". Dot size shows the recommended new points. Blue hexagons show inferred demand "
-    "(arrivals per hour).",
-    unsafe_allow_html=True)
 
 # Ranking ------------------------------------------------------------------------------------
 section("Ranked Candidate Sites")
