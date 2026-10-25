@@ -86,3 +86,34 @@ def test_shared_addresses_get_distinct_labels_and_both_sites_resolve():
     assert L.resolve_names(q, data) == "Compare hdb:A76 and hdb:JS3L."
     assert L.resolve_names("Why was Blk 624A Jurong West Street 61 (468 lots) rejected?",
                            data) == "Why was hdb:JM12 rejected?"
+
+
+def test_answer_numbers_read_as_a_person_would_write_them(data):
+    t = L.tidy_numbers
+    assert t("at a cost of 46250.0, while") == "at a cost of S$46,250, while"
+    assert t("a cost of S$27750.0") == "a cost of S$27,750"
+    assert t("costing 111000") == "costing S$111,000"
+    assert t("a budget of 150000.00") == "a budget of S$150,000"
+    assert t("has 2010 parking lots") == "has 2,010 parking lots"  # a count, not a year
+    assert t("by 2030 the fleet grows") == "by 2030 the fleet grows"  # a year stays
+    assert t("3.222 arrivals and a share of 0.682") == "3.222 arrivals and a share of 0.682"
+    assert t("5.0 points") == "5 points"
+
+
+def test_block_numbers_in_names_are_not_reformatted(data):
+    from optev.app.data import AppData
+    from optev.contracts import CandidateSite, Coordinate, SiteKind
+
+    s = CandidateSite(site_id="hdb:X1", kind=SiteKind.HDB_CAR_PARK, total_lots=500,
+                      coord=Coordinate(lat=1.3, lon=103.8))
+    d = AppData("sample", [], [s], [], [], [], [], [], {}, [],
+                site_names={"hdb:X1": "Blk 1001 Jurong West Street 41"})
+    text, _ = L.readable_answer("hdb:X1 costs 9250.0 per point [hdb:X1].", d)
+    assert text == "Blk 1001 Jurong West Street 41 costs S$9,250 per point."
+
+
+def test_a_source_cited_without_its_prefix_still_shows_as_a_place(data):
+    sid = next(s.site_id for s in data.sites if s.site_id in data.site_names)
+    short = sid.rsplit(":", 1)[-1] if ":" in sid else sid
+    _, sources = L.readable_answer(f"It is busy [{short}].", data)
+    assert sources == [data.site_names[sid]]
